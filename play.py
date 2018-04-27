@@ -367,10 +367,11 @@ class playbulb(lightManager):
 			pass #already connected?
 
 	def _write(self, color):
-		#try:
-		self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color))
-		#except:
-		#	lightManager.debugger("Unhandled connection error for device " + str(self.device), 1)	
+		try:
+			self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color))
+		except:
+			#todo manage "overwritten" thread by queued requests
+			lightManager.debugger("Unhandled response. Thread died?", 0)	
 		lightManager.debugger("Playbulb " + str(self.device) + " color changed to " + color, 0)	
 
 	def _disconnect(self):
