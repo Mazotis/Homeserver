@@ -25,40 +25,6 @@ from __main__ import *
 
 journaling = False #do not edit - use the --journal option
 
-def runLights(lm, args):
-	#todo this should maybe not run outside of a class
-	lightManager.debugger("Validating arguments", 0)
-	if (args["hexvalues"] and (args["playbulb"] or args["milight"])):
-		lightManager.debugger("Got color hexvalues for milights and/or playbulbs and/or both devices in the same request, which is not supported. Use '" + sys.argv[0] + " -h' for help. Quitting", 2)
-		return;
-	if len(args["hexvalues"]) != len(lm.devices) and not args["notime"] and not args["off"] and not args["on"] and not args["playbulb"] and not args["milight"] and not args["toggle"]:
-		lightManager.debugger("Got " + str(len(args["hexvalues"])) + " color hexvalues, " + str(len(lm.devices)) + " expected. Use '" + sys.argv[0] + " -h' for help. Quitting", 2)
-		return;
-	if args["playbulb"] is not None:
-		lightManager.debugger("Received playbulb change request", 0) 
-		lm.setTypedColors(args["playbulb"], "playbulb")
-	elif args["milight"] is not None:
-		lightManager.debugger("Received milight change request", 0) 
-		lm.setTypedColors(args["milight"], "milight")
-	elif args["off"]:
-		lightManager.debugger("Received OFF change request", 0) 
-		lm.setColors(["0"] * len(lm.devices))
-	elif args["on"]:
-		lightManager.debugger("Received ON change request", 0) 
-		lm.setColors(["1"] * len(lm.devices))
-	elif args["toggle"]:
-		lightManager.debugger("Received TOGGLE change request", 0) 
-		lm.setColors(lm.getToggle())
-	else:
-		lightManager.debugger("Received color hexvalues length " + str(len(args["hexvalues"])) + " for " + str(len(lm.devices)) + " devices", 0) 
-		lm.setColors(args["hexvalues"])
-	if args["notime"] or args["off"]:
-		lightManager.debugger("Time check skipping requested", 0)
-		lm.skipTime()
-	lightManager.debugger("Arguments are OK", 0)
-	lm.run()
-	return;
-
 class lightServer(object):
 	def __init__(self, lm, host, port):
 		self.host = host
@@ -103,7 +69,7 @@ class lightServer(object):
 						lightManager.debugger("Rebooting KODI", 0)
 						self._setTv(2)
 					lightManager.debugger('Change of lights requested with args: ' + str(args), 0)
-					runLights(lm,args)
+					self._validate_and_execute_req(args)
 				else:
 					return False
 			except:
@@ -117,6 +83,40 @@ class lightServer(object):
 		lm.run()
 		time.sleep(3)
 		self.sock.close()
+
+	def _validate_and_execute_req(self, args):
+		lightManager.debugger("Validating arguments", 0)
+		if (args["hexvalues"] and (args["playbulb"] or args["milight"])):
+			lightManager.debugger("change Got color hexvalues for milights and/or playbulbs and/or both devices in the same request, which is not supported. Use '" + sys.argv[0] + " -h' for help. Quitting", 2)
+			return;
+		if len(args["hexvalues"]) != len(lm.devices) and not args["notime"] and not args["off"] and not args["on"] and not args["playbulb"] and not args["milight"] and not args["toggle"]:
+			lightManager.debugger("Got " + str(len(args["hexvalues"])) + " color hexvalues, " + str(len(lm.devices)) + " expected. Use '" + sys.argv[0] + " -h' for help. Quitting", 2)
+			return;
+		if args["playbulb"] is not None:
+			lightManager.debugger("Received playbulb change request", 0) 
+			lm.setTypedColors(args["playbulb"], "playbulb")
+		elif args["milight"] is not None:
+			lightManager.debugger("Received milight change request", 0) 
+			lm.setTypedColors(args["milight"], "milight")
+		elif args["off"]:
+			lightManager.debugger("Received OFF change request", 0) 
+			lm.setColors(["0"] * len(lm.devices))
+		elif args["on"]:
+			lightManager.debugger("Received ON change request", 0) 
+			lm.setColors(["1"] * len(lm.devices))
+		elif args["toggle"]:
+			lightManager.debugger("Received TOGGLE change request", 0) 
+			lm.setColors(lm.getToggle())
+		else:
+			lightManager.debugger("Received color hexvalues length " + str(len(args["hexvalues"])) + " for " + str(len(lm.devices)) + " devices", 0) 
+			lm.setColors(args["hexvalues"])
+		if args["notime"] or args["off"]:
+			lightManager.debugger("Time check skipping requested", 0)
+			lm.skipTime()
+		lightManager.debugger("Arguments are OK", 0)
+		lm.run()
+		return;
+
 
 	def _sanitize(self, args):
 		if "hexvalues" not in args:
@@ -535,7 +535,6 @@ if __name__ == "__main__":
 		s.sendall(json.dumps(vars(args)).encode('utf-8'))
 		s.close()
 
-		#runLights(lm,args)
 		sys.exit()
 else:
 	""" Script imported - var colors must be predefined and functions are limited"""
