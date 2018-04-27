@@ -97,24 +97,25 @@ class lightServer(object):
 			lightManager.debugger("Rebooting KODI", 0)
 			self._setTv(2)
 			return;
-		if args["playbulb"] is not None:
-			lightManager.debugger("Received playbulb change request", 0) 
-			lm.setTypedColors(args["playbulb"], "playbulb")
-		elif args["milight"] is not None:
-			lightManager.debugger("Received milight change request", 0) 
-			lm.setTypedColors(args["milight"], "milight")
-		elif args["off"]:
-			lightManager.debugger("Received OFF change request", 0) 
-			lm.setColors(["0"] * len(lm.devices))
-		elif args["on"]:
-			lightManager.debugger("Received ON change request", 0) 
-			lm.setColors(["1"] * len(lm.devices))
-		elif args["toggle"]:
-			lightManager.debugger("Received TOGGLE change request", 0) 
-			lm.setColors(lm.getToggle())
-		else:
+		if args["hexvalues"]:
 			lightManager.debugger("Received color hexvalues length " + str(len(args["hexvalues"])) + " for " + str(len(lm.devices)) + " devices", 0) 
 			lm.setColors(args["hexvalues"])
+		else:
+			if args["playbulb"] is not None:
+				lightManager.debugger("Received playbulb change request", 0) 
+				lm.setTypedColors(args["playbulb"], "playbulb")
+			if args["milight"] is not None:
+				lightManager.debugger("Received milight change request", 0) 
+				lm.setTypedColors(args["milight"], "milight")
+			if args["off"]:
+				lightManager.debugger("Received OFF change request", 0) 
+				lm.setColors(["0"] * len(lm.devices))
+			if args["on"]:
+				lightManager.debugger("Received ON change request", 0) 
+				lm.setColors(["1"] * len(lm.devices))
+			if args["toggle"]:
+				lightManager.debugger("Received TOGGLE change request", 0) 
+				lm.setColors(lm.getToggle())
 		if args["notime"] or args["off"]:
 			lightManager.debugger("Time check skipping requested", 0)
 			lm.skipTime()
