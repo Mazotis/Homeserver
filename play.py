@@ -42,7 +42,6 @@ class lightServer(object):
 		while True:
 			client, address = self.sock.accept()
 			lightManager.debugger('Connected with ' + address[0] + ':' + str(address[1]), 0)
-			client.send(str.encode(str(lm.state)))
 			client.settimeout(10)
 			threading.Thread(target = self.listenToClient,args = (client,address)).start()
 
@@ -52,8 +51,11 @@ class lightServer(object):
 			try:
 				data = client.recv(size)
 				if data:
+					if data.decode('utf-8') == "getstate":
+						client.send(str.encode(str(lm.state)))
+						client.close()
+						return False
 					try:
-						#todo handshaking
 						args = self._sanitize(json.loads(data.decode('utf-8')))
 					except: #fallback - data is not formatted
 						lightManager.debugger("Error - improperly formatted JSON", 2)
