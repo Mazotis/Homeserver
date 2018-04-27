@@ -82,7 +82,7 @@ class lightServer(object):
 		if (args["tvon"] and args["tvoff"]):
 			lightManager.debugger("Cannot ON and OFF the TV in the same request. Quitting.", 2)
 			return;			
-		if len(args["hexvalues"]) != len(lm.devices) and not any([args["notime"],args["off"], args["on"], args["playbulb"], args["milight"], args["toggle"], args["tvon"], args["tvoff"], args["tvrestart"]]):
+		if len(args["hexvalues"]) != len(lm.devices) and not any([args["notime"],args["off"], args["on"],args["playbulb"],args["milight"],args["toggle"],args["tvon"],args["tvoff"],args["tvrestart"]]):
 			lightManager.debugger("Got " + str(len(args["hexvalues"])) + " color hexvalues, " + str(len(lm.devices)) + " expected. Use '" + sys.argv[0] + " -h' for help. Quitting", 2)
 			return;
 		if args["tvon"]:
@@ -149,10 +149,10 @@ class lightServer(object):
 			args["tvoff"] = False;
 		if type(args["playbulb"]).__name__ == "str":
 			lightManager.debugger('Converting values to lists for playbulb', 0)
-			args["playbulb"] = args["playbulb"].split(',')
+			args["playbulb"] = args["playbulb"].replace("'","").split(',')
 		if type(args["milight"]).__name__ == "str":
 			lightManager.debugger('Converting values to lists for milight', 0)
-			args["milight"] = args["milight"].split(',')
+			args["milight"] = args["milight"].replace("'","").split(',')
 		return args
 
 	def _setTv(self, value):
