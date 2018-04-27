@@ -1,4 +1,12 @@
 #!/usr/bin/env python3
+'''
+    File name: play.py
+    Author: Maxime Bergeron
+    Date last modified: 04/27/2018
+    Python Version: 3.7
+
+    A python websocket server/client to control various cheap IoT RGB BLE lightbulbs and HDMI-CEC-to-TV RPi3
+'''
 import os
 import os.path
 import sys
@@ -18,6 +26,7 @@ from __main__ import *
 journaling = False #do not edit - use the --journal option
 
 def runLights(lm, args):
+	#todo this should maybe not run outside of a class
 	lightManager.debugger("Validating arguments", 0)
 	if (args["hexvalues"] and (args["playbulb"] or args["milight"])):
 		lightManager.debugger("Got color hexvalues for milights and/or playbulbs and/or both devices in the same request, which is not supported. Use '" + sys.argv[0] + " -h' for help. Quitting", 2)
@@ -78,10 +87,12 @@ class lightServer(object):
 				data = client.recv(size)
 				if data:
 					try:
+						#todo handshaking
 						args = self._sanitize(json.loads(data.decode('utf-8')))
-					except: #fallback - data is not serialized
+					except: #fallback - data is not formatted
 						lightManager.debugger("Error - improperly formatted JSON", 2)
 						return
+					#todo move this Away
 					if args["tvon"]:
 						lightManager.debugger("Setting TV on", 0)
 						self._setTv(1)
@@ -154,12 +165,14 @@ class lightManager(object):
 	def __init__(self):
 		## TWEAKABLES ##
 		self.devices = []
+		#todo Dynamic instanciation
+		#todo allow reporting of device state to the lightserver
 		self.devices.append(playbulb("D1:F6:4B:14:AC:E6", "Playbulb facing the sofa"))
 		self.devices.append(playbulb("09:5F:4B:15:AC:E6", "Playbulb facing the entrance"))
 		self.devices.append(playbulb("07:B2:4B:15:AC:E6", "Playbulb facing the TV"))
 		self.devices.append(milight("88:C2:55:01:02:B1", "80", "112", "Milight living room, TV side"))
 		self.devices.append(milight("80:30:DC:DE:73:74", "38", "98", "Milight living room, sofa side"))
-		self.starttime = datetime.time(18,00) #Heure du demarrage
+		self.starttime = datetime.time(18,00) #Heure du demarrage.
 		self.queue = Queue()
 		self.colors = ["0"] * len(self.devices)
 		self.state = ["0"] * len(self.devices)
@@ -168,6 +181,7 @@ class lightManager(object):
 
 	def skipTime(self, hour = 3):
 		lightManager.debugger("Skipping time check", 0)
+		#todo make this really time independent
 		self.starttime = datetime.time(hour,00)
 
 	def setColors(self, color):
@@ -192,6 +206,7 @@ class lightManager(object):
 	def run(self):
 		if(self._checkTime()):
 			self.queue.put(self.colors)
+			#todo Manage locking out when the run thread hangs
 			lightManager.debugger("Locked status: " + str(self.locked), 0)
 			if not self.locked:
 				self._setLights()
@@ -210,6 +225,7 @@ class lightManager(object):
 	def enableJournaling(self):
 		global journaling
 		journaling = True
+		#todo Dynamic history limits
 		if os.path.isfile("/home/pi/play/play.0.log"):
 			if os.path.isfile("/home/pi/play/play.1.log"):
 				if os.path.isfile("/home/pi/play/play.2.log"):
@@ -220,13 +236,14 @@ class lightManager(object):
 	def _setLights(self):
 		""" Threading du changement des couleurs """
 		lightManager.debugger("Running a change of lights...", 0)
-		colors = self.queue.get()
+		colors = self.queue.get() #todo Check performance
 		lightManager.debugger("Changing colors to " + str(colors) + " from state " + str(self.state), 0)
 		self.locked = 1
 		i = 0
 
 		while i < len(self.devices):
 			if not self.queue.empty():
+			#todo check if this is required still
 				lightManager.debugger("Getting remainder of queue", 0)
 				self.queue.task_done()
 				colors = self.queue.get()
@@ -252,6 +269,7 @@ class lightManager(object):
 		self.locked = 0
 
 	def _checkTime(self, hours = 3, minutes = 0):
+		#todo Check if we keep this...
 #		if datetime.datetime.now().time() < self.starttime:
 #			lightManager.debugger("Too soon, no change of light required", 0)
 #			return 0;
@@ -293,6 +311,7 @@ class playbulb(lightManager):
 	def __init__(self, device, description):
 		self.device = device
 		self.description = description
+		#todo get actual color at instanciation
 		self.actualcolor = 0
 		self.success = False
 		self._connection = None
@@ -303,7 +322,7 @@ class playbulb(lightManager):
 	def color(self, color):
 		if (self.success):
 			return
-		elif (color == "-1"):
+		elif (color == "-1"): #todo Put in constant for readability
 			self.success = True
 			return
 		if (self.actualcolor == color):
@@ -312,6 +331,7 @@ class playbulb(lightManager):
 			return
 		if (self._connection is None):
 			self._connect()
+			#todo deprecate these workarounds somehow
 		if (color == "0"):
 			color = "00000000"
 		elif (color == "1"):
@@ -320,6 +340,7 @@ class playbulb(lightManager):
 		lightManager.debugger("Changing playbulb " + str(self.device) + " color to " + color, 0)
 		ble_thread = threading.Thread(target=self._write, args=(color,))
 		ble_thread.start()
+		#todo do they need joining for future error handling?
 		self.success = True
 		#self._disconnect()
 		return
@@ -330,6 +351,7 @@ class playbulb(lightManager):
 
 	def _connect(self):
 		try:
+		#todo test connection before trying?
 			lightManager.debugger("CONnecting to device  " + str(self.device), 0)
 			connection = ble.Peripheral(self.device, ble.ADDR_TYPE_PUBLIC, 0)
 			self._connection = connection.withDelegate(self)
@@ -380,6 +402,7 @@ class milight(lightManager):
 		self._sendrequest(self.getquery(20, 161, 5, self.id1, self.id2, 200, 4, 50), color)
 
 	def color(self, color):
+		#todo rrggbb to ...this format...
 		if (self.success):
 			return
 		elif (color == "-1"):
@@ -469,6 +492,7 @@ class milight(lightManager):
 
 """ Script executed directly """
 if __name__ == "__main__":
+	#todo externalize?
 	lm = lightManager()
 
 	parser = argparse.ArgumentParser(description='BLE light bulbs manager script', epilog=lm.descriptions(), formatter_class=RawTextHelpFormatter)
@@ -492,8 +516,10 @@ if __name__ == "__main__":
 		lightManager.debugger("You cannot start the daemon and send arguments at the same time.", 2)
 		sys.exit()
 
+	#todo do not hardcode this
 	HOST = '192.168.1.50'
 	PORT = 1111
+	
 	if args.journal:
 		lm.enableJournaling()
 	if args.server:
@@ -503,6 +529,7 @@ if __name__ == "__main__":
 	else:
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		s.connect((HOST, PORT))
+		#todo report connection errors or allow feedback response
 		lightManager.debugger('Connecting with lightmanager daemon', 0)
 		lightManager.debugger('Sending request: ' + json.dumps(vars(args)), 0)
 		s.sendall(json.dumps(vars(args)).encode('utf-8'))
@@ -512,6 +539,7 @@ if __name__ == "__main__":
 		sys.exit()
 else:
 	""" Script imported - var colors must be predefined and functions are limited"""
+	#todo deprecate this?
 	lm = lightManager()
 
 	try:
