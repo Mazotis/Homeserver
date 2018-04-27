@@ -58,16 +58,6 @@ class lightServer(object):
 					except: #fallback - data is not formatted
 						lightManager.debugger("Error - improperly formatted JSON", 2)
 						return
-					#todo move this Away
-					if args["tvon"]:
-						lightManager.debugger("Setting TV on", 0)
-						self._setTv(1)
-					if args["tvoff"]:
-						lightManager.debugger("Setting TV off", 0)
-						self._setTv(0)
-					if args["tvrestart"]:
-						lightManager.debugger("Rebooting KODI", 0)
-						self._setTv(2)
 					lightManager.debugger('Change of lights requested with args: ' + str(args), 0)
 					self._validate_and_execute_req(args)
 				else:
@@ -89,8 +79,23 @@ class lightServer(object):
 		if (args["hexvalues"] and (args["playbulb"] or args["milight"])):
 			lightManager.debugger("change Got color hexvalues for milights and/or playbulbs and/or both devices in the same request, which is not supported. Use '" + sys.argv[0] + " -h' for help. Quitting", 2)
 			return;
-		if len(args["hexvalues"]) != len(lm.devices) and not args["notime"] and not args["off"] and not args["on"] and not args["playbulb"] and not args["milight"] and not args["toggle"]:
+		if (args["tvon"] and args["tvoff"]):
+			lightManager.debugger("Cannot ON and OFF the TV in the same request. Quitting.", 2)
+			return;			
+		if len(args["hexvalues"]) != len(lm.devices) and not any([args["notime"],args["off"], args["on"], args["playbulb"], args["milight"], args["toggle"], args["tvon"], args["tvoff"], args["tvrestart"]]):
 			lightManager.debugger("Got " + str(len(args["hexvalues"])) + " color hexvalues, " + str(len(lm.devices)) + " expected. Use '" + sys.argv[0] + " -h' for help. Quitting", 2)
+			return;
+		if args["tvon"]:
+			lightManager.debugger("Setting TV on", 0)
+			self._setTv(1)
+			return; #Do not accept any more requests for now.
+		if args["tvoff"]:
+			lightManager.debugger("Setting TV off", 0)
+			self._setTv(0)
+			return;
+		if args["tvrestart"]:
+			lightManager.debugger("Rebooting KODI", 0)
+			self._setTv(2)
 			return;
 		if args["playbulb"] is not None:
 			lightManager.debugger("Received playbulb change request", 0) 
@@ -116,7 +121,6 @@ class lightServer(object):
 		lightManager.debugger("Arguments are OK", 0)
 		lm.run()
 		return;
-
 
 	def _sanitize(self, args):
 		if "hexvalues" not in args:
