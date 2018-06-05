@@ -276,11 +276,11 @@ class lightManager(object):
 
 	def _checkTime(self, hours = 3, minutes = 0):
 		#todo Check if we keep this...
-#		if datetime.datetime.now().time() < self.starttime:
-#			lightManager.debugger("Too soon, no change of light required", 0)
-#			return 0;
-#		else:
-		return 1;
+		if datetime.datetime.now().time() < self.starttime and datetime.datetime.now().time() > datetime.time(6,00):
+			lightManager.debugger("Too soon, no change of light required", 0)
+			return 0;
+		else:
+			return 1;
 
 	def _reinit(self):
 		# Resets the Success bool to False to force a light change
