@@ -94,7 +94,6 @@ class lightServer(object):
 		if args["tvoff"]:
 			lightManager.debugger("Setting TV off", 0)
 			self._setTv(0)
-			return;
 		if args["tvrestart"]:
 			lightManager.debugger("Rebooting KODI", 0)
 			self._setTv(2)
