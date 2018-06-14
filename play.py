@@ -70,7 +70,7 @@ class lightServer(object):
 
 	def removeServer(self, signal, frame):
 		lightManager.debugger("Closing down server and lights.", 0)
-		lm.skipTime()
+		lm.skipTime(0)
 		lm.setColors(["0"] * len(lm.devices))
 		lm.run()
 		time.sleep(3)
@@ -118,8 +118,7 @@ class lightServer(object):
 				lightManager.debugger("Received TOGGLE change request", 0) 
 				lm.setColors(lm.getToggle())
 		if args["notime"] or args["off"]:
-			lightManager.debugger("Time check skipping requested", 0)
-			lm.skipTime()
+			lm.skipTime(0)
 		lightManager.debugger("Arguments are OK", 0)
 		lm.run()
 		return;
@@ -178,17 +177,21 @@ class lightManager(object):
 		self.devices.append(playbulb("07:B2:4B:15:AC:E6", "Playbulb facing the TV"))
 		self.devices.append(milight("88:C2:55:01:02:B1", "80", "112", "Milight living room, TV side"))
 		self.devices.append(milight("80:30:DC:DE:73:74", "38", "98", "Milight living room, sofa side"))
-		self.starttime = datetime.time(18,00) #Heure du demarrage.
+		self.starttime = datetime.time(18,00) #Light change minimal time
+		self.skiptime = 0
 		self.queue = Queue()
 		self.colors = ["0"] * len(self.devices)
 		self.state = ["0"] * len(self.devices)
 		self.locked = 0
 		self.journaling = False
 
-	def skipTime(self, hour = 3):
-		lightManager.debugger("Skipping time check", 0)
-		#todo make this really time independent
-		self.starttime = datetime.time(hour,00)
+	def skipTime(self, serverwide = 0):
+		if (serverwide):
+			lightManager.debugger("Skipping time check for all requests", 0)
+			self.starttime = None
+		else:
+			lightManager.debugger("Skipping time check", 0)
+			self.skiptime = 1
 
 	def setColors(self, color):
 		self.colors = color
@@ -279,11 +282,15 @@ class lightManager(object):
 
 	def _checkTime(self, hours = 3, minutes = 0):
 		#todo Check if we keep this...
-		if datetime.datetime.now().time() < self.starttime and datetime.datetime.now().time() > datetime.time(6,00):
-			lightManager.debugger("Too soon, no change of light required", 0)
-			return 0;
+		if (self.skiptime or self.starttime is None):
+			self.skiptime = 0
+			return 1
 		else:
-			return 1;
+			if datetime.time(6,00) < datetime.datetime.now().time() < self.starttime:
+				lightManager.debugger("Too soon, no change of light required", 0)
+				return 0;
+			else:
+				return 1;
 
 	def _reinit(self):
 		# Resets the Success bool to False to force a light change
@@ -540,7 +547,7 @@ if __name__ == "__main__":
 		lm.enableJournaling()
 	if args.server:
 		if args.notime:
-			lm.skipTime()
+			lm.skipTime(1)
 		lightServer(lm,HOST,PORT).listen()
 	else:
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -567,8 +574,7 @@ else:
 		lm.setColors(colors)
 		if len(colors) == len(lm.devices)+1:
 			if colors[len(lm.devices)] == "1":
-				lightManager.debugger("Time check skipping requested", 0)
-				lm.skipTime()
+				lm.skipTime(0)
 	lm.run()
 	sys.exit()
 
