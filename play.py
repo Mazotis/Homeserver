@@ -242,20 +242,18 @@ class lightManager(object):
 	def _setLights(self):
 		""" Threading du changement des couleurs """
 		lightManager.debugger("Running a change of lights...", 0)
-		colors = self.queue.get() #todo Check performance
+		if not self.queue.empty():
+			colors = self.queue.get() #todo Check performance
+		else:
+			return
+		lightThreads = [None] * len(self.devices)
 		lightManager.debugger("Changing colors to " + str(colors) + " from state " + str(self.state), 0)
 		self.locked = 1
 		i = 0
 
 		while i < len(self.devices):
-			if not self.queue.empty():
-			#todo check if this is required still
-				lightManager.debugger("Getting remainder of queue", 0)
-				self.queue.task_done()
-				colors = self.queue.get()
-				self._reinit()
 			if colors[i] != self.state[i] or (colors[i] == "0" and self.state[i] == "0"):
-				self.devices[i].color(colors[i])
+				lightThreads[i] = self.devices[i].color(colors[i])
 				if (colors[i] != "-1"):
 					self.state[i] = colors[i]
 			if colors[i] == self.state[i]:
@@ -267,12 +265,17 @@ class lightManager(object):
 			else:
 				i += 1
 
+		for _thread in lightThreads:
+			_thread.join()
+		if not self.queue.empty():
+			lightManager.debugger("Getting remainder of queue", 0)
+			self._reinit()
+			return self._setLights()
 		lightManager.debugger("Change of lights completed.", 0)
 
 		self._reinit()
-
-		self.queue.task_done()
 		self.locked = 0
+		self.queue.task_done()
 
 	def _checkTime(self, hours = 3, minutes = 0):
 		#todo Check if we keep this...
@@ -327,14 +330,14 @@ class playbulb(lightManager):
 
 	def color(self, color):
 		if (self.success):
-			return
+			return None
 		elif (color == "-1"): #todo Put in constant for readability
 			self.success = True
-			return
+			return None
 		if (self.actualcolor == color):
 			self.success = True
 			lightManager.debugger("Bulb " + str(self.device) + " is already of the requested color, skipping.", 0)
-			return
+			return None
 		if (self._connection is None):
 			self._connect()
 			#todo deprecate these workarounds somehow
@@ -349,7 +352,7 @@ class playbulb(lightManager):
 		#todo do they need joining for future error handling?
 		self.success = True
 		#self._disconnect()
-		return
+		return ble_thread
 
 	def descriptions(self):
 		desctext = "[Playbulb MAC: " + self.device + "] " + self.description
@@ -405,34 +408,40 @@ class milight(lightManager):
 	def turnoff(self):
 		self._sendrequest(self.getquery(32, 161, 2, self.id1, self.id2), "0")
 
+	def turnOnAndSetColor(self, color):
+		self._sendrequest(self.getquery(32, 161, 1, self.id1, self.id2), "1")
+		self._sendrequest(self.getquery(45, 161, 4, self.id1, self.id2, color, 2, 50), color)
+
 	def dimon(self, color):
 		self._sendrequest(self.getquery(20, 161, 5, self.id1, self.id2, 200, 4, 50), color)
 
 	def color(self, color):
 		#todo rrggbb to ...this format...
 		if (self.success):
-			return
+			return None
 		elif (color == "-1"):
 			self.success = True
-			return
+			return None
 		if color == "0":
 			lightManager.debugger("Turning milight " + self.device + " off", 0)
-			self.turnoff()
-			return
+			ml_thread = threading.Thread(target=self.turnoff)
+			ml_thread.start()
+			return ml_thread
 		elif (self.actualcolor == color):
 			self.success = True
 			lightManager.debugger("Device (milight) " + str(self.device) + " is already of the requested color, skipping.", 0)
-			return
+			return None
 		elif color == "1":
 			lightManager.debugger("Turning milight " + self.device + " on", 0)
 			self.turnon()
-			self.dimon(color)			
+			ml_thread = threading.Thread(target=self.dimon, args=(color,))
+			ml_thread.start()
+			return ml_thread		
 		else:
 			lightManager.debugger("Changing milight " + self.device + " color", 0)
-			self.turnon()
-			self._sendrequest(self.getquery(45, 161, 4, self.id1, self.id2, color, 2, 50), color)
-		if (self.success):
-			return
+			ml_thread = threading.Thread(target=self.turnOnAndSetColor, args=(color,))
+			ml_thread.start()
+			return ml_thread
 
 	def getquery(self, value1, value2, value3, id1, id2, value4 = 0, value5 = 2, value6 = 0):
 		"""
