@@ -255,21 +255,16 @@ class lightManager(object):
 		i = 0
 
 		while i < len(self.devices):
+			lightManager.debugger("Requested colors: " + str(colors) + " from state " + str(self.state) + " i = " + str(i), 0)
 			if colors[i] != self.state[i] or (colors[i] == "0" and self.state[i] == "0"):
 				lightThreads[i] = self.devices[i].color(colors[i])
 				if (colors[i] != "-1"):
 					self.state[i] = colors[i]
-			if colors[i] == self.state[i]:
-				colors[i] = "-1"
-			
-			lightManager.debugger("Requested colors: " + str(colors) + " from state " + str(self.state) + " i = " + str(i), 0)
-			if (colors != ["-1"] * len(self.devices) and int(i) == len(self.devices)-1):
-				i = 0
-			else:
-				i += 1
+			i += 1
 
 		for _thread in lightThreads:
-			_thread.join()
+			if (_thread is not None):
+				_thread.join()
 		if not self.queue.empty():
 			lightManager.debugger("Getting remainder of queue", 0)
 			self._reinit()
