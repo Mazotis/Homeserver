@@ -183,6 +183,7 @@ class lightManager(object):
 		self.colors = ["0"] * len(self.devices)
 		self.state = ["0"] * len(self.devices)
 		self.locked = 0
+		self.lockcount = 0
 		self.journaling = False
 
 	def skipTime(self, serverwide = 0):
@@ -217,8 +218,10 @@ class lightManager(object):
 			self.queue.put(self.colors)
 			#todo Manage locking out when the run thread hangs
 			lightManager.debugger("Locked status: " + str(self.locked), 0)
-			if not self.locked:
+			if not self.locked or self.lockcount == 2:
 				self._setLights()
+			else:
+				self.lockcount = self.lockcount + 1
 
 	def descriptions(self):
 		desctext = ""
@@ -245,6 +248,7 @@ class lightManager(object):
 	def _setLights(self):
 		""" Threading du changement des couleurs """
 		lightManager.debugger("Running a change of lights...", 0)
+		self.lockcount = 0
 		if not self.queue.empty():
 			colors = self.queue.get() #todo Check performance
 		else:
