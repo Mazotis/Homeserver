@@ -15,6 +15,7 @@ import time
 import datetime
 import socket
 import threading
+from multiprocessing.pool import ThreadPool
 import json
 import signal
 import bluepy.btle as ble
@@ -24,6 +25,7 @@ from argparse import Namespace
 from __main__ import *
 
 journaling = False #do not edit - use the --journal option
+
 
 class lightServer(object):
 	def __init__(self, lm, host, port):
@@ -254,21 +256,32 @@ class lightManager(object):
 		else:
 			return
 		lightThreads = [None] * len(self.devices)
+		lightPool = ThreadPool(processes=4)
 		lightManager.debugger("Changing colors to " + str(colors) + " from state " + str(self.state), 0)
 		self.locked = 1
 		i = 0
+		tries = 0
 
 		while i < len(self.devices):
 			lightManager.debugger("Requested colors: " + str(colors) + " from state " + str(self.state) + " i = " + str(i), 0)
 			if colors[i] != self.state[i] or (colors[i] == "0" and self.state[i] == "0"):
-				lightThreads[i] = self.devices[i].color(colors[i])
+				lightThreads[i] = lightPool.apply_async(self.devices[i].color, args=(colors[i],))
 				if (colors[i] != "-1"):
 					self.state[i] = colors[i]
 			i += 1
 
-		for _thread in lightThreads:
-			if (_thread is not None):
-				_thread.join()
+			if (i == len(self.devices)):
+				if (tries == 5):
+					break
+				lightManager.debugger("Awaiting results", 0)
+				for _thread in lightThreads:
+					if (_thread is not None):
+						try:
+							_thread.get(5)
+						except:
+							i = 0
+							tries = tries + 1
+
 		if not self.queue.empty():
 			lightManager.debugger("Getting remainder of queue", 0)
 			self._reinit()
@@ -336,14 +349,14 @@ class playbulb(lightManager):
 
 	def color(self, color):
 		if (self.success):
-			return None
+			return True
 		elif (color == "-1"): #todo Put in constant for readability
 			self.success = True
-			return None
+			return True
 		if (self.actualcolor == color):
 			self.success = True
 			lightManager.debugger("Bulb " + str(self.device) + " is already of the requested color, skipping.", 0)
-			return None
+			return True
 		if (self._connection is None):
 			self._connect()
 			#todo deprecate these workarounds somehow
@@ -353,12 +366,8 @@ class playbulb(lightManager):
 			color = "05000000"
 		self.actualcolor = color
 		lightManager.debugger("Changing playbulb " + str(self.device) + " color to " + color, 0)
-		ble_thread = threading.Thread(target=self._write, args=(color,))
-		ble_thread.start()
-		#todo do they need joining for future error handling?
-		self.success = True
-		#self._disconnect()
-		return ble_thread
+		self._write(color)
+		return True
 
 	def descriptions(self):
 		desctext = "[Playbulb MAC: " + self.device + "] " + self.description
@@ -374,7 +383,7 @@ class playbulb(lightManager):
 		except (ble.BTLEException, RuntimeError):
 			lightManager.debugger("Device " + str(self.device) + " connection failed. Already connected?", 1)
 			#self._connect()
-			pass #already connected?
+			#already connected?
 
 	def _write(self, color):
 		try:
@@ -415,39 +424,44 @@ class milight(lightManager):
 		self._sendrequest(self.getquery(32, 161, 2, self.id1, self.id2), "0")
 
 	def turnOnAndSetColor(self, color):
-		self._sendrequest(self.getquery(32, 161, 1, self.id1, self.id2), "1")
+		self.turnon()
 		self._sendrequest(self.getquery(45, 161, 4, self.id1, self.id2, color, 2, 50), color)
+
+	def turnOnAndDimOn(self, color):
+		self.turnon()
+		self.dimon(color)
 
 	def dimon(self, color):
 		self._sendrequest(self.getquery(20, 161, 5, self.id1, self.id2, 200, 4, 50), color)
 
-	def color(self, color):
+	def color(self, color, pool = None):
 		#todo rrggbb to ...this format...
 		if (self.success):
-			return None
+			return True
 		elif (color == "-1"):
 			self.success = True
-			return None
+			return True
+		if (self._connection is None):
+			if(not self._connect()):
+				return False
+		mlTarget = None
 		if color == "0":
 			lightManager.debugger("Turning milight " + self.device + " off", 0)
-			ml_thread = threading.Thread(target=self.turnoff)
-			ml_thread.start()
-			return ml_thread
+			self.turnoff()
+			return True
 		elif (self.actualcolor == color):
 			self.success = True
 			lightManager.debugger("Device (milight) " + str(self.device) + " is already of the requested color, skipping.", 0)
-			return None
+			return True
 		elif color == "1":
 			lightManager.debugger("Turning milight " + self.device + " on", 0)
-			self.turnon()
-			ml_thread = threading.Thread(target=self.dimon, args=(color,))
-			ml_thread.start()
-			return ml_thread		
+			self.dimon(color)
+			return True
 		else:
 			lightManager.debugger("Changing milight " + self.device + " color", 0)
-			ml_thread = threading.Thread(target=self.turnOnAndSetColor, args=(color,))
-			ml_thread.start()
-			return ml_thread
+			self.turnOnAndSetColor(color)
+			return True
+
 
 	def getquery(self, value1, value2, value3, id1, id2, value4 = 0, value5 = 2, value6 = 0):
 		"""
@@ -463,7 +477,6 @@ class milight(lightManager):
 		return desctext
 
 	def _sendrequest(self, command, color):
-		self._connect()
 		try:
 			self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(command.replace('\n', '').replace('\r', '')))
 		except:
@@ -478,15 +491,17 @@ class milight(lightManager):
 			lightManager.debugger("CONnecting to device (milight) " + str(self.device), 0)
 			connection = ble.Peripheral(self.device)
 			self._connection = connection.withDelegate(self)
-		except (ble.BTLEException, RuntimeError):
-			lightManager.debugger("Device (milight) " + str(self.device) + " connection failed. Already connected?", 1)
+			return True
+		except:
+			lightManager.debugger("Device (milight) " + str(self.device) + " connection failed.", 1)
+			return False
 			#self._connect()
-			pass #already connected?
+			#already connected?
 
 	def _disconnect(self):
 		try:
 			self._connection.disconnect()
-		except ble.BTLEException:
+		except:
 			lightManager.debugger("Device (milight) " + str(self.device) + " disconnection failed. Already disconnected?", 1)        	
 			pass
 
@@ -511,6 +526,7 @@ class milight(lightManager):
 		hexs = [x.zfill(2) for x in hexs]
 
 		return ''.join(hexs)
+
 
 """ Script executed directly """
 if __name__ == "__main__":
