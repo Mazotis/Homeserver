@@ -15,6 +15,7 @@ import time
 import datetime
 import socket
 import threading
+import functools
 from multiprocessing.pool import ThreadPool
 import json
 import signal
@@ -26,6 +27,23 @@ from __main__ import *
 
 journaling = False #do not edit - use the --journal option
 
+###
+
+def connect_ble(f):
+	@functools.wraps(f)
+	def _conn_wrap(self, *args):
+		if (self._connection is None):
+			try:
+				lightManager.debugger("CONnecting to device ({}) {}".format(self.deviceType, self.device), 0)
+				connection = ble.Peripheral(self.device)
+				self._connection = connection.withDelegate(self)
+			except:
+				lightManager.debugger("Device ({}) {} connection failed.",format(self.deviceType, self.device), 1)
+				self._connection = None
+		return f(self, *args)
+	return _conn_wrap
+
+###
 
 class lightServer(object):
 	def __init__(self, lm, host, port):
@@ -259,6 +277,7 @@ class lightManager(object):
 		lightPool = ThreadPool(processes=4)
 		lightManager.debugger("Changing colors to " + str(colors) + " from state " + str(self.state), 0)
 		self.locked = 1
+		oldstates = [None] * len(self.devices)
 		i = 0
 		tries = 0
 
@@ -267,20 +286,24 @@ class lightManager(object):
 			if colors[i] != self.state[i] or (colors[i] == "0" and self.state[i] == "0"):
 				lightThreads[i] = lightPool.apply_async(self.devices[i].color, args=(colors[i],))
 				if (colors[i] != "-1"):
+					oldstates[i] = self.state[i]
 					self.state[i] = colors[i]
 			i += 1
 
 			if (i == len(self.devices)):
-				if (tries == 5):
-					break
 				lightManager.debugger("Awaiting results", 0)
-				for _thread in lightThreads:
+				for _cnt, _thread in enumerate(lightThreads):
 					if (_thread is not None):
 						try:
-							_thread.get(5)
+							if (not _thread.get(5)):
+								self.state[_cnt] = oldstates[_cnt]
+								i = 0
 						except:
+							self.state[_cnt] = oldstates[_cnt]
 							i = 0
-							tries = tries + 1
+				tries = tries + 1
+				if (tries == 5):
+					break
 
 		if not self.queue.empty():
 			lightManager.debugger("Getting remainder of queue", 0)
@@ -337,6 +360,7 @@ class lightManager(object):
 class playbulb(lightManager):
 	""" Methods for driving a rainbow BLE lightbulb """
 	def __init__(self, device, description):
+		self.deviceType = "playbulb"
 		self.device = device
 		self.description = description
 		#todo get actual color at instanciation
@@ -357,41 +381,34 @@ class playbulb(lightManager):
 			self.success = True
 			lightManager.debugger("Bulb " + str(self.device) + " is already of the requested color, skipping.", 0)
 			return True
-		if (self._connection is None):
-			self._connect()
-			#todo deprecate these workarounds somehow
 		if (color == "0"):
 			color = "00000000"
 		elif (color == "1"):
 			color = "05000000"
 		self.actualcolor = color
 		lightManager.debugger("Changing playbulb " + str(self.device) + " color to " + color, 0)
-		self._write(color)
+		if (not self._write(color)): return False
 		return True
 
 	def descriptions(self):
 		desctext = "[Playbulb MAC: " + self.device + "] " + self.description
 		return desctext
 
-	def _connect(self):
-		try:
-		#todo test connection before trying?
-			lightManager.debugger("CONnecting to device  " + str(self.device), 0)
-			connection = ble.Peripheral(self.device, ble.ADDR_TYPE_PUBLIC, 0)
-			self._connection = connection.withDelegate(self)
-			lightManager.debugger("CONnected to device  " + str(self.device), 0)
-		except (ble.BTLEException, RuntimeError):
-			lightManager.debugger("Device " + str(self.device) + " connection failed. Already connected?", 1)
-			#self._connect()
-			#already connected?
-
+	@connect_ble
 	def _write(self, color):
 		try:
-			self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color))
+			if (self._connection is not None):
+				self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color))
+			else:
+				lightManager.debugger("Connection error to device (playbulb) " + str(self.device) + ". Retrying", 1)
+				return False				
 		except:
 			#todo manage "overwritten" thread by queued requests
-			lightManager.debugger("Unhandled response. Thread died?", 0)	
-		lightManager.debugger("Playbulb " + str(self.device) + " color changed to " + color, 0)	
+			lightManager.debugger("Unhandled response. Thread died?", 0)
+			return False
+		lightManager.debugger("Playbulb " + str(self.device) + " color changed to " + color, 0)
+		self.success = True
+		return True
 
 	def _disconnect(self):
 		try:
@@ -406,6 +423,7 @@ class playbulb(lightManager):
 class milight(lightManager):
 	""" Methods for driving a milight BLE lightbulb """
 	def __init__(self, device, id1, id2, description):
+		self.deviceType = "milight"
 		self.device = device
 		self.id1 = id1
 		self.id2 = id2
@@ -418,21 +436,21 @@ class milight(lightManager):
 		self.success = False
 
 	def turnon(self):
-		self._sendrequest(self.getquery(32, 161, 1, self.id1, self.id2), "1")
+		return self._sendrequest(self.getquery(32, 161, 1, self.id1, self.id2), "1")
 
 	def turnoff(self):
-		self._sendrequest(self.getquery(32, 161, 2, self.id1, self.id2), "0")
+		return self._sendrequest(self.getquery(32, 161, 2, self.id1, self.id2), "0")
 
 	def turnOnAndSetColor(self, color):
-		self.turnon()
-		self._sendrequest(self.getquery(45, 161, 4, self.id1, self.id2, color, 2, 50), color)
+		if (not self.turnon()): return False
+		return self._sendrequest(self.getquery(45, 161, 4, self.id1, self.id2, color, 2, 50), color)
 
 	def turnOnAndDimOn(self, color):
-		self.turnon()
-		self.dimon(color)
+		if (not self.turnon()): return False
+		return self.dimon(color)
 
 	def dimon(self, color):
-		self._sendrequest(self.getquery(20, 161, 5, self.id1, self.id2, 200, 4, 50), color)
+		return self._sendrequest(self.getquery(20, 161, 5, self.id1, self.id2, 200, 4, 50), color)
 
 	def color(self, color, pool = None):
 		#todo rrggbb to ...this format...
@@ -441,13 +459,10 @@ class milight(lightManager):
 		elif (color == "-1"):
 			self.success = True
 			return True
-		if (self._connection is None):
-			if(not self._connect()):
-				return False
 		mlTarget = None
 		if color == "0":
 			lightManager.debugger("Turning milight " + self.device + " off", 0)
-			self.turnoff()
+			if (not self.turnoff()): return False
 			return True
 		elif (self.actualcolor == color):
 			self.success = True
@@ -455,13 +470,14 @@ class milight(lightManager):
 			return True
 		elif color == "1":
 			lightManager.debugger("Turning milight " + self.device + " on", 0)
-			self.dimon(color)
+			if (not self.turnOnAndDimOn(color)): 
+				lightManager.debugger("DIMON returned false", 0)
+				return False
 			return True
 		else:
 			lightManager.debugger("Changing milight " + self.device + " color", 0)
-			self.turnOnAndSetColor(color)
+			if (not self.turnOnAndSetColor(color)): return False
 			return True
-
 
 	def getquery(self, value1, value2, value3, id1, id2, value4 = 0, value5 = 2, value6 = 0):
 		"""
@@ -476,27 +492,21 @@ class milight(lightManager):
 		desctext = "[Milight MAC: " + self.device + ", ID1: " + self.id1 + ", ID2: " + self.id2 + "] " + self.description
 		return desctext
 
+	@connect_ble
 	def _sendrequest(self, command, color):
 		try:
-			self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(command.replace('\n', '').replace('\r', '')))
+			if (self._connection is not None):
+				self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(command.replace('\n', '').replace('\r', '')))
+			else:
+				lightManager.debugger("Connection error to device (milight) " + str(self.device) + ". Retrying", 1)
+				return False
 		except:
-			lightManager.debugger("Error sending data to device (milight) " + str(self.device) + ". Retrying", 1)			
-			return self._sendrequest(command,color)
+			lightManager.debugger("Error sending data to device (milight) " + str(self.device) + ". Retrying", 1)
+			self._connection = None		
+			return False
 		self.success = True
 		self.actualcolor = color
-		#self._disconnect()
-
-	def _connect(self):
-		try:
-			lightManager.debugger("CONnecting to device (milight) " + str(self.device), 0)
-			connection = ble.Peripheral(self.device)
-			self._connection = connection.withDelegate(self)
-			return True
-		except:
-			lightManager.debugger("Device (milight) " + str(self.device) + " connection failed.", 1)
-			return False
-			#self._connect()
-			#already connected?
+		return True
 
 	def _disconnect(self):
 		try:
