@@ -38,7 +38,7 @@ def connect_ble(f):
 				connection = ble.Peripheral(self.device)
 				self._connection = connection.withDelegate(self)
 			except:
-				lightManager.debugger("Device ({}) {} connection failed.",format(self.deviceType, self.device), 1)
+				lightManager.debugger("Device ({}) {} connection failed.".format(self.deviceType, self.device), 1)
 				self._connection = None
 		return f(self, *args)
 	return _conn_wrap
@@ -79,7 +79,7 @@ class lightServer(object):
 						args = self._sanitize(json.loads(data.decode('utf-8')))
 					except: #fallback - data is not formatted
 						lightManager.debugger("Error - improperly formatted JSON", 2)
-						return
+						return False
 					lightManager.debugger('Change of lights requested with args: ' + str(args), 0)
 					self._validate_and_execute_req(args)
 				else:
@@ -118,6 +118,15 @@ class lightServer(object):
 			lightManager.debugger("Rebooting KODI", 0)
 			self._setTv(2)
 			return;
+		if (args["priority"] < lm.priority):
+			lightManager.debugger("Request priority too low, skipping light change", 0)
+			return;
+		else:
+			if (args["priority"] == 3):
+				# Priority 3 runs the light change then resets the priority level
+				lm.priority = 1
+			else:
+				lm.priority = args["priority"]
 		if args["hexvalues"]:
 			lightManager.debugger("Received color hexvalues length " + str(len(args["hexvalues"])) + " for " + str(len(lm.devices)) + " devices", 0) 
 			lm.setColors(args["hexvalues"])
@@ -168,6 +177,10 @@ class lightServer(object):
 			args["notime"] = False;
 		if "tvoff" not in args:
 			args["tvoff"] = False;
+		if "priority" in args and args["priority"] is None:
+			args["priority"] = 1;
+		if "priority" not in args:
+			args["priority"] = 1;
 		if type(args["playbulb"]).__name__ == "str":
 			lightManager.debugger('Converting values to lists for playbulb', 0)
 			args["playbulb"] = args["playbulb"].replace("'","").split(',')
@@ -180,10 +193,13 @@ class lightServer(object):
 		if (value == 0): ## TV OFF
 			os.system("echo 'standby 0' | cec-client -s")
 			os.system("ssh kodi@192.168.1.200 'sudo shutdown now'")
+			lightManager.debugger('Set the TV and KODI to OFF', 0)
 		elif (value == 1): ## TV ON
-			os.system("echo 'on 0' | cec-client -s")	
+			os.system("echo 'on 0' | cec-client -s")
+			lightManager.debugger('Set the TV ON', 0)
 		elif (value == 2): ## TV RESTART		
 			os.system("ssh kodi@192.168.1.200 'sudo reboot'")
+			lightManager.debugger('Restarted KODI', 0)
 
 class lightManager(object):
 	""" Methods for instanciating and managing BLE lightbulbs """
@@ -205,6 +221,7 @@ class lightManager(object):
 		self.locked = 0
 		self.lockcount = 0
 		self.journaling = False
+		self.priority = 0
 
 	def skipTime(self, serverwide = 0):
 		if (serverwide):
@@ -267,7 +284,7 @@ class lightManager(object):
 
 	def _setLights(self):
 		""" Threading du changement des couleurs """
-		lightManager.debugger("Running a change of lights...", 0)
+		lightManager.debugger("Running a change of lights (priority level: {})...".format(self.priority), 0)
 		self.lockcount = 0
 		if not self.queue.empty():
 			colors = self.queue.get() #todo Check performance
@@ -548,6 +565,7 @@ if __name__ == "__main__":
 					help='color hex values for the lightbulbs (see list below)')
 	parser.add_argument('--playbulb', metavar='P', type=str, nargs="*", help='Change playbulbs colors only')
 	parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights colors only')
+	parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1, help='Request priority from 1 to 3')
 	parser.add_argument('--notime', action='store_true', default=False, help='Skip the time check and run the script anyways')
 	parser.add_argument('--on', action='store_true', default=False, help='Turn everything on')
 	parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')

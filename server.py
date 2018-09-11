@@ -30,23 +30,23 @@ class S(BaseHTTPRequestHandler):
 		if (_hash == hashlib.sha512(bytes("mazout360".encode('utf-8') + action.encode('utf-8'))).hexdigest()):
 			logging.info('Running action : {}\n'.format(action))
 			if (action == "lumieres_salon_off"):
-				os.system('./playclient.py --off --notime')
+				os.system('./playclient.py --off --notime --priority 2')
 			elif (action == "lumieres_salon_on"):
-				os.system('./playclient.py --on --notime')
+				os.system('./playclient.py --on --notime --priority 2')
 			elif (action == "television_salon_on"):
 				os.system('./playclient.py --tvon')
-				sleep(3);
+				sleep(2);
 				os.system('/usr/sbin/ether-wake 4C:CC:6A:F4:79:EC -i br0')
 			elif (action == "television_salon_off"):
 				os.system('./playclient.py --tvoff')
 			elif (action == "television_salon_restart"):
 				os.system('./playclient.py --tvrestart')
 			elif (action == "salon_close"):
-				os.system('./playclient.py --tvoff --off --notime')
+				os.system('./playclient.py --tvoff --off --notime --priority 3')
 			elif (action == "luminaire_salon_off"):
-				os.system('./playclient.py --playbulb 0 0 0 --notime')
+				os.system('./playclient.py --playbulb 0 0 0 --notime --priority 2')
 			elif (action == "luminaire_salon_on"):
-				os.system('./playclient.py --playbulb 1 1 1 --notime')
+				os.system('./playclient.py --playbulb 1 1 1 --notime --priority 2')
 		else:
 			logging.info('Unwanted request for action : {}\n'.format(action))
 
