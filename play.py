@@ -148,6 +148,8 @@ class lightServer(object):
 				lm.setColors(lm.getToggle())
 		if args["notime"] or args["off"]:
 			lm.skipTime(0)
+		if args["group"] is not None:
+			lm.setGroup(args["group"], args["subgroup"])
 		lightManager.debugger("Arguments are OK", 0)
 		lm.run()
 		return;
@@ -181,6 +183,10 @@ class lightServer(object):
 			args["priority"] = 1;
 		if "priority" not in args:
 			args["priority"] = 1;
+		if "group" not in args:
+			args["group"] = None;
+		if "subgroup" not in args:
+			args["subgroup"] = None;
 		if type(args["playbulb"]).__name__ == "str":
 			lightManager.debugger('Converting values to lists for playbulb', 0)
 			args["playbulb"] = args["playbulb"].replace("'","").split(',')
@@ -208,11 +214,13 @@ class lightManager(object):
 		self.devices = []
 		#todo Dynamic instanciation
 		#todo allow reporting of device state to the lightserver
-		self.devices.append(playbulb("D1:F6:4B:14:AC:E6", "Playbulb facing the sofa"))
-		self.devices.append(playbulb("09:5F:4B:15:AC:E6", "Playbulb facing the entrance"))
-		self.devices.append(playbulb("07:B2:4B:15:AC:E6", "Playbulb facing the TV"))
-		self.devices.append(milight("88:C2:55:01:02:B1", "80", "112", "Milight living room, TV side"))
-		self.devices.append(milight("80:30:DC:DE:73:74", "38", "98", "Milight living room, sofa side"))
+		# PLAYBULBS
+		self.devices.append(playbulb("D1:F6:4B:14:AC:E6", "Playbulb facing the sofa", "salon", "luminaire"))
+		self.devices.append(playbulb("09:5F:4B:15:AC:E6", "Playbulb facing the entrance", "salon", "luminaire"))
+		self.devices.append(playbulb("07:B2:4B:15:AC:E6", "Playbulb facing the TV", "salon", "luminaire"))
+		# MILIGHTS
+		self.devices.append(milight("88:C2:55:01:02:B1", "80", "112", "Milight living room, TV side", "salon", "sofa"))
+		self.devices.append(milight("80:30:DC:DE:73:74", "38", "98", "Milight living room, sofa side", "salon", "sofa"))
 		self.starttime = datetime.time(18,00) #Light change minimal time
 		self.skiptime = 0
 		self.queue = Queue()
@@ -233,6 +241,16 @@ class lightManager(object):
 
 	def setColors(self, color):
 		self.colors = color
+
+	def setGroup(self, group, subgroup):
+		for _cnt,device in enumerate(self.devices):
+			if (device.group != group):
+				lightManager.debugger("Skipping device {} as it does not belong in the '{}' group".format(device.device, group), 0)
+				self.colors[_cnt] = self.state[_cnt]
+			else:
+				if (subgroup is not None and device.subgroup != subgroup):
+					lightManager.debugger("Skipping device {} as it does not belong in the '{}' subgroup".format(device.device, subgroup), 0)
+					self.colors[_cnt] = self.state[_cnt]
 
 	def getToggle(self):
 		colors = ["1"] * len(lm.devices)
@@ -376,7 +394,7 @@ class lightManager(object):
 
 class playbulb(lightManager):
 	""" Methods for driving a rainbow BLE lightbulb """
-	def __init__(self, device, description):
+	def __init__(self, device, description, group, subgroup):
 		self.deviceType = "playbulb"
 		self.device = device
 		self.description = description
@@ -384,6 +402,8 @@ class playbulb(lightManager):
 		self.actualcolor = 0
 		self.success = False
 		self._connection = None
+		self.group = group
+		self.subgroup = subgroup
 
 	def reinit(self):
 		self.success = False
@@ -439,7 +459,7 @@ class playbulb(lightManager):
 
 class milight(lightManager):
 	""" Methods for driving a milight BLE lightbulb """
-	def __init__(self, device, id1, id2, description):
+	def __init__(self, device, id1, id2, description, group, subgroup):
 		self.deviceType = "milight"
 		self.device = device
 		self.id1 = id1
@@ -448,6 +468,8 @@ class milight(lightManager):
 		self.success = False
 		self.actualcolor = "0"
 		self._connection = None
+		self.group = group
+		self.subgroup = subgroup
 
 	def reinit(self):
 		self.success = False
@@ -566,6 +588,8 @@ if __name__ == "__main__":
 	parser.add_argument('--playbulb', metavar='P', type=str, nargs="*", help='Change playbulbs colors only')
 	parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights colors only')
 	parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1, help='Request priority from 1 to 3')
+	parser.add_argument('--group', metavar='group', type=str, nargs="?", default=None, help='Apply light actions on specified light group')
+	parser.add_argument('--subgroup', metavar='group', type=str, nargs="?", default=None, help='Apply light actions on specified light subgroup')	
 	parser.add_argument('--notime', action='store_true', default=False, help='Skip the time check and run the script anyways')
 	parser.add_argument('--on', action='store_true', default=False, help='Turn everything on')
 	parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')

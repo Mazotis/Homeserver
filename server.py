@@ -30,9 +30,9 @@ class S(BaseHTTPRequestHandler):
 		if (_hash == hashlib.sha512(bytes("mazout360".encode('utf-8') + action.encode('utf-8'))).hexdigest()):
 			logging.info('Running action : {}\n'.format(action))
 			if (action == "lumieres_salon_off"):
-				os.system('./playclient.py --off --notime --priority 2')
+				os.system('./playclient.py --off --notime --priority 2 --group salon')
 			elif (action == "lumieres_salon_on"):
-				os.system('./playclient.py --on --notime --priority 2')
+				os.system('./playclient.py --on --notime --priority 2 --group salon')
 			elif (action == "television_salon_on"):
 				os.system('./playclient.py --tvon')
 				sleep(2);
@@ -42,11 +42,11 @@ class S(BaseHTTPRequestHandler):
 			elif (action == "television_salon_restart"):
 				os.system('./playclient.py --tvrestart')
 			elif (action == "salon_close"):
-				os.system('./playclient.py --tvoff --off --notime --priority 3')
+				os.system('./playclient.py --tvoff --off --notime --priority 3 --group salon')
 			elif (action == "luminaire_salon_off"):
-				os.system('./playclient.py --playbulb 0 0 0 --notime --priority 2')
+				os.system('./playclient.py --off --notime --priority 2 --group salon --subgroup luminaire')
 			elif (action == "luminaire_salon_on"):
-				os.system('./playclient.py --playbulb 1 1 1 --notime --priority 2')
+				os.system('./playclient.py --on --notime --priority 2 --group salon --subgroup luminaire')
 		else:
 			logging.info('Unwanted request for action : {}\n'.format(action))
 
