@@ -214,11 +214,13 @@ class lightManager(object):
 		self.devices = []
 		#todo Dynamic instanciation
 		#todo allow reporting of device state to the lightserver
+		#
+		# DeviceType(MAC_ADDRESS, DESCRIPTION, GROUP, SUBGROUP, DEFAULT 'ON' VALUE (playbulbs))
 		# PLAYBULBS
-		self.devices.append(playbulb("D1:F6:4B:14:AC:E6", "Playbulb facing the sofa", "salon", "luminaire"))
-		self.devices.append(playbulb("09:5F:4B:15:AC:E6", "Playbulb facing the entrance", "salon", "luminaire"))
-		self.devices.append(playbulb("07:B2:4B:15:AC:E6", "Playbulb facing the TV", "salon", "luminaire"))
-		self.devices.append(playbulb("07:94:4B:15:AC:E6", "Playbulb in the passage", "passage", "passage"))
+		self.devices.append(playbulb("D1:F6:4B:14:AC:E6", "Playbulb facing the sofa", "salon", "luminaire", "05000000"))
+		self.devices.append(playbulb("09:5F:4B:15:AC:E6", "Playbulb facing the entrance", "salon", "luminaire", "05000000"))
+		self.devices.append(playbulb("07:B2:4B:15:AC:E6", "Playbulb facing the TV", "salon", "luminaire", "05000000"))
+		self.devices.append(playbulb("07:94:4B:15:AC:E6", "Playbulb in the passage", "passage", "passage", "10000000"))
 		# MILIGHTS
 		self.devices.append(milight("88:C2:55:01:02:B1", "80", "112", "Milight living room, TV side", "salon", "sofa"))
 		self.devices.append(milight("80:30:DC:DE:73:74", "38", "98", "Milight living room, sofa side", "salon", "sofa"))
@@ -397,7 +399,7 @@ class lightManager(object):
 lock = threading.Lock()
 class playbulb(lightManager):
 	""" Methods for driving a rainbow BLE lightbulb """
-	def __init__(self, device, description, group, subgroup):
+	def __init__(self, device, description, group, subgroup, intensity):
 		self.deviceType = "playbulb"
 		self.device = device
 		self.description = description
@@ -407,6 +409,7 @@ class playbulb(lightManager):
 		self._connection = None
 		self.group = group
 		self.subgroup = subgroup
+		self.intensity = intensity
 
 	def reinit(self):
 		self.success = False
@@ -424,7 +427,7 @@ class playbulb(lightManager):
 		if (color == "0"):
 			color = "00000000"
 		elif (color == "1"):
-			color = "05000000"
+			color = self.intensity
 		self.actualcolor = color
 		lightManager.debugger("Changing playbulb " + str(self.device) + " color to " + color, 0)
 		if (not self._write(color)): return False
