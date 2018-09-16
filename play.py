@@ -218,6 +218,7 @@ class lightManager(object):
 		self.devices.append(playbulb("D1:F6:4B:14:AC:E6", "Playbulb facing the sofa", "salon", "luminaire"))
 		self.devices.append(playbulb("09:5F:4B:15:AC:E6", "Playbulb facing the entrance", "salon", "luminaire"))
 		self.devices.append(playbulb("07:B2:4B:15:AC:E6", "Playbulb facing the TV", "salon", "luminaire"))
+		self.devices.append(playbulb("07:94:4B:15:AC:E6", "Playbulb in the passage", "passage", "passage"))
 		# MILIGHTS
 		self.devices.append(milight("88:C2:55:01:02:B1", "80", "112", "Milight living room, TV side", "salon", "sofa"))
 		self.devices.append(milight("80:30:DC:DE:73:74", "38", "98", "Milight living room, sofa side", "salon", "sofa"))
@@ -392,6 +393,8 @@ class lightManager(object):
 			with open("/home/pi/play/play.0.log", "a") as jfile:
 				jfile.write(debugtext + "\n")
 
+
+lock = threading.Lock()
 class playbulb(lightManager):
 	""" Methods for driving a rainbow BLE lightbulb """
 	def __init__(self, device, description, group, subgroup):
@@ -431,31 +434,35 @@ class playbulb(lightManager):
 		desctext = "[Playbulb MAC: " + self.device + "] " + self.description
 		return desctext
 
+	def disconnect(self):
+		try:
+			if (self._connection is not None):
+				lightManager.debugger("DISconnecting to device  " + str(self.device), 0)
+				self._connection.disconnect()
+		except ble.BTLEException:
+			lightManager.debugger("Device " + str(self.device) + " disconnection failed. Already disconnected?", 1)        	
+			pass
+
+		self._connection = None
+
 	@connect_ble
 	def _write(self, color):
 		try:
 			if (self._connection is not None):
-				self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color))
+				with lock:
+					self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color))
 			else:
 				lightManager.debugger("Connection error to device (playbulb) " + str(self.device) + ". Retrying", 1)
 				return False				
 		except:
 			#todo manage "overwritten" thread by queued requests
 			lightManager.debugger("Unhandled response. Thread died?", 0)
+			self.disconnect()
 			return False
 		lightManager.debugger("Playbulb " + str(self.device) + " color changed to " + color, 0)
 		self.success = True
 		return True
 
-	def _disconnect(self):
-		try:
-			lightManager.debugger("DISconnecting to device  " + str(self.device), 0)
-			self._connection.disconnect()
-		except ble.BTLEException:
-			lightManager.debugger("Device " + str(self.device) + " disconnection failed. Already disconnected?", 1)        	
-			pass
-
-		self._connection = None
 
 class milight(lightManager):
 	""" Methods for driving a milight BLE lightbulb """
@@ -531,11 +538,22 @@ class milight(lightManager):
 		desctext = "[Milight MAC: " + self.device + ", ID1: " + self.id1 + ", ID2: " + self.id2 + "] " + self.description
 		return desctext
 
+	def disconnect(self):
+		try:
+			if (self._connection is not None):
+				self._connection.disconnect()
+		except:
+			lightManager.debugger("Device (milight) " + str(self.device) + " disconnection failed. Already disconnected?", 1)        	
+			pass
+
+		self._connection = None
+
 	@connect_ble
 	def _sendrequest(self, command, color):
 		try:
 			if (self._connection is not None):
-				self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(command.replace('\n', '').replace('\r', '')))
+				with lock:
+					self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(command.replace('\n', '').replace('\r', '')))
 			else:
 				lightManager.debugger("Connection error to device (milight) " + str(self.device) + ". Retrying", 1)
 				return False
@@ -546,15 +564,6 @@ class milight(lightManager):
 		self.success = True
 		self.actualcolor = color
 		return True
-
-	def _disconnect(self):
-		try:
-			self._connection.disconnect()
-		except:
-			lightManager.debugger("Device (milight) " + str(self.device) + " disconnection failed. Already disconnected?", 1)        	
-			pass
-
-		self._connection = None
 
 	def _createcommand(self, bledata):
 		input = eval(bledata)

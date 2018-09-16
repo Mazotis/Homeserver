@@ -33,6 +33,10 @@ class S(BaseHTTPRequestHandler):
 				os.system('./playclient.py --off --notime --priority 2 --group salon')
 			elif (action == "lumieres_salon_on"):
 				os.system('./playclient.py --on --notime --priority 2 --group salon')
+			elif (action == "luminaire_passage_off"):
+				os.system('./playclient.py --off --notime --priority 2 --group passage')
+			elif (action == "luminaire_passage_on"):
+				os.system('./playclient.py --on --notime --priority 2 --group passage')
 			elif (action == "television_salon_on"):
 				os.system('./playclient.py --tvon')
 				sleep(2);

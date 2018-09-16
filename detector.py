@@ -5,7 +5,7 @@ Simple playserver device detector
 import os
 import time, datetime
 
-DEVICE_MAC = ["40:4E:36:87:0B:51"]
+DEVICE_MAC = ["40:4E:36:87:0B:51", "40:4E:36:87:0B:89"]
 STATUS = 0
 DELAYED_START = 0
 
@@ -24,10 +24,10 @@ while True:
 			else:
 				if (DELAYED_START == 0):
 					if (datetime.datetime.now().hour == 18):
-						os.system('./playclient.py --on')
+						os.system('./playclient.py --on --group passage')
 						DELAYED_START = 1
 				if (STATUS == 0):
-					os.system('./playclient.py --on')	
+					os.system('./playclient.py --on --group passage')	
 				if (DELAYED_START == 1 and datetime.datetime.now().hour == 19):
 					DELAYED_START = 0
 				STATUS = 1
