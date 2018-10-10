@@ -67,26 +67,27 @@ class lightServer(object):
 
 	def listenToClient(self, client, address):
 		size = 1024
-		while True:
-			try:
+		try:
+			while True:
 				data = client.recv(size)
 				if data:
 					if data.decode('utf-8') == "getstate":
 						client.send(str.encode(str(lm.state)))
 						client.close()
-						return False
+						break
 					try:
 						args = self._sanitize(json.loads(data.decode('utf-8')))
 					except: #fallback - data is not formatted
 						lightManager.debugger("Error - improperly formatted JSON", 2)
-						return False
+						break
 					lightManager.debugger('Change of lights requested with args: ' + str(args), 0)
 					self._validate_and_execute_req(args)
-				else:
-					return False
-			except:
-				client.close()
-				return False
+					break
+		finally:
+			lightManager.debugger('Closing connection.', 0)
+			lm.setLock(0)
+			client.close()
+			return False
 
 	def removeServer(self, signal, frame):
 		lightManager.debugger("Closing down server and lights.", 0)
@@ -229,7 +230,7 @@ class lightManager(object):
 		self.queue = Queue()
 		self.colors = ["0"] * len(self.devices)
 		self.state = ["0"] * len(self.devices)
-		self.locked = 0
+		self.setLock(0)
 		self.lockcount = 0
 		self.journaling = False
 		self.priority = 0
@@ -303,6 +304,9 @@ class lightManager(object):
 				os.rename("/home/pi/play/play.1.log", "/home/pi/play/play.2.log")
 			os.rename("/home/pi/play/play.0.log", "/home/pi/play/play.1.log")
 
+	def setLock(self, state):
+		self.locked = state
+
 	def _setLights(self):
 		""" Threading du changement des couleurs """
 		lightManager.debugger("Running a change of lights (priority level: {})...".format(self.priority), 0)
@@ -314,7 +318,7 @@ class lightManager(object):
 		lightThreads = [None] * len(self.devices)
 		lightPool = ThreadPool(processes=4)
 		lightManager.debugger("Changing colors to " + str(colors) + " from state " + str(self.state), 0)
-		self.locked = 1
+		self.setLock(1)
 		oldstates = [None] * len(self.devices)
 		i = 0
 		tries = 0
@@ -350,7 +354,7 @@ class lightManager(object):
 		lightManager.debugger("Change of lights completed.", 0)
 
 		self._reinit()
-		self.locked = 0
+		self.setLock(0)
 		self.queue.task_done()
 
 	def _checkTime(self, hours = 3, minutes = 0):
