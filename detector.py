@@ -17,7 +17,7 @@ for _cnt, device in enumerate(DEVICE_MAC):
 		DEVICE_STATUS[_cnt] = 1
 while True:
 	try:
-		for device in DEVICE_MAC:
+		for _cnt, device in enumerate(DEVICE_MAC):
 			if (os.system("wl assoclist | grep {}".format(device))):
 				DEVICE_STATUS[_cnt] = 0
 			else:

@@ -39,7 +39,7 @@ class S(BaseHTTPRequestHandler):
 				os.system('./playclient.py --on --notime --priority 2 --group passage')
 			elif (action == "television_salon_on"):
 				os.system('./playclient.py --tvon')
-				sleep(2);
+				time.sleep(2);
 				os.system('/usr/sbin/ether-wake 4C:CC:6A:F4:79:EC -i br0')
 			elif (action == "television_salon_off"):
 				os.system('./playclient.py --tvoff')

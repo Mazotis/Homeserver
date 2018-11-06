@@ -221,7 +221,7 @@ class lightManager(object):
 		self.devices.append(playbulb("D1:F6:4B:14:AC:E6", "Playbulb facing the sofa", "salon", "luminaire", "05000000"))
 		self.devices.append(playbulb("09:5F:4B:15:AC:E6", "Playbulb facing the entrance", "salon", "luminaire", "05000000"))
 		self.devices.append(playbulb("07:B2:4B:15:AC:E6", "Playbulb facing the TV", "salon", "luminaire", "05000000"))
-		self.devices.append(playbulb("07:94:4B:15:AC:E6", "Playbulb in the passage", "passage", "passage", "10000000"))
+		self.devices.append(playbulb("07:94:4B:15:AC:E6", "Playbulb in the passage", "passage", "passage", "12000000"))
 		# MILIGHTS
 		self.devices.append(milight("88:C2:55:01:02:B1", "80", "112", "Milight living room, TV side", "salon", "sofa"))
 		self.devices.append(milight("80:30:DC:DE:73:74", "38", "98", "Milight living room, sofa side", "salon", "sofa"))
@@ -309,53 +309,65 @@ class lightManager(object):
 
 	def _setLights(self):
 		""" Threading du changement des couleurs """
-		lightManager.debugger("Running a change of lights (priority level: {})...".format(self.priority), 0)
-		self.lockcount = 0
-		if not self.queue.empty():
-			colors = self.queue.get() #todo Check performance
-		else:
-			return
-		lightThreads = [None] * len(self.devices)
-		lightPool = ThreadPool(processes=4)
-		lightManager.debugger("Changing colors to " + str(colors) + " from state " + str(self.state), 0)
-		self.setLock(1)
-		oldstates = [None] * len(self.devices)
-		i = 0
-		tries = 0
+		lightManager.debugger("Running a change of lights (priority level: {}, lock: {})...".format(self.priority, self.locked), 0)
+		try:
+			self.lockcount = 0
+			firstran = False
+			while not self.queue.empty():
+				colors = None
+				try:
+					if firstran:
+						lightManager.debugger("Getting remainder of queue", 0)
+						self._reinit()
+					colors = self.queue.get() #todo Check performance
+					lightThreads = [None] * len(self.devices)
+					lightPool = ThreadPool(processes=4)
+					lightManager.debugger("Changing colors to " + str(colors) + " from state " + str(self.state), 0)
+					self.setLock(1)
+					oldstates = [None] * len(self.devices)
+					i = 0
+					tries = 0
+					firstran = True
 
-		while i < len(self.devices):
-			lightManager.debugger("Requested colors: " + str(colors) + " from state " + str(self.state) + " i = " + str(i), 0)
-			if colors[i] != self.state[i] or (colors[i] == "0" and self.state[i] == "0"):
-				lightThreads[i] = lightPool.apply_async(self.devices[i].color, args=(colors[i],))
-				if (colors[i] != "-1"):
-					oldstates[i] = self.state[i]
-					self.state[i] = colors[i]
-			i += 1
+					while i < len(self.devices):
+						lightManager.debugger("Requested colors: " + str(colors) + " from state " + str(self.state) + " i = " + str(i), 0)
+						if colors[i] != self.state[i] or (colors[i] == "0" and self.state[i] == "0"):
+							lightThreads[i] = lightPool.apply_async(self.devices[i].color, args=(colors[i],))
+							if (colors[i] != "-1"):
+								oldstates[i] = self.state[i]
+								self.state[i] = colors[i]
+						i += 1
 
-			if (i == len(self.devices)):
-				lightManager.debugger("Awaiting results", 0)
-				for _cnt, _thread in enumerate(lightThreads):
-					if (_thread is not None):
-						try:
-							if (not _thread.get(5)):
-								self.state[_cnt] = oldstates[_cnt]
-								i = 0
-						except:
-							self.state[_cnt] = oldstates[_cnt]
-							i = 0
-				tries = tries + 1
-				if (tries == 5):
-					break
+						if (i == len(self.devices)):
+							lightManager.debugger("Awaiting results", 0)
+							for _cnt, _thread in enumerate(lightThreads):
+								if (_thread is not None):
+									try:
+										if (not _thread.get(5)):
+											self.state[_cnt] = oldstates[_cnt]
+											i = 0
+									except:
+										self.state[_cnt] = oldstates[_cnt]
+										i = 0
+							tries = tries + 1
+							if (tries == 5):
+								break
 
-		if not self.queue.empty():
-			lightManager.debugger("Getting remainder of queue", 0)
+				except Queue.Empty:
+					pass
+
+				finally:
+					if colors:
+						self.queue.task_done()
+
+		except Exception as e:
+			lightManager.debugger("Unhandled error of type {}, Args: {1!r} ".format(type(e).__name__, e.args), 3)
+
+		finally:
 			self._reinit()
-			return self._setLights()
-		lightManager.debugger("Change of lights completed.", 0)
+			self.setLock(0)
 
-		self._reinit()
-		self.setLock(0)
-		self.queue.task_done()
+		lightManager.debugger("Change of lights completed.", 0)
 
 	def _checkTime(self, hours = 3, minutes = 0):
 		#todo Check if we keep this...
@@ -421,7 +433,7 @@ class playbulb(lightManager):
 	def color(self, color):
 		if (self.success):
 			return True
-		elif (color == "-1"): #todo Put in constant for readability
+		elif (color == "-1"): #todo Skip color change. Put in constant for readability
 			self.success = True
 			return True
 		if (self.actualcolor == color):
