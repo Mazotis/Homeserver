@@ -15,7 +15,7 @@ RETVAL=$?
 
 # this call actually starts playserver.
 cd $PLAYSERVER_DIR
-nohup python3 $PLAYSERVER_DIR/server.py &
+python3 $PLAYSERVER_DIR/server.py &
 RETVAL=$?
 [ $RETVAL -eq 0 ] && echo -n "done"
 echo

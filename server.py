@@ -15,6 +15,23 @@ import hashlib
 from argparse import RawTextHelpFormatter
 from __main__ import *
 
+class lightManager(object):
+	""" Methods for instanciating and managing BLE lightbulbs """
+	@staticmethod
+	def debugger(msg, level):
+		levels = {0: "DEBUG", 1: "ERROR", 2: "FATAL"}
+		debugtext = "(" + str(datetime.datetime.now().time()) + ") - [" + levels[level] + "] " + str(msg)
+		print(debugtext)
+		with open("./server.0.log", "a") as jfile:
+			jfile.write(debugtext + "\n")
+
+if os.path.isfile("./server.0.log"):
+	if os.path.isfile("./server.1.log"):
+		if os.path.isfile("./server.2.log"):
+			os.remove("./server.2.log")
+		os.rename("./server.1.log", "./server.2.log")
+	os.rename("./server.0.log", "./server.1.log")
+
 class S(BaseHTTPRequestHandler):
 	def _set_response(self):
 		self.send_response(200)
@@ -56,15 +73,6 @@ class S(BaseHTTPRequestHandler):
 
 		self._set_response()
 		self.wfile.write("POST request for {}".format(self.path).encode('utf-8'))
-
-class lightManager(object):
-	""" Methods for instanciating and managing BLE lightbulbs """
-	@staticmethod
-	def debugger(msg, level):
-			levels = {0: "DEBUG", 1: "ERROR", 2: "FATAL"}
-			debugtext = "(" + str(datetime.datetime.now().time()) + ") - [" + levels[level] + "] " + str(msg)
-			print(debugtext)
-
 
 def run(server_class=HTTPServer, handler_class=S, port=1234):
 	logging.basicConfig(level=logging.INFO)
