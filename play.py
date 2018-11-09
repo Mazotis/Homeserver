@@ -62,19 +62,54 @@ class lightServer(object):
 		while True:
 			client, address = self.sock.accept()
 			lightManager.debugger('Connected with ' + address[0] + ':' + str(address[1]), 0)
-			client.settimeout(10)
+			client.settimeout(30)
 			threading.Thread(target = self.listenToClient,args = (client,address)).start()
 
 	def listenToClient(self, client, address):
-		size = 1024
+		olddata = None
+		streamingdev = False
+		streaminggrp = False
+		streaming_id = None
 		try:
 			while True:
-				data = client.recv(size)
+				msize = int(client.recv(4).decode('utf-8'))
+				#lightManager.debugger("Set message size {}".format(msize), 0)
+				data = client.recv(msize)
 				if data:
-					if data.decode('utf-8') == "getstate":
+					if (data.decode('utf-8') == "getstate"):
+						lightManager.debugger('Sending lightserver status', 0)
 						client.send(str.encode(str(lm.state)))
-						client.close()
 						break
+					if (data.decode('utf-8') == "stream"):
+						lightManager.debugger('Starting streaming mode', 0)
+						streamingdev = True
+						continue
+					if (data.decode('utf-8') == "streamgroup"):
+						lightManager.debugger('Starting group streaming mode', 0)
+						streaminggrp = True
+						continue
+					if (data.decode('utf-8') == "nostream"):
+						lightManager.debugger('Ending streaming mode', 0)
+						streamingdev = False
+						streaminggrp = False
+						streaming_id = None
+						break
+					if streamingdev:
+						if (streaming_id is None):
+							streaming_id = int(data.decode('utf-8'))
+							lightManager.debugger('Set streaming devid to {}'.format(streaming_id), 0)
+							continue
+						lightManager.debugger("Sending request to devid {} for color: {}".format(streaming_id, data.decode('utf-8')), 0)
+						lm.setLightStream(streaming_id, data.decode('utf-8'), False)
+						continue
+					if streaminggrp:
+						if (streaming_id is None):
+							streaming_id = data.decode('utf-8')
+							lightManager.debugger('Set streaming group to {}'.format(streaming_id), 0)
+							continue
+						lightManager.debugger("Sending request to group '{}' for color: {}".format(streaming_id, data.decode('utf-8')), 0)
+						lm.setLightStream(streaming_id, data.decode('utf-8'), True)
+						continue
 					try:
 						args = self._sanitize(json.loads(data.decode('utf-8')))
 					except: #fallback - data is not formatted
@@ -83,9 +118,17 @@ class lightServer(object):
 					lightManager.debugger('Change of lights requested with args: ' + str(args), 0)
 					self._validate_and_execute_req(args)
 					break
+
+		except socket.timeout:
+			pass
+
+		except Exception as ex:
+			lightManager.debugger('Unhandled exception: {}'.format(ex), 2)
+
 		finally:
 			lightManager.debugger('Closing connection.', 0)
 			lm.setLock(0)
+			lm.reinit()
 			client.close()
 			return False
 
@@ -303,6 +346,38 @@ class lightManager(object):
 	def setState(self, color, devid):
 		self.state[devid] = color
 
+	def setLightStream(self, devid, color, is_group):
+		if (color == "00000000"):
+			color = "0"
+		if (is_group):
+			for device in self.devices:
+				if (device.group == devid):
+					cnt = 0
+					while True:
+						if (cnt == 4):
+							break
+						if (device.color(color,3)):
+							break
+						time.sleep(0.3)
+						cnt = cnt + 1
+		else:
+			cnt = 0
+			while True:
+				if (cnt == 4):
+					break
+				if (self.devices[devid].color(color,3)):
+					break
+				time.sleep(0.3)
+				cnt = cnt + 1
+		self.reinit()
+
+	def reinit(self):
+		# Resets the Success bool to False to force a light change
+		i = 0
+		while i < len(self.devices):
+			self.devices[i].reinit()
+			i += 1
+
 	def _setLights(self):
 		""" Threading du changement des couleurs """
 		lightManager.debugger("Running a change of lights (priority level: {}, lock: {})...".format(self.priority, self.locked), 0)
@@ -357,7 +432,7 @@ class lightManager(object):
 			lightManager.debugger("Unhandled error of type {}, Args: {1!r} ".format(type(e).__name__, e.args), 3)
 
 		finally:
-			self._reinit()
+			self.reinit()
 			self.setLock(0)
 
 		lightManager.debugger("Change of lights completed.", 0)
@@ -373,13 +448,6 @@ class lightManager(object):
 				return 0;
 			else:
 				return 1;
-
-	def _reinit(self):
-		# Resets the Success bool to False to force a light change
-		i = 0
-		while i < len(self.devices):
-			self.devices[i].reinit()
-			i += 1
 
 	def _getTypeIndex(self, atype):
 		i = 0
@@ -427,6 +495,9 @@ class playbulb(lightManager):
 		self.success = False
 
 	def color(self, color, priority):
+		if (len(color) not in (1,8)):
+			lightManager.debugger("Unhandled color format {}".format(color), 1)
+			return True
 		if (self.success):
 			return True
 		if (color == "-1"): #todo Skip color change. Put in constant for readability
@@ -533,6 +604,9 @@ class milight(lightManager):
 
 	def color(self, color, priority):
 		#todo rrggbb to ...this format...
+		if (len(color) > 3):
+			lightManager.debugger("Unhandled color format {}".format(color), 1)
+			return True
 		if (self.success):
 			return True
 		if (color == "-1"):
@@ -653,11 +727,17 @@ if __name__ == "__main__":
 	parser.add_argument('--tvon', action='store_true', default=False, help='Turns TV on')
 	parser.add_argument('--tvoff', action='store_true', default=False, help='Turns TV off')
 	parser.add_argument('--tvrestart', action='store_true', default=False, help='Reboots KODI')
+	parser.add_argument('--stream-dev', metavar='str-dev', type=int, nargs="?", default=None, help='Stream colors directly to device id')
+	parser.add_argument('--stream-group', metavar='str-grp', type=str, nargs="?", default=None, help='Stream colors directly to device group')
 
 	args = parser.parse_args()
 
-	if (args.server and (args.playbulb or args.milight or args.on or args.off or args.toggle)):
-		lightManager.debugger("You cannot start the daemon and send arguments at the same time.", 2)
+	if (args.server and (args.playbulb or args.milight or args.on or args.off or args.toggle or args.stream_dev or args.stream_group)):
+		lightManager.debugger("You cannot start the daemon and send arguments at the same time. Quitting.", 2)
+		sys.exit()
+
+	if (args.stream_dev and args.stream_group):
+		lightManager.debugger("You cannot stream data to both devices and groups. Quitting.", 2)
 		sys.exit()
 
 	#todo do not hardcode this
@@ -666,20 +746,69 @@ if __name__ == "__main__":
 	
 	if args.journal:
 		lm.enableJournaling()
+
 	if args.server:
 		if args.notime:
 			lm.skipTime(1)
 		lightServer(lm,HOST,PORT).listen()
+
+	elif args.stream_dev or args.stream_group:
+		colorval = ""
+		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+		s.connect((HOST, PORT))
+		if (args.stream_dev):
+			s.sendall("0006".encode('utf-8'))
+			s.sendall("stream".encode('utf-8'))
+			s.sendall(('%04d' % args.stream_dev).encode('utf-8'))
+			s.sendall(str(args.stream_dev).encode('utf-8'))
+		else:
+			s.sendall("0011".encode('utf-8'))
+			s.sendall("streamgroup".encode('utf-8'))
+			s.sendall(('%04d' % len(args.stream_group)).encode('utf-8'))
+			s.sendall(args.stream_group.encode('utf-8'))
+		while (colorval != "quit"):
+			if (args.stream_dev):
+				colorval = input("Set device {} to colorvalue ('quit' to exit): ".format(args.stream_dev))
+			else:
+				colorval = input("Set group '{}' to colorvalue ('quit' to exit): ".format(args.stream_group))
+			try:
+				if (colorval == "quit"):
+					s.sendall("0008".encode('utf-8'))
+					s.sendall("nostream".encode('utf-8'))
+					break
+				s.sendall(('%04d' % len(colorval)).encode('utf-8'))
+				s.sendall(colorval.encode('utf-8'))
+			except BrokenPipeError:
+				if (colorval != "quit"):
+					s.close()
+					s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+					s.connect((HOST, PORT))
+					if (args.stream_dev):
+						s.sendall("0006".encode('utf-8'))
+						s.sendall("stream".encode('utf-8'))
+						s.sendall(('%04d' % args.stream_dev).encode('utf-8'))
+						s.sendall(str(args.stream_dev).encode('utf-8'))
+					else:
+						s.sendall("0011".encode('utf-8'))
+						s.sendall("streamgroup".encode('utf-8'))
+						s.sendall(('%04d' % len(args.stream_group)).encode('utf-8'))
+						s.sendall(args.stream_group.encode('utf-8'))
+					s.sendall(('%04d' % len(colorval)).encode('utf-8'))
+					s.sendall(colorval.encode('utf-8'))
+					continue
+		s.close()
+
 	else:
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		s.connect((HOST, PORT))
 		#todo report connection errors or allow feedback response
 		lightManager.debugger('Connecting with lightmanager daemon', 0)
 		lightManager.debugger('Sending request: ' + json.dumps(vars(args)), 0)
+		s.sendall("1024".encode('utf-8'))
 		s.sendall(json.dumps(vars(args)).encode('utf-8'))
 		s.close()
 
-		sys.exit()
+	sys.exit()
 else:
 	""" Script imported - var colors must be predefined and functions are limited"""
 	#todo deprecate this?
