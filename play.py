@@ -119,15 +119,8 @@ class lightServer(object):
 			lightManager.debugger("Rebooting KODI", 0)
 			self._setTv(2)
 			return;
-		if (args["priority"] < lm.priority):
-			lightManager.debugger("Request priority too low, skipping light change", 0)
-			return;
-		else:
-			if (args["priority"] == 3):
-				# Priority 3 runs the light change then resets the priority level
-				lm.priority = 1
-			else:
-				lm.priority = args["priority"]
+		if args["priority"]:
+			lm.priority = args["priority"]
 		if args["hexvalues"]:
 			lightManager.debugger("Received color hexvalues length " + str(len(args["hexvalues"])) + " for " + str(len(lm.devices)) + " devices", 0) 
 			lm.setColors(args["hexvalues"])
@@ -332,9 +325,9 @@ class lightManager(object):
 					firstran = True
 
 					while i < len(self.devices):
-						lightManager.debugger("Requested colors: " + str(colors) + " from state " + str(self.state) + " i = " + str(i), 0)
+						lightManager.debugger("DEVICE: {}, REQUESTED COLOR: {}, FROM STATE: {}, PRIORITY: {}".format(self.devices[i].device, colors[i], self.state[i], self.devices[i].priority), 0)
 						if colors[i] != self.state[i] or (colors[i] == "0" and self.state[i] == "0"):
-							lightThreads[i] = lightPool.apply_async(self.devices[i].color, args=(colors[i],))
+							lightThreads[i] = lightPool.apply_async(self.devices[i].color, args=(colors[i],self.priority,))
 
 						i += 1
 
@@ -428,16 +421,26 @@ class playbulb(lightManager):
 		self.subgroup = subgroup
 		self.intensity = intensity
 		self.server = server
+		self.priority = 0
 
 	def reinit(self):
 		self.success = False
 
-	def color(self, color):
+	def color(self, color, priority):
 		if (self.success):
 			return True
-		elif (color == "-1"): #todo Skip color change. Put in constant for readability
+		if (color == "-1"): #todo Skip color change. Put in constant for readability
 			self.success = True
 			return True
+		if (self.priority > priority):
+			lightManager.debugger("Playbulb bulb {} is set with higher priority ({}), skipping.".format(self.device, self.priority), 0)
+			self.success = True
+			self.server.setState("-1", self.devid)
+			return True
+		if (priority == 3):
+			self.priority = 1
+		else:
+			self.priority = priority
 		if (self.actualcolor == color):
 			self.success = True
 			lightManager.debugger("Bulb " + str(self.device) + " is already of the requested color, skipping.", 0)
@@ -506,6 +509,7 @@ class milight(lightManager):
 		self.group = group
 		self.subgroup = subgroup
 		self.server = server
+		self.priority = 0
 
 	def reinit(self):
 		self.success = False
@@ -527,13 +531,22 @@ class milight(lightManager):
 	def dimon(self, color):
 		return self._sendrequest(self.getquery(20, 161, 5, self.id1, self.id2, 200, 4, 50), color)
 
-	def color(self, color, pool = None):
+	def color(self, color, priority):
 		#todo rrggbb to ...this format...
 		if (self.success):
 			return True
-		elif (color == "-1"):
+		if (color == "-1"):
 			self.success = True
 			return True
+		if (self.priority > priority):
+			lightManager.debugger("Milight bulb {} is set with higher priority ({}), skipping.".format(self.device, self.priority), 0)
+			self.success = True
+			self.server.setState("-1", self.devid)
+			return True
+		if (priority == 3):
+			self.priority = 1
+		else:
+			self.priority = priority
 		mlTarget = None
 		if color == "0":
 			lightManager.debugger("Turning milight " + self.device + " off", 0)

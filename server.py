@@ -49,11 +49,11 @@ class S(BaseHTTPRequestHandler):
 		if (_hash == hashlib.sha512(bytes(SALT.encode('utf-8') + action.encode('utf-8'))).hexdigest()):
 			logging.info('Running action : {}\n'.format(action))
 			if (action == "lumieres_salon_off"):
-				os.system('./playclient.py --off --notime --priority 2 --group salon')
+				os.system('./playclient.py --off --notime --priority 3 --group salon')
 			elif (action == "lumieres_salon_on"):
 				os.system('./playclient.py --on --notime --priority 2 --group salon')
 			elif (action == "luminaire_passage_off"):
-				os.system('./playclient.py --off --notime --priority 2 --group passage')
+				os.system('./playclient.py --off --notime --priority 3 --group passage')
 			elif (action == "luminaire_passage_on"):
 				os.system('./playclient.py --on --notime --priority 2 --group passage')
 			elif (action == "television_salon_on"):
@@ -67,7 +67,7 @@ class S(BaseHTTPRequestHandler):
 			elif (action == "salon_close"):
 				os.system('./playclient.py --tvoff --off --notime --priority 3 --group salon')
 			elif (action == "luminaire_salon_off"):
-				os.system('./playclient.py --off --notime --priority 2 --group salon --subgroup luminaire')
+				os.system('./playclient.py --off --notime --priority 3 --group salon --subgroup luminaire')
 			elif (action == "luminaire_salon_on"):
 				os.system('./playclient.py --on --notime --priority 2 --group salon --subgroup luminaire')
 			elif (action == "lumieres_on"):
