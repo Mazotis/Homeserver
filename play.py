@@ -16,6 +16,7 @@ import datetime
 import socket
 import threading
 import functools
+import configparser
 from multiprocessing.pool import ThreadPool
 import json
 import signal
@@ -246,21 +247,26 @@ class lightServer(object):
 
 class lightManager(object):
 	""" Methods for instanciating and managing BLE lightbulbs """
-	def __init__(self):
+	def __init__(self, config = None):
+		self.config = config
 		## TWEAKABLES ##
 		self.devices = []
-		#todo Dynamic instanciation
+		i = 0
+		while True:
+			try:
+				if (self.config["DEVICE"+str(i)]["TYPE"] == "playbulb"):
+					self.devices.append(playbulb(i, self.config["DEVICE"+str(i)]["ADDRESS"], self.config["DEVICE"+str(i)]["DESCRIPTION"], self.config["DEVICE"+str(i)]["GROUP"], self.config["DEVICE"+str(i)]["SUBGROUP"], self.config["DEVICE"+str(i)]["DEFAULT_INTENSITY"], self))
+					lightManager.debugger("Created device playbulb {}. Description: {}".format(self.config["DEVICE"+str(i)]["ADDRESS"],self.config["DEVICE"+str(i)]["DESCRIPTION"]) , 0)
+				elif (self.config["DEVICE"+str(i)]["TYPE"] == "milight"):
+					self.devices.append(milight(i, self.config["DEVICE"+str(i)]["ADDRESS"], self.config["DEVICE"+str(i)]["ID1"], self.config["DEVICE"+str(i)]["ID2"], self.config["DEVICE"+str(i)]["DESCRIPTION"], self.config["DEVICE"+str(i)]["GROUP"], self.config["DEVICE"+str(i)]["SUBGROUP"], self))
+					lightManager.debugger("Created device milight {}. Description: {}".format(self.config["DEVICE"+str(i)]["ADDRESS"],self.config["DEVICE"+str(i)]["DESCRIPTION"]) , 0)
+				else:
+					lightManager.debugger('Unsupported device type {}'.format(self.config["DEVICE"+str(i)]["TYPE"]), 1)
+			except KeyError:
+				break
+			i = i + 1
+
 		#todo allow reporting of device state to the lightserver
-		#
-		# DeviceType(MAC_ADDRESS, DESCRIPTION, GROUP, SUBGROUP, DEFAULT 'ON' VALUE (playbulbs))
-		# PLAYBULBS
-		self.devices.append(playbulb(0, "D1:F6:4B:14:AC:E6", "Playbulb facing the sofa", "salon", "luminaire", "05000000", self))
-		self.devices.append(playbulb(1, "09:5F:4B:15:AC:E6", "Playbulb facing the entrance", "salon", "luminaire", "05000000", self))
-		self.devices.append(playbulb(2, "07:B2:4B:15:AC:E6", "Playbulb facing the TV", "salon", "luminaire", "05000000", self))
-		self.devices.append(playbulb(3, "07:94:4B:15:AC:E6", "Playbulb in the passage", "passage", "passage", "12000000", self))
-		# MILIGHTS
-		self.devices.append(milight(4, "88:C2:55:01:02:B1", "80", "112", "Milight living room, TV side", "salon", "sofa", self))
-		self.devices.append(milight(5, "80:30:DC:DE:73:74", "38", "98", "Milight living room, sofa side", "salon", "sofa", self))
 		self.starttime = datetime.time(18,00) #Light change minimal time
 		self.skiptime = 0
 		self.queue = Queue()
@@ -333,12 +339,12 @@ class lightManager(object):
 		global journaling
 		journaling = True
 		#todo Dynamic history limits
-		if os.path.isfile("/home/pi/play/play.0.log"):
-			if os.path.isfile("/home/pi/play/play.1.log"):
-				if os.path.isfile("/home/pi/play/play.2.log"):
-					os.remove("/home/pi/play/play.2.log")
-				os.rename("/home/pi/play/play.1.log", "/home/pi/play/play.2.log")
-			os.rename("/home/pi/play/play.0.log", "/home/pi/play/play.1.log")
+		if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log"):
+			if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log"):
+				if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/play.2.log"):
+					os.remove(self.config['SERVER']['JOURNAL_DIR'] + "/play.2.log")
+				os.rename(self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log", self.config['SERVER']['JOURNAL_DIR'] + "/play.2.log")
+			os.rename(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log", self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log")
 
 	def setLock(self, state):
 		self.locked = state
@@ -468,11 +474,13 @@ class lightManager(object):
 
 	@staticmethod
 	def debugger(msg, level):
+		playconfig = configparser.ConfigParser()
+		playconfig.read('play.ini')
 		levels = {0: "DEBUG", 1: "ERROR", 2: "FATAL"}
 		debugtext = "(" + str(datetime.datetime.now().time()) + ") - [" + levels[level] + "] " + str(msg)
 		print(debugtext)
 		if journaling:
-			with open("/home/pi/play/play.0.log", "a") as jfile:
+			with open(playconfig['SERVER']['JOURNAL_DIR'] + "/play.0.log", "a") as jfile:
 				jfile.write(debugtext + "\n")
 
 
@@ -736,7 +744,9 @@ class milight(lightManager):
 """ Script executed directly """
 if __name__ == "__main__":
 	#todo externalize?
-	lm = lightManager()
+	playconfig = configparser.ConfigParser()
+	playconfig.read('play.ini')
+	lm = lightManager(playconfig)
 
 	parser = argparse.ArgumentParser(description='BLE light bulbs manager script', epilog=lm.descriptions(), formatter_class=RawTextHelpFormatter)
 	parser.add_argument('hexvalues', metavar='N', type=str, nargs="*",
@@ -768,22 +778,18 @@ if __name__ == "__main__":
 		lightManager.debugger("You cannot stream data to both devices and groups. Quitting.", 2)
 		sys.exit()
 
-	#todo do not hardcode this
-	HOST = '192.168.1.50'
-	PORT = 1111
-	
 	if args.journal:
 		lm.enableJournaling()
 
 	if args.server:
 		if args.notime:
 			lm.skipTime(1)
-		lightServer(lm,HOST,PORT).listen()
+		lightServer(lm,playconfig['SERVER']['HOST'],int(playconfig['SERVER']['PORT'])).listen()
 
 	elif args.stream_dev or args.stream_group:
 		colorval = ""
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.connect((HOST, PORT))
+		s.connect((playconfig['SERVER']['HOST'],int(playconfig['SERVER']['PORT'])))
 		if (args.stream_dev):
 			s.sendall("0006".encode('utf-8'))
 			s.sendall("stream".encode('utf-8'))
@@ -810,7 +816,7 @@ if __name__ == "__main__":
 				if (colorval != "quit"):
 					s.close()
 					s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-					s.connect((HOST, PORT))
+					s.connect((playconfig['SERVER']['HOST'],int(playconfig['SERVER']['PORT'])))
 					if (args.stream_dev):
 						s.sendall("0006".encode('utf-8'))
 						s.sendall("stream".encode('utf-8'))
@@ -828,7 +834,7 @@ if __name__ == "__main__":
 
 	else:
 		s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		s.connect((HOST, PORT))
+		s.connect((playconfig['SERVER']['HOST'],int(playconfig['SERVER']['PORT'])))
 		#todo report connection errors or allow feedback response
 		lightManager.debugger('Connecting with lightmanager daemon', 0)
 		lightManager.debugger('Sending request: ' + json.dumps(vars(args)), 0)
@@ -837,27 +843,3 @@ if __name__ == "__main__":
 		s.close()
 
 	sys.exit()
-else:
-	""" Script imported - var colors must be predefined and functions are limited"""
-	#todo deprecate this?
-	lm = lightManager()
-
-	try:
-		colors[1]
-	except (IndexError, NameError): 
-		lightManager.debugger("No arguments given, defaulting to lights off", 0)
-		lm.setColors()
-	else:
-		lightManager.debugger("Received color length " + str(len(colors)) + " for " + str(len(lm.devices)) + " devices", 0) 
-		lm.setColors(colors)
-		if len(colors) == len(lm.devices)+1:
-			if colors[len(lm.devices)] == "1":
-				lm.skipTime(0)
-	lm.run()
-	sys.exit()
-
-
-
-
-
-
