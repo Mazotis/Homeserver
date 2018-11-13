@@ -2,7 +2,7 @@
 '''
     File name: play.py
     Author: Maxime Bergeron
-    Date last modified: 09/11/2018
+    Date last modified: 13/11/2018
     Python Version: 3.7
 
     A python websocket server/client to control various cheap IoT RGB BLE lightbulbs and HDMI-CEC-to-TV RPi3
@@ -37,8 +37,8 @@ def connect_ble(f):
 				lightManager.debugger("CONnecting to device ({}) {}".format(self.deviceType, self.device), 0)
 				connection = ble.Peripheral(self.device)
 				self._connection = connection.withDelegate(self)
-			except:
-				lightManager.debugger("Device ({}) {} connection failed.".format(self.deviceType, self.device), 1)
+			except Exception as ex:
+				lightManager.debugger("Device ({}) {} connection failed. Exception: {}".format(self.deviceType, self.device, ex), 1)
 				self._connection = None
 		return f(self, *args)
 	return _conn_wrap
@@ -346,6 +346,9 @@ class lightManager(object):
 	def setState(self, color, devid):
 		self.state[devid] = color
 
+	def getState(self, devid):
+		return self.state[devid]
+
 	def setLightStream(self, devid, color, is_group):
 		if (color == "00000000"):
 			color = "0"
@@ -400,8 +403,8 @@ class lightManager(object):
 					firstran = True
 
 					while i < len(self.devices):
-						lightManager.debugger("DEVICE: {}, REQUESTED COLOR: {}, FROM STATE: {}, PRIORITY: {}".format(self.devices[i].device, colors[i], self.state[i], self.devices[i].priority), 0)
 						if colors[i] != self.state[i] or (colors[i] == "0" and self.state[i] == "0"):
+							lightManager.debugger("DEVICE: {}, REQUESTED COLOR: {}, FROM STATE: {}, PRIORITY: {}".format(self.devices[i].device, colors[i], self.state[i], self.devices[i].priority), 0)
 							lightThreads[i] = lightPool.apply_async(self.devices[i].color, args=(colors[i],self.priority,))
 
 						i += 1
@@ -495,13 +498,14 @@ class playbulb(lightManager):
 		self.success = False
 
 	def color(self, color, priority):
-		if (len(color) not in (1,8)):
+		if (len(color) not in (1,8) and color != "-1"):
 			lightManager.debugger("Unhandled color format {}".format(color), 1)
 			return True
 		if (self.success):
 			return True
 		if (color == "-1"): #todo Skip color change. Put in constant for readability
 			self.success = True
+			self.server.setState("-1", self.devid)
 			return True
 		if (self.priority > priority):
 			lightManager.debugger("Playbulb bulb {} is set with higher priority ({}), skipping.".format(self.device, self.priority), 0)
@@ -545,9 +549,33 @@ class playbulb(lightManager):
 		try:
 			if (self._connection is not None):
 				with lock:
+					#NOT YET STABLE
+#					state = self.server.getState(self.devid)
+#					if (state == "0"):
+#						state = "00000000"
+#					elif (state == "1"):
+#						state = self.intensity
+#					lightManager.debugger("Got color: {} and state: {}".format(color, state), 0)
+#					delta_w = (int(color[0:2]) - int(state[0:2]))/20
+#					delta_r = (int(color[2:4]) - int(state[2:4]))/20
+#					delta_g = (int(color[4:6]) - int(state[4:6]))/20
+#					delta_b = (int(color[6:8]) - int(state[6:8]))/20
+#					lightManager.debugger("deltaw: {}, deltar: {}, deltag: {}, deltab: {}".format(delta_w, delta_r, delta_g, delta_b), 0)
+#					for _iter in range(20):
+#						if (int(_iter*delta_w) != 0 and int(_iter*delta_r) != 0 and int(_iter*delta_g) != 0 and int(_iter*delta_b) != 0):
+#							deltacolor = str(int(color[0:2]) + int(_iter*delta_w)) + str(int(color[2:4]) + int(_iter*delta_r)) + str(int(color[4:6]) + int(_iter*delta_g)) + str(int(color[6:8]) + int(_iter*delta_b))
+#							self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(deltacolor))
+#							time.sleep(0.5)
+
+
+
 					self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color))
+					
+					#Prebuilt animations: blink=00, pulse=01, hard rainbow=02, smooth rainbow=03, candle=04
+					#self._connection.getCharacteristics(uuid="0000fffb-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color+"02ffffff"))
 			else:
 				lightManager.debugger("Connection error to device (playbulb) " + str(self.device) + ". Retrying", 1)
+				time.sleep(0.2)
 				return False				
 		except Exception as ex:
 			#todo manage "overwritten" thread by queued requests

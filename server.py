@@ -3,8 +3,7 @@
 Simple playserver IFTTT server
 """
 from http.server import BaseHTTPRequestHandler, HTTPServer
-import logging
-import cgi
+import urllib.parse
 import argparse
 import os, sys
 import socket
@@ -41,13 +40,14 @@ class S(BaseHTTPRequestHandler):
 		self.end_headers()
 
 	def do_POST(self):
+		lightManager.debugger('Getting request', 0)
 		content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
-		postvars = cgi.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
+		postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
 		action = postvars[b'action'][0].decode('utf-8')
 		_hash = postvars[b'hash'][0].decode('utf-8')
 
 		if (_hash == hashlib.sha512(bytes(SALT.encode('utf-8') + action.encode('utf-8'))).hexdigest()):
-			logging.info('Running action : {}\n'.format(action))
+			lightManager.debugger('Running action : {}\n'.format(action), 0)
 			if (action == "lumieres_salon_off"):
 				os.system('./playclient.py --off --notime --priority 3 --group salon')
 			elif (action == "lumieres_salon_on"):
@@ -75,23 +75,21 @@ class S(BaseHTTPRequestHandler):
 			elif (action == "lumieres_off"):
 				os.system('./playclient.py --off --notime --priority 3')
 		else:
-			logging.info('Unwanted request for action : {}\n'.format(action))
+			lightManager.debugger('Unwanted request with action : {}\n'.format(action), 1)
 
 		self._set_response()
 		self.wfile.write("POST request for {}".format(self.path).encode('utf-8'))
 
 def run(server_class=HTTPServer, handler_class=S, port=1234):
-	logging.basicConfig(level=logging.INFO)
 	server_address = ('', port)
 	httpd = server_class(server_address, handler_class)
-	logging.info('Starting httpd...\n')
+	lightManager.debugger('Starting http webserver for getting lightserver POST requests on port {}\n'.format(port), 0)
 	try:
 		httpd.serve_forever()
 	except KeyboardInterrupt:
 		pass
 	httpd.server_close()
-	logging.info('Stopping httpd...\n')
+	lightManager.debugger('Stopping webserver', 0)
 
 if __name__ == '__main__':
 	run()
-
