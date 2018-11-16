@@ -2,7 +2,7 @@
 '''
     File name: play.py
     Author: Maxime Bergeron
-    Date last modified: 13/11/2018
+    Date last modified: 15/11/2018
     Python Version: 3.7
 
     A python websocket server/client to control various cheap IoT RGB BLE lightbulbs and HDMI-CEC-to-TV RPi3
@@ -275,6 +275,10 @@ class lightManager(object):
 		self.lockcount = 0
 		self.journaling = False
 		self.priority = 0
+		self.threaded = False
+
+	def startThreaded(self):
+		self.threaded = True
 
 	def skipTime(self, serverwide = 0):
 		if (serverwide):
@@ -395,6 +399,9 @@ class lightManager(object):
 		try:
 			self.lockcount = 0
 			firstran = False
+			if self.threaded:
+				lightThreads = [None] * len(self.devices)
+				lightPool = ThreadPool(processes=4)
 			while not self.queue.empty():
 				colors = None
 				try:
@@ -402,8 +409,6 @@ class lightManager(object):
 						lightManager.debugger("Getting remainder of queue", 0)
 						self._reinit()
 					colors = self.queue.get() #todo Check performance
-					lightThreads = [None] * len(self.devices)
-					lightPool = ThreadPool(processes=4)
 					lightManager.debugger("Changing colors to " + str(colors) + " from state " + str(self.getState()), 0)
 					self.setLock(1)
 					i = 0
@@ -414,11 +419,13 @@ class lightManager(object):
 						_state = self.getState(i)
 						if colors[i] != _state or (colors[i] == "0" and _state == "0"):
 							lightManager.debugger("DEVICE: {}, REQUESTED COLOR: {}, FROM STATE: {}, PRIORITY: {}".format(self.devices[i].device, colors[i], _state, self.devices[i].priority), 0)
-							lightThreads[i] = lightPool.apply_async(self.devices[i].color, args=(colors[i],self.priority,))
-
+							if self.threaded:
+								lightThreads[i] = lightPool.apply_async(self.devices[i].color, args=(colors[i],self.priority,))
+							else:
+								self.devices[i].color(colors[i],self.priority)
 						i += 1
 
-						if (i == len(self.devices)):
+						if (i == len(self.devices) and self.threaded):
 							lightManager.debugger("Awaiting results", 0)
 							for _cnt, _thread in enumerate(lightThreads):
 								if (_thread is not None):
@@ -430,7 +437,8 @@ class lightManager(object):
 							tries = tries + 1
 							if (tries == 5):
 								break
-					lightPool.close()
+					if self.threaded:
+						lightPool.close()
 
 				except Queue.Empty:
 					lightManager.debugger("Nothing in queue", 0)
@@ -758,6 +766,7 @@ if __name__ == "__main__":
 	parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')
 	parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all lights on/off')
 	parser.add_argument('--server', action='store_true', default=False, help='Start as a socket server daemon')
+	parser.add_argument('--threaded', action='store_true', default=False, help='Starts the server daemon with threaded light change requests')
 	parser.add_argument('--journal', action='store_true', default=False, help='Enables file journaling')
 	parser.add_argument('--tvon', action='store_true', default=False, help='Turns TV on')
 	parser.add_argument('--tvoff', action='store_true', default=False, help='Turns TV off')
@@ -781,6 +790,8 @@ if __name__ == "__main__":
 	if args.server:
 		if args.notime:
 			lm.skipTime(1)
+		if args.threaded:
+			lm.startThreaded()
 		lightServer(lm,playconfig['SERVER']['HOST'],int(playconfig['SERVER']['PORT'])).listen()
 
 	elif args.stream_dev or args.stream_group:

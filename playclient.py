@@ -54,6 +54,7 @@ if __name__ == "__main__":
 	parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')
 	parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all lights on/off')
 	parser.add_argument('--server', action='store_true', default=False, help='Start as a socket server daemon')
+	parser.add_argument('--threaded', action='store_true', default=False, help='Starts the server daemon with threaded light change requests')
 	parser.add_argument('--journal', action='store_true', default=False, help='Enables file journaling')
 	parser.add_argument('--tvon', action='store_true', default=False, help='Turns TV on')
 	parser.add_argument('--tvoff', action='store_true', default=False, help='Turns TV off')

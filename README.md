@@ -5,7 +5,7 @@ A python websocket server/client to control various cheap IoT RGB BLE lightbulbs
 
 *** On a RPi3 or a linux-based bluetooth-enabled processor board ***
 1) Setup python3 + required pip imports.
-2) Configure your playbulb/milight bulbs in the __init__ section of play.py.
+2) Configure your playbulb/milight bulbs in the play.ini file.
 3) Run ./play.py --server (or execute as systemd startup script).
 4) To use HDMI-CEC, connect HDMI cable to a free TV port.
 
