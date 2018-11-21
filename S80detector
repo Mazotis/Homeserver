@@ -15,7 +15,7 @@ RETVAL=$?
 
 # this call actually starts detector.
 cd $PLAYSERVER_DIR
-python3 $PLAYSERVER_DIR/detector.py &
+nohup python3 $PLAYSERVER_DIR/detector.py > /dev/null 2>&1 &
 RETVAL=$?
 [ $RETVAL -eq 0 ] && echo -n "done"
 echo
