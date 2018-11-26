@@ -556,7 +556,6 @@ class Bulb(object):
 		self._connection = None
 
 
-lock = threading.Lock()
 class Playbulb(Bulb):
 	""" Methods for driving a rainbow BLE lightbulb """
 	def __init__(self, devid, device, description, group, subgroup, intensity, server):
@@ -606,7 +605,6 @@ class Playbulb(Bulb):
 	def _write(self, color):
 		try:
 			if (self._connection is not None):
-				with lock:
 					#NOT YET STABLE
 #					state = self.server.getState(self.devid)
 #					if (state == "0"):
@@ -627,14 +625,14 @@ class Playbulb(Bulb):
 
 
 
-					self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color))
-					self.state = color
+				self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color))
+				self.state = color
 		
-					#Prebuilt animations: blink=00, pulse=01, hard rainbow=02, smooth rainbow=03, candle=04
-					#self._connection.getCharacteristics(uuid="0000fffb-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color+"02ffffff"))
-					self.success = True
-					lightManager.debugger("Playbulb " + str(self.device) + " color changed to " + color, 0)
-					return True
+				#Prebuilt animations: blink=00, pulse=01, hard rainbow=02, smooth rainbow=03, candle=04
+				#self._connection.getCharacteristics(uuid="0000fffb-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color+"02ffffff"))
+				self.success = True
+				lightManager.debugger("Playbulb " + str(self.device) + " color changed to " + color, 0)
+				return True
 			else:
 				lightManager.debugger("Connection error to device (playbulb) " + str(self.device) + ". Retrying", 1)
 				time.sleep(0.2)
@@ -729,11 +727,10 @@ class Milight(Bulb):
 	def _write(self, command, color):
 		try:
 			if (self._connection is not None):
-				with lock:
-					self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(command.replace('\n', '').replace('\r', '')))
-					self.success = True
-					self.state = color
-					return True
+				self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(command.replace('\n', '').replace('\r', '')))
+				self.success = True
+				self.state = color
+				return True
 			else:
 				lightManager.debugger("Connection error to device (milight) " + str(self.device) + ". Retrying", 1)
 				return False
