@@ -46,6 +46,11 @@ def connect_ble(f):
 	return _conn_wrap
 
 ###
+# CONSTANTS
+LIGHT_SKIP = "-1"
+LIGHT_OFF = "0"
+LIGHT_ON = "1"
+###
 
 class lightServer(object):
 	def __init__(self, lm, host, port):
@@ -55,7 +60,7 @@ class lightServer(object):
 		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.sock.bind((self.host, self.port))
 		signal.signal(signal.SIGTERM, self.removeServer)
-		lm.setColors(["1"] * len(lm.devices))
+		lm.setColors([LIGHT_ON] * len(lm.devices))
 		lm.run()
 
 	def listen(self):
@@ -137,7 +142,7 @@ class lightServer(object):
 	def removeServer(self, signal, frame):
 		lightManager.debugger("Closing down server and lights.", 0)
 		lm.skipTime(0)
-		lm.setColors(["0"] * len(lm.devices))
+		lm.setColors([LIGHT_OFF] * len(lm.devices))
 		lm.run()
 		time.sleep(3)
 		self.sock.close()
@@ -178,10 +183,10 @@ class lightServer(object):
 				lm.setTypedColors(args["milight"], "Milight")
 			if args["off"]:
 				lightManager.debugger("Received OFF change request", 0) 
-				lm.setColors(["0"] * len(lm.devices))
+				lm.setColors([LIGHT_OFF] * len(lm.devices))
 			if args["on"]:
 				lightManager.debugger("Received ON change request", 0) 
-				lm.setColors(["1"] * len(lm.devices))
+				lm.setColors([LIGHT_ON] * len(lm.devices))
 			if args["toggle"]:
 				lightManager.debugger("Received TOGGLE change request", 0) 
 				lm.setColors(lm.getToggle())
@@ -271,7 +276,7 @@ class lightManager(object):
 		self.starttime = datetime.time(18,00) #Light change minimal time
 		self.skiptime = 0
 		self.queue = Queue()
-		self.colors = ["0"] * len(self.devices)
+		self.colors = [LIGHT_OFF] * len(self.devices)
 		self.setLock(0)
 		self.lockcount = 0
 		self.journaling = False
@@ -296,18 +301,18 @@ class lightManager(object):
 		for _cnt,device in enumerate(self.devices):
 			if (device.group != group):
 				lightManager.debugger("Skipping device {} as it does not belong in the '{}' group".format(device.device, group), 0)
-				self.colors[_cnt] = "-1"
+				self.colors[_cnt] = LIGHT_SKIP
 			else:
 				if (subgroup is not None and device.subgroup != subgroup):
 					lightManager.debugger("Skipping device {} as it does not belong in the '{}' subgroup".format(device.device, subgroup), 0)
-					self.colors[_cnt] = "-1"
+					self.colors[_cnt] = LIGHT_SKIP
 
 	def getToggle(self):
-		colors = ["1"] * len(lm.devices)
+		colors = [LIGHT_ON] * len(lm.devices)
 		i = 0
 		for color in self.getState():
-			if color != "0":
-				colors = ["0"] * len(lm.devices)
+			if color != LIGHT_OFF:
+				colors = [LIGHT_OFF] * len(lm.devices)
 			i = i+1
 		return colors
 
@@ -363,25 +368,25 @@ class lightManager(object):
 			return states
 
 	def setLightStream(self, devid, color, is_group):
-		if (color == "00000000"):
-			color = "0"
 		if (is_group):
 			for device in self.devices:
 				if (device.group == devid):
 					cnt = 0
+					_color = device.convert(color)
 					while True:
 						if (cnt == 4):
 							break
-						if (device.color(color,3)):
+						if (device.color(_color,3)):
 							break
 						time.sleep(0.3)
 						cnt = cnt + 1
 		else:
 			cnt = 0
+			_color = device.convert(color)
 			while True:
 				if (cnt == 4):
 					break
-				if (self.devices[devid].color(color,3)):
+				if (self.devices[devid].color(_color,3)):
 					break
 				time.sleep(0.3)
 				cnt = cnt + 1
@@ -418,30 +423,42 @@ class lightManager(object):
 
 					while i < len(self.devices):
 						_state = self.getState(i)
-						if colors[i] != _state or (colors[i] == "0" and _state == "0"):
-							lightManager.debugger("DEVICE: {}, REQUESTED COLOR: {}, FROM STATE: {}, PRIORITY: {}".format(self.devices[i].device, colors[i], _state, self.devices[i].priority), 0)
+						_color = self.devices[i].convert(colors[i])
+
+						if (not self.devices[i].success):
+							lightManager.debugger("DEVICE: {}, REQUESTED COLOR: {}, FROM STATE: {}, PRIORITY: {}".format(self.devices[i].device, _color, _state, self.devices[i].priority), 0)
 							if self.threaded:
-								lightThreads[i] = lightPool.apply_async(self.devices[i].color, args=(colors[i],self.priority,))
+								lightThreads[i] = lightPool.apply_async(self.devices[i].color, args=(_color,self.priority,))
 							else:
-								self.devices[i].color(colors[i],self.priority)
+								self.devices[i].color(_color,self.priority)
 						i += 1
 
-						if (i == len(self.devices) and self.threaded):
-							lightManager.debugger("Awaiting results", 0)
-							for _cnt, _thread in enumerate(lightThreads):
-								if (_thread is not None):
-									try:
-										if (not _thread.get(5)):
+						if (i == len(self.devices)):
+							if (self.threaded):
+								lightManager.debugger("Awaiting results", 0)
+								for _cnt, _thread in enumerate(lightThreads):
+									if (_thread is not None):
+										try:
+											if (not _thread.get(5)):
+												i = 0
+										except:
 											i = 0
-									except:
+								tries = tries + 1
+								if (tries == 5):
+									break
+							else:
+								for _cnt, _dev in enumerate(self.devices):
+									_state = self.getState(_cnt)
+									if colors[_cnt] != _state or (colors[_cnt] == self.devices[_cnt].convert(LIGHT_OFF) and _state == self.devices[_cnt].convert(LIGHT_OFF)):
 										i = 0
-							tries = tries + 1
-							if (tries == 5):
-								break
+								tries = tries + 1
+								if (tries == 5):
+									break
+
 					if self.threaded:
 						lightPool.close()
 
-				except Queue.Empty:
+				except Queue.queue.Empty:
 					lightManager.debugger("Nothing in queue", 0)
 					pass
 
@@ -496,7 +513,6 @@ class lightManager(object):
 				jfile.write(debugtext + "\n")
 
 
-
 class Bulb(object):
 	""" Global bulb functions and variables """
 	def __init__(self, devid, device, description, group, subgroup, server):
@@ -538,17 +554,20 @@ class Playbulb(Bulb):
 		self.state = "00000000"
 		self.intensity = intensity
 
-	def color(self, color, priority):
-		if (color == "0"):
+	def convert(self, color):
+		if (color == LIGHT_OFF):
 			color = "00000000"
-		elif (color == "1"):
+		elif (color == LIGHT_ON):
 			color = self.intensity
-		if (len(color) not in (1,8) and color != "-1"):
+		return color
+
+	def color(self, color, priority):
+		if (len(color) not in (1,8) and color != self.convert(LIGHT_SKIP)):
 			lightManager.debugger("Unhandled color format {}".format(color), 1)
 			return True
 		if (self.success):
 			return True
-		if (color == "-1"): #todo Skip color change. Put in constant for readability
+		if (color == self.convert(LIGHT_SKIP)):
 			self.success = True
 			return True
 		if (self.priority > priority):
@@ -559,9 +578,9 @@ class Playbulb(Bulb):
 			self.priority = 1
 		else:
 			self.priority = priority
-		if (self.state == color):
+		if (self.state == color and color != self.convert(LIGHT_OFF)):
 			self.success = True
-			lightManager.debugger("Bulb " + str(self.device) + " is already of the requested color, skipping.", 0)
+			lightManager.debugger("Bulb {} is already of the requested color, skipping.".format(self.device), 0)
 			return True
 		lightManager.debugger("Changing playbulb " + str(self.device) + " color to " + color, 0)
 		if (not self._write(color)): return False
@@ -625,30 +644,33 @@ class Milight(Bulb):
 		self.state = "0"
 
 	def turnon(self):
-		return self._sendrequest(self.getquery(32, 161, 1, self.id1, self.id2), "1")
+		return self._write(self.getquery(32, 161, 1, self.id1, self.id2), "1")
 
 	def turnoff(self):
-		return self._sendrequest(self.getquery(32, 161, 2, self.id1, self.id2), "0")
+		return self._write(self.getquery(32, 161, 2, self.id1, self.id2), "0")
 
 	def turnOnAndSetColor(self, color):
 		if (not self.turnon()): return False
-		return self._sendrequest(self.getquery(45, 161, 4, self.id1, self.id2, color, 2, 50), color)
+		return self._write(self.getquery(45, 161, 4, self.id1, self.id2, color, 2, 50), color)
 
 	def turnOnAndDimOn(self, color):
 		if (not self.turnon()): return False
 		return self.dimon(color)
 
 	def dimon(self, color):
-		return self._sendrequest(self.getquery(20, 161, 5, self.id1, self.id2, 200, 4, 50), color)
+		return self._write(self.getquery(20, 161, 5, self.id1, self.id2, 200, 4, 50), color)
+
+	def convert(self, color):
+		#todo rrggbb to ...this format...
+		return color
 
 	def color(self, color, priority):
-		#todo rrggbb to ...this format...
 		if (len(color) > 3):
 			lightManager.debugger("Unhandled color format {}".format(color), 1)
 			return True
 		if (self.success):
 			return True
-		if (color == "-1"):
+		if (color == self.convert(LIGHT_SKIP)):
 			self.success = True
 			return True
 		if (self.priority > priority):
@@ -660,7 +682,7 @@ class Milight(Bulb):
 		else:
 			self.priority = priority
 		mlTarget = None
-		if color == "0":
+		if (color == self.convert(LIGHT_OFF)):
 			lightManager.debugger("Turning milight " + self.device + " off", 0)
 			if (not self.turnoff()): return False
 			return True
@@ -668,10 +690,9 @@ class Milight(Bulb):
 			self.success = True
 			lightManager.debugger("Device (milight) " + str(self.device) + " is already of the requested color, skipping.", 0)
 			return True
-		elif color == "1":
+		elif (color == LIGHT_ON):
 			lightManager.debugger("Turning milight " + self.device + " on", 0)
 			if (not self.turnOnAndDimOn(color)): 
-				lightManager.debugger("DIMON returned false", 0)
 				return False
 			return True
 		else:
@@ -693,7 +714,7 @@ class Milight(Bulb):
 		return desctext
 
 	@connect_ble
-	def _sendrequest(self, command, color):
+	def _write(self, command, color):
 		try:
 			if (self._connection is not None):
 				with lock:
