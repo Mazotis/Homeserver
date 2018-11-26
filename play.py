@@ -17,6 +17,7 @@ import socket
 import threading
 import functools
 import configparser
+import traceback
 from multiprocessing.pool import ThreadPool
 import json
 import signal
@@ -124,7 +125,7 @@ class lightServer(object):
 			pass
 
 		except Exception as ex:
-			lightManager.debugger('Unhandled exception: {}'.format(ex), 2)
+			lightManager.debugger('Unhandled exception of type {}: {}, {}'.format(type(ex), ex, ''.join(traceback.format_tb(ex.__traceback__))), 2)
 
 		finally:
 			lightManager.debugger('Closing connection.', 0)
@@ -171,10 +172,10 @@ class lightServer(object):
 		else:
 			if args["playbulb"] is not None:
 				lightManager.debugger("Received playbulb change request", 0) 
-				lm.setTypedColors(args["playbulb"], "playbulb")
+				lm.setTypedColors(args["playbulb"], "Playbulb")
 			if args["milight"] is not None:
 				lightManager.debugger("Received milight change request", 0) 
-				lm.setTypedColors(args["milight"], "milight")
+				lm.setTypedColors(args["milight"], "Milight")
 			if args["off"]:
 				lightManager.debugger("Received OFF change request", 0) 
 				lm.setColors(["0"] * len(lm.devices))
@@ -254,12 +255,12 @@ class lightManager(object):
 		i = 0
 		while True:
 			try:
-				if (self.config["DEVICE"+str(i)]["TYPE"] == "playbulb"):
-					self.devices.append(playbulb(i, self.config["DEVICE"+str(i)]["ADDRESS"], self.config["DEVICE"+str(i)]["DESCRIPTION"], self.config["DEVICE"+str(i)]["GROUP"], self.config["DEVICE"+str(i)]["SUBGROUP"], self.config["DEVICE"+str(i)]["DEFAULT_INTENSITY"], self))
-					lightManager.debugger("Created device playbulb {}. Description: {}".format(self.config["DEVICE"+str(i)]["ADDRESS"],self.config["DEVICE"+str(i)]["DESCRIPTION"]) , 0)
-				elif (self.config["DEVICE"+str(i)]["TYPE"] == "milight"):
-					self.devices.append(milight(i, self.config["DEVICE"+str(i)]["ADDRESS"], self.config["DEVICE"+str(i)]["ID1"], self.config["DEVICE"+str(i)]["ID2"], self.config["DEVICE"+str(i)]["DESCRIPTION"], self.config["DEVICE"+str(i)]["GROUP"], self.config["DEVICE"+str(i)]["SUBGROUP"], self))
-					lightManager.debugger("Created device milight {}. Description: {}".format(self.config["DEVICE"+str(i)]["ADDRESS"],self.config["DEVICE"+str(i)]["DESCRIPTION"]) , 0)
+				if (self.config["DEVICE"+str(i)]["TYPE"] == "Playbulb"):
+					self.devices.append(Playbulb(i, self.config["DEVICE"+str(i)]["ADDRESS"], self.config["DEVICE"+str(i)]["DESCRIPTION"], self.config["DEVICE"+str(i)]["GROUP"], self.config["DEVICE"+str(i)]["SUBGROUP"], self.config["DEVICE"+str(i)]["DEFAULT_INTENSITY"], self))
+					lightManager.debugger("Created device Playbulb {}. Description: {}".format(self.config["DEVICE"+str(i)]["ADDRESS"],self.config["DEVICE"+str(i)]["DESCRIPTION"]) , 0)
+				elif (self.config["DEVICE"+str(i)]["TYPE"] == "Milight"):
+					self.devices.append(Milight(i, self.config["DEVICE"+str(i)]["ADDRESS"], self.config["DEVICE"+str(i)]["ID1"], self.config["DEVICE"+str(i)]["ID2"], self.config["DEVICE"+str(i)]["DESCRIPTION"], self.config["DEVICE"+str(i)]["GROUP"], self.config["DEVICE"+str(i)]["SUBGROUP"], self))
+					lightManager.debugger("Created device Milight {}. Description: {}".format(self.config["DEVICE"+str(i)]["ADDRESS"],self.config["DEVICE"+str(i)]["DESCRIPTION"]) , 0)
 				else:
 					lightManager.debugger('Unsupported device type {}'.format(self.config["DEVICE"+str(i)]["TYPE"]), 1)
 			except KeyError:
@@ -331,7 +332,7 @@ class lightManager(object):
 		desctext = ""
 		i = 1
 		for obj in self.devices:
-			if type(obj) == playbulb or type(obj) == milight:
+			if type(obj) == Playbulb or type(obj) == Milight:
 				desctext += str(i) + " - " + obj.descriptions() + "\n"
 			else:
 				desctext += str(i) + " - " + "Unknown bulb type\n"
@@ -407,7 +408,7 @@ class lightManager(object):
 				try:
 					if firstran:
 						lightManager.debugger("Getting remainder of queue", 0)
-						self._reinit()
+						self.reinit()
 					colors = self.queue.get() #todo Check performance
 					lightManager.debugger("Changing colors to " + str(colors) + " from state " + str(self.getState()), 0)
 					self.setLock(1)
@@ -495,21 +496,17 @@ class lightManager(object):
 				jfile.write(debugtext + "\n")
 
 
-lock = threading.Lock()
-class playbulb(lightManager):
-	""" Methods for driving a rainbow BLE lightbulb """
-	def __init__(self, devid, device, description, group, subgroup, intensity, server):
-		self.deviceType = "playbulb"
+
+class Bulb(object):
+	""" Global bulb functions and variables """
+	def __init__(self, devid, device, description, group, subgroup, server):
 		self.devid = devid
 		self.device = device
 		self.description = description
-		#todo get actual color at instanciation
-		self.state = "00000000"
 		self.success = False
 		self._connection = None
 		self.group = group
 		self.subgroup = subgroup
-		self.intensity = intensity
 		self.server = server
 		self.priority = 0
 
@@ -518,6 +515,28 @@ class playbulb(lightManager):
 
 	def getState(self):
 		return self.state
+
+	def disconnect(self):
+		try:
+			if (self._connection is not None):
+				lightManager.debugger("DISconnecting from device {}".format(self.device), 0)
+				self._connection.disconnect()
+		except ble.BTLEException:
+			lightManager.debugger("Device ({}) {} disconnection failed. Already disconnected?".format(self.deviceType, self.device), 1)
+			pass
+
+		self._connection = None
+
+
+lock = threading.Lock()
+class Playbulb(Bulb):
+	""" Methods for driving a rainbow BLE lightbulb """
+	def __init__(self, devid, device, description, group, subgroup, intensity, server):
+		super().__init__(devid, device, description, group, subgroup, server)
+		self.deviceType = "Playbulb"
+		#todo get actual color at instanciation
+		self.state = "00000000"
+		self.intensity = intensity
 
 	def color(self, color, priority):
 		if (color == "0"):
@@ -551,17 +570,6 @@ class playbulb(lightManager):
 	def descriptions(self):
 		desctext = "[Playbulb MAC: " + self.device + "] " + self.description
 		return desctext
-
-	def disconnect(self):
-		try:
-			if (self._connection is not None):
-				lightManager.debugger("DISconnecting to device  " + str(self.device), 0)
-				self._connection.disconnect()
-		except ble.BTLEException:
-			lightManager.debugger("Device " + str(self.device) + " disconnection failed. Already disconnected?", 1)        	
-			pass
-
-		self._connection = None
 
 	@connect_ble
 	def _write(self, color):
@@ -607,25 +615,14 @@ class playbulb(lightManager):
 			return False
 
 
-class milight(lightManager):
+class Milight(Bulb):
 	""" Methods for driving a milight BLE lightbulb """
 	def __init__(self, devid, device, id1, id2, description, group, subgroup, server):
-		self.deviceType = "milight"
-		self.devid = devid
-		self.device = device
+		super().__init__(devid, device, description, group, subgroup, server)
+		self.deviceType = "Milight"
 		self.id1 = id1
 		self.id2 = id2
-		self.description = description
-		self.success = False
 		self.state = "0"
-		self._connection = None
-		self.group = group
-		self.subgroup = subgroup
-		self.server = server
-		self.priority = 0
-
-	def reinit(self):
-		self.success = False
 
 	def turnon(self):
 		return self._sendrequest(self.getquery(32, 161, 1, self.id1, self.id2), "1")
@@ -643,9 +640,6 @@ class milight(lightManager):
 
 	def dimon(self, color):
 		return self._sendrequest(self.getquery(20, 161, 5, self.id1, self.id2, 200, 4, 50), color)
-
-	def getState(self):
-		return self.state
 
 	def color(self, color, priority):
 		#todo rrggbb to ...this format...
@@ -697,16 +691,6 @@ class milight(lightManager):
 	def descriptions(self):
 		desctext = "[Milight MAC: " + self.device + ", ID1: " + self.id1 + ", ID2: " + self.id2 + "] " + self.description
 		return desctext
-
-	def disconnect(self):
-		try:
-			if (self._connection is not None):
-				self._connection.disconnect()
-		except:
-			lightManager.debugger("Device (milight) " + str(self.device) + " disconnection failed. Already disconnected?", 1)        	
-			pass
-
-		self._connection = None
 
 	@connect_ble
 	def _sendrequest(self, command, color):
