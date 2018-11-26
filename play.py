@@ -11,7 +11,7 @@ import os
 import os.path
 import sys
 import argparse
-import time
+import sched, time
 import datetime
 import socket
 import threading
@@ -59,12 +59,15 @@ class lightServer(object):
 		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 		self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 		self.sock.bind((self.host, self.port))
+		self.schedDisconnect = sched.scheduler(time.time, time.sleep)
+		self.scheduledDisconnect = None
 		signal.signal(signal.SIGTERM, self.removeServer)
 		lm.setColors([LIGHT_ON] * len(lm.devices))
 		lm.run()
 
 	def listen(self):
 		lightManager.debugger('Server started', 0)
+		self.disconnectDevices() # Cleanup connection to allow new sock.accepts faster as sched is blocking
 		self.sock.listen(5)
 		while True:
 			client, address = self.sock.accept()
@@ -80,6 +83,8 @@ class lightServer(object):
 		try:
 			while True:
 				msize = int(client.recv(4).decode('utf-8'))
+				if (not self.schedDisconnect.empty()):
+					self.schedDisconnect.cancel(self.scheduledDisconnect)
 				#lightManager.debugger("Set message size {}".format(msize), 0)
 				data = client.recv(msize)
 				if data:
@@ -137,7 +142,14 @@ class lightServer(object):
 			lm.setLock(0)
 			lm.reinit()
 			client.close()
+			self.scheduledDisconnect = self.schedDisconnect.enter(60, 1, self.disconnectDevices, ())
+			self.schedDisconnect.run()
 			return False
+
+	def disconnectDevices(self):
+		lightManager.debugger("Server unused. Disconnecting devices.", 0)
+		for _dev in lm.devices:
+			_dev.disconnect()
 
 	def removeServer(self, signal, frame):
 		lightManager.debugger("Closing down server and lights.", 0)
