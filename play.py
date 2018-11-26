@@ -22,7 +22,7 @@ from multiprocessing.pool import ThreadPool
 import json
 import signal
 import bluepy.btle as ble
-from queue import Queue
+import queue
 from argparse import RawTextHelpFormatter
 from argparse import Namespace
 from __main__ import *
@@ -83,8 +83,9 @@ class lightServer(object):
 		try:
 			while True:
 				msize = int(client.recv(4).decode('utf-8'))
-				if (not self.schedDisconnect.empty()):
+				if (self.scheduledDisconnect is not None):
 					self.schedDisconnect.cancel(self.scheduledDisconnect)
+					self.scheduledDisconnect = None
 				#lightManager.debugger("Set message size {}".format(msize), 0)
 				data = client.recv(msize)
 				if data:
@@ -147,6 +148,7 @@ class lightServer(object):
 			return False
 
 	def disconnectDevices(self):
+		self.scheduledDisconnect = None
 		lightManager.debugger("Server unused. Disconnecting devices.", 0)
 		for _dev in lm.devices:
 			_dev.disconnect()
@@ -287,16 +289,19 @@ class lightManager(object):
 		#todo allow reporting of device state to the lightserver
 		self.starttime = datetime.time(18,00) #Light change minimal time
 		self.skiptime = 0
-		self.queue = Queue()
+		self.queue = queue.Queue()
 		self.colors = [LIGHT_OFF] * len(self.devices)
 		self.setLock(0)
 		self.lockcount = 0
 		self.journaling = False
 		self.priority = 0
 		self.threaded = False
+		self.lightThreads = [None] * len(self.devices)
+		self.lightPool = None
 
 	def startThreaded(self):
 		self.threaded = True
+		self.lightPool = ThreadPool(processes=4)
 
 	def skipTime(self, serverwide = 0):
 		if (serverwide):
@@ -413,16 +418,13 @@ class lightManager(object):
 
 	def _setLights(self):
 		""" Threading du changement des couleurs """
-		lightManager.debugger("Running a change of lights (priority level: {}, lock: {})...".format(self.priority, self.locked), 0)
+		lightManager.debugger("Running a change of lights (priority level: {})...".format(self.priority), 0)
 		try:
 			self.lockcount = 0
 			firstran = False
-			if self.threaded:
-				lightThreads = [None] * len(self.devices)
-				lightPool = ThreadPool(processes=4)
-			while not self.queue.empty():
-				colors = None
-				try:
+			try:
+				while not self.queue.empty():
+					colors = None
 					if firstran:
 						lightManager.debugger("Getting remainder of queue", 0)
 						self.reinit()
@@ -440,7 +442,9 @@ class lightManager(object):
 						if (not self.devices[i].success):
 							lightManager.debugger("DEVICE: {}, REQUESTED COLOR: {}, FROM STATE: {}, PRIORITY: {}".format(self.devices[i].device, _color, _state, self.devices[i].priority), 0)
 							if self.threaded:
-								lightThreads[i] = lightPool.apply_async(self.devices[i].color, args=(_color,self.priority,))
+								if (not self.queue.empty()):
+									break
+								self.lightThreads[i] = self.lightPool.apply_async(self.devices[i].color, args=(_color,self.priority,))
 							else:
 								self.devices[i].color(_color,self.priority)
 						i += 1
@@ -448,7 +452,7 @@ class lightManager(object):
 						if (i == len(self.devices)):
 							if (self.threaded):
 								lightManager.debugger("Awaiting results", 0)
-								for _cnt, _thread in enumerate(lightThreads):
+								for _cnt, _thread in enumerate(self.lightThreads):
 									if (_thread is not None):
 										try:
 											if (not _thread.get(5)):
@@ -467,19 +471,17 @@ class lightManager(object):
 								if (tries == 5):
 									break
 
-					if self.threaded:
-						lightPool.close()
+			except queue.Empty:
+				lightManager.debugger("Nothing in queue", 0)
+				pass
 
-				except Queue.queue.Empty:
-					lightManager.debugger("Nothing in queue", 0)
-					pass
+			finally:
+				lightManager.debugger("Clearing up light change queues.", 0)
+				if colors:
+					self.queue.task_done()
 
-				finally:
-					if colors:
-						self.queue.task_done()
-
-		except Exception as e:
-			lightManager.debugger("Unhandled error of type {}, Args: {} ".format(type(e).__name__, e.args), 3)
+		except Exception as ex:
+			lightManager.debugger('Unhandled exception of type {}: {}, {}'.format(type(ex), ex, ''.join(traceback.format_tb(ex.__traceback__))), 2)
 
 		finally:
 			self.reinit()
@@ -552,6 +554,8 @@ class Bulb(object):
 		except ble.BTLEException:
 			lightManager.debugger("Device ({}) {} disconnection failed. Already disconnected?".format(self.deviceType, self.device), 1)
 			pass
+		except:
+			pass
 
 		self._connection = None
 
@@ -603,6 +607,7 @@ class Playbulb(Bulb):
 
 	@connect_ble
 	def _write(self, color):
+		_oldcolor = self.state
 		try:
 			if (self._connection is not None):
 					#NOT YET STABLE
@@ -624,21 +629,23 @@ class Playbulb(Bulb):
 #							time.sleep(0.5)
 
 
-
-				self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color))
 				self.state = color
+				lightManager.debugger("Setting playbulb {} color to {}".format(self.device, color), 0)
+				self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color))
 		
 				#Prebuilt animations: blink=00, pulse=01, hard rainbow=02, smooth rainbow=03, candle=04
 				#self._connection.getCharacteristics(uuid="0000fffb-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color+"02ffffff"))
 				self.success = True
-				lightManager.debugger("Playbulb " + str(self.device) + " color changed to " + color, 0)
+				lightManager.debugger("Playbulb {} color changed to {}".format(self.device, color), 0)
 				return True
 			else:
+				self.state = _oldcolor
 				lightManager.debugger("Connection error to device (playbulb) " + str(self.device) + ". Retrying", 1)
 				time.sleep(0.2)
 				return False				
 		except Exception as ex:
 			#todo manage "overwritten" thread by queued requests
+			self.state = _oldcolor
 			lightManager.debugger("Unhandled response. Thread died?\n{}".format(ex), 0)
 			self.disconnect()
 			return False
@@ -693,20 +700,17 @@ class Milight(Bulb):
 			self.priority = priority
 		mlTarget = None
 		if (color == self.convert(LIGHT_OFF)):
-			lightManager.debugger("Turning milight " + self.device + " off", 0)
 			if (not self.turnoff()): return False
 			return True
 		elif (self.state == color):
 			self.success = True
-			lightManager.debugger("Device (milight) " + str(self.device) + " is already of the requested color, skipping.", 0)
+			lightManager.debugger("Device (milight) {} is already of the requested color, skipping.".format(self.device), 0)
 			return True
 		elif (color == LIGHT_ON):
-			lightManager.debugger("Turning milight " + self.device + " on", 0)
 			if (not self.turnOnAndDimOn(color)): 
 				return False
 			return True
 		else:
-			lightManager.debugger("Changing milight " + self.device + " color", 0)
 			if (not self.turnOnAndSetColor(color)): return False
 			return True
 
@@ -725,16 +729,21 @@ class Milight(Bulb):
 
 	@connect_ble
 	def _write(self, command, color):
+		_oldcolor = self.state
 		try:
 			if (self._connection is not None):
+				self.state = color
+				lightManager.debugger("Setting milight {} color to {}".format(self.device, color), 0)
 				self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(command.replace('\n', '').replace('\r', '')))
 				self.success = True
-				self.state = color
+				lightManager.debugger("Milight {} color changed to {}".format(self.device, color), 0)
 				return True
 			else:
+				self.state = _oldcolor
 				lightManager.debugger("Connection error to device (milight) " + str(self.device) + ". Retrying", 1)
 				return False
 		except:
+			self.state = _oldcolor
 			lightManager.debugger("Error sending data to device (milight) " + str(self.device) + ". Retrying", 1)
 			self._connection = None		
 			return False
