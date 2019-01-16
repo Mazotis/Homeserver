@@ -2,11 +2,11 @@
 '''
     File name: play.py
     Author: Maxime Bergeron
-    Date last modified: 15/11/2018
+    Date last modified: 16/01/2019
     Python Version: 3.7
 
-    A python websocket server/client to control various cheap IoT RGB BLE lightbulbs and
-    HDMI-CEC-to-TV RPi3
+    A python websocket server/client and IFTTT receiver to control various cheap IoT
+    RGB BLE lightbulbs and HDMI-CEC-to-TV RPi3
 '''
 import os
 import os.path
@@ -23,12 +23,16 @@ import traceback
 import json
 import signal
 import queue
+import urllib.parse
+import hashlib
 from argparse import RawTextHelpFormatter, Namespace
 from multiprocessing.pool import ThreadPool
+from threading import Thread
 from decora_wifi import DecoraWiFiSession
 from decora_wifi.models.person import Person
 from decora_wifi.models.residential_account import ResidentialAccount
 from decora_wifi.models.residence import Residence
+from http.server import BaseHTTPRequestHandler, HTTPServer
 import bluepy.btle as ble
 from __main__ import *
 
@@ -70,7 +74,8 @@ class LightServer(object):
         self.sock.bind((self.host, self.port))
         self.sched_disconnect = sched.scheduler(time.time, time.sleep)
         self.scheduled_disconnect = None
-        signal.signal(signal.SIGTERM, self.remove_server)
+        #TODO Fix signaling
+        #signal.signal(signal.SIGTERM, self.remove_server)
         lm.set_colors([LIGHT_ON] * len(lm.devices))
         lm.run()
 
@@ -302,6 +307,56 @@ class LightServer(object):
             ## TV RESTART        
             os.system("ssh kodi@192.168.1.200 'sudo reboot'")
             LightManager.debugger('Restarted KODI', 0)
+
+
+class IFTTTServer(BaseHTTPRequestHandler):
+    def _set_response(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'x-www-form-urlencoded')
+        self.end_headers()
+
+    def do_POST(self):
+        """ Receives and handles POST request """
+        SALT = "mazout360"
+        LightManager.debugger('IFTTTServer getting request', 0)
+        content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
+        postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
+        action = postvars[b'action'][0].decode('utf-8')
+        _hash = postvars[b'hash'][0].decode('utf-8')
+
+        if _hash == hashlib.sha512(bytes(SALT.encode('utf-8') + action.encode('utf-8'))).hexdigest():
+            LightManager.debugger('IFTTTServer running action : {}\n'.format(action), 0)
+            if action == "lumieres_salon_off":
+                os.system('./playclient.py --off --notime --priority 3 --group salon')
+            elif action == "lumieres_salon_on":
+                os.system('./playclient.py --on --notime --priority 2 --group salon')
+            elif action == "luminaire_passage_off":
+                os.system('./playclient.py --off --notime --priority 3 --group passage')
+            elif action == "luminaire_passage_on":
+                os.system('./playclient.py --on --notime --priority 2 --group passage')
+            elif action == "television_salon_on":
+                os.system('./playclient.py --tvon --priority 3')
+                time.sleep(2)
+                os.system('/usr/sbin/ether-wake 4C:CC:6A:F4:79:EC -i br0')
+            elif action == "television_salon_off":
+                os.system('./playclient.py --tvoff --priority 3')
+            elif action == "television_salon_restart":
+                os.system('./playclient.py --tvrestart')
+            elif action == "salon_close":
+                os.system('./playclient.py --tvoff --off --notime --priority 3 --group salon')
+            elif action == "luminaire_salon_off":
+                os.system('./playclient.py --off --notime --priority 3 --group salon --subgroup luminaire')
+            elif action == "luminaire_salon_on":
+                os.system('./playclient.py --on --notime --priority 2 --group salon --subgroup luminaire')
+            elif action == "lumieres_on":
+                os.system('./playclient.py --on --notime --priority 2')
+            elif action == "lumieres_off":
+                os.system('./playclient.py --off --notime --priority 3')
+        else:
+            LightManager.debugger('IFTTTServer got unwanted request with action : {}\n'.format(action), 1)
+
+        self._set_response()
+
 
 class LightManager(object):
     """ Methods for instanciating and managing BLE lightbulbs """
@@ -1007,6 +1062,23 @@ class Decora(object):
                 LightManager.debugger("Decora account {} got switch: {}".format(self.email, switch.name), 0)
 
 
+def runServer():
+    LightServer(lm, PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT'])) \
+                .listen()
+
+def runIFTTTServer():
+    port = 1234
+    server_address = ('', port)
+    httpd = HTTPServer(server_address, IFTTTServer)
+    LightManager.debugger('Starting IFTTTServer for getting lightserver POST requests on port {}\n' \
+                          .format(port), 0)
+    try:
+        httpd.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    httpd.server_close()
+    LightManager.debugger('Stopping IFTTTServer', 0)
+
 """ Script executed directly """
 if __name__ == "__main__":
     #TODO externalize?
@@ -1034,6 +1106,8 @@ if __name__ == "__main__":
     parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all lights on/off')
     parser.add_argument('--server', action='store_true', default=False,
                         help='Start as a socket server daemon')
+    parser.add_argument('--ifttt', action='store_true', default=False,
+                        help='Start a ifttt websocket receiver along with server')
     parser.add_argument('--threaded', action='store_true', default=False,
                         help='Starts the server daemon with threaded light change requests')
     parser.add_argument('--journal', action='store_true', default=False, help='Enables file journaling')
@@ -1066,8 +1140,9 @@ if __name__ == "__main__":
             lm.skip_time(1)
         if args.threaded:
             lm.start_threaded()
-        LightServer(lm, PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT'])) \
-                    .listen()
+        if args.ifttt:
+            Thread(target = runIFTTTServer).start()
+        Thread(target = runServer).start()
 
     elif args.stream_dev or args.stream_group:
         colorval = ""

@@ -6,14 +6,17 @@ A python websocket server/client to control various cheap IoT RGB BLE lightbulbs
 *** On a RPi3 or a linux-based bluetooth-enabled processor board ***
 1) Setup python3 + required pip imports.
 2) Configure your playbulb/milight bulbs in the play.ini file.
-3) Run ./play.py --server (or execute as systemd startup script).
+3) Run ./play.py --server (or execute as systemd startup script) --ifttt (to run a websocket IFTTT server to receive requests).
 4) To use HDMI-CEC, connect HDMI cable to a free TV port.
+
+Note - to run the IFTTT server, you need to configure your actions on IFTTT and send the response via websocket. Configure a
+dynamic DNS for your local LAN and forward the IFTTT port (as set by the port variable in the script) to your raspberry pi local 
+LAN address.
 
 *** On a client device (tested on an AsusWRT router) ***
 1) Setup python3 + required pip imports (opkg)
-2) Run server.py using the init.d script. This will receive web POST requests (using POST variables action and hash - a SHA512 hashed SALT+action string).
-3) Run detector.py using the init.d script. This will query active WIFI devices (cellphones, tablets...using the MAC addresses) on the network and open/close lights accordingly.
-4) You can also trigger light changes/HDMI-CEC requests by runing ./playclient.py OPTIONS
+2) Run detector.py using the init.d script. This will query active WIFI devices (cellphones, tablets...using the MAC addresses) on the network and open/close lights accordingly.
+3) You can also trigger light changes/HDMI-CEC requests by runing ./playclient.py OPTIONS
 
 *** PLAY.INI tweakables ***
 [DEVICE#]
