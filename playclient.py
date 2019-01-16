@@ -2,8 +2,8 @@
 '''
     File name: playclient.py
     Author: Maxime Bergeron
-    Date last modified: 09/11/2018
-    Python Version: 3.6
+    Date last modified: 16/01/2019
+    Python Version: 3.7
 
     The stripped-down version of play.py
 '''
@@ -61,6 +61,8 @@ if __name__ == "__main__":
     parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all lights on/off')
     parser.add_argument('--server', action='store_true', default=False,
                         help='Start as a socket server daemon')
+    parser.add_argument('--ifttt', action='store_true', default=False,
+                        help='Start a ifttt websocket receiver along with server')
     parser.add_argument('--threaded', action='store_true', default=False,
                         help='Starts the server daemon with threaded light change requests')
     parser.add_argument('--journal', action='store_true', default=False, help='Enables file journaling')

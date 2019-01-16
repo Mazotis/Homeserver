@@ -268,6 +268,8 @@ class LightServer(object):
             args["milight"] = None
         if "server" not in args:
             args["server"] = False
+        if "ifttt" not in args:
+            args["ifttt"] = False
         if "journal" not in args:
             args["journal"] = False
         if "notime" not in args:
