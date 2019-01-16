@@ -25,6 +25,10 @@ import signal
 import queue
 from argparse import RawTextHelpFormatter, Namespace
 from multiprocessing.pool import ThreadPool
+from decora_wifi import DecoraWiFiSession
+from decora_wifi.models.person import Person
+from decora_wifi.models.residential_account import ResidentialAccount
+from decora_wifi.models.residence import Residence
 import bluepy.btle as ble
 from __main__ import *
 
@@ -179,9 +183,9 @@ class LightServer(object):
 
     def _validate_and_execute_req(self, args):
         LightManager.debugger("Validating arguments", 0)
-        if args["hexvalues"] and (args["playbulb"] or args["milight"]):
+        if args["hexvalues"] and (args["playbulb"] or args["milight"] or args["decora"]):
             LightManager.debugger("Got color hexvalues for milights and/or playbulbs \
-                                   and/or both devices in the same request, which is not \
+                                   and/or other devices in the same request, which is not \
                                    supported. Use '{} -h' for help. Quitting".format(sys.argv[0]),
                                  2)
             return
@@ -191,7 +195,8 @@ class LightServer(object):
         if len(args["hexvalues"]) != len(lm.devices) and not any([args["notime"], args["off"], args["on"], 
                                                                   args["playbulb"], args["milight"], 
                                                                   args["toggle"], args["tvon"], 
-                                                                  args["tvoff"], args["tvrestart"]]):
+                                                                  args["tvoff"], args["tvrestart"],
+                                                                  args["decora"]]):
             LightManager.debugger("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting" \
                                   .format(len(args["hexvalues"]), len(lm.devices), sys.argv[0]), 2)
             return
@@ -219,6 +224,9 @@ class LightServer(object):
             if args["milight"] is not None:
                 LightManager.debugger("Received milight change request", 0)
                 lm.set_typed_colors(args["milight"], "Milight")
+            if args["decora"] is not None:
+                LightManager.debugger("Received decora change request", 0)
+                lm.set_typed_colors(args["decora"], "Decora")
             if args["off"]:
                 LightManager.debugger("Received OFF change request", 0)
                 lm.set_colors([LIGHT_OFF] * len(lm.devices))
@@ -275,6 +283,9 @@ class LightServer(object):
         if type(args["milight"]).__name__ == "str":
             LightManager.debugger('Converting values to lists for milight', 0)
             args["milight"] = args["milight"].replace("'", "").split(',')
+        if type(args["decora"]).__name__ == "str":
+            LightManager.debugger('Converting values to lists for decora', 0)
+            args["decora"] = args["decora"].replace("'", "").split(',')
         return args
 
     def _set_tv(self, value):
@@ -322,6 +333,19 @@ class LightManager(object):
                                                 self))
                     LightManager.debugger("Created device Milight {}. Description: {}" \
                                           .format(self.config["DEVICE"+str(i)]["ADDRESS"],
+                                                  self.config["DEVICE"+str(i)]["DESCRIPTION"]),
+                                          0)
+                elif self.config["DEVICE"+str(i)]["TYPE"] == "Decora":
+                    self.devices.append(Decora(i, self.config["DEVICE"+str(i)]["EMAIL"],
+                                                self.config["DEVICE"+str(i)]["PASSWORD"],
+                                                self.config["DEVICE"+str(i)]["NAME"],
+                                                self.config["DEVICE"+str(i)]["DESCRIPTION"],
+                                                self.config["DEVICE"+str(i)]["GROUP"],
+                                                self.config["DEVICE"+str(i)]["SUBGROUP"],
+                                                self.config["DEVICE"+str(i)]["DEFAULT_INTENSITY"],
+                                                self))
+                    LightManager.debugger("Created device Decora for email {}. Description: {}" \
+                                          .format(self.config["DEVICE"+str(i)]["EMAIL"],
                                                   self.config["DEVICE"+str(i)]["DESCRIPTION"]),
                                           0)
                 else:
@@ -410,7 +434,7 @@ class LightManager(object):
         desctext = ""
         i = 1
         for obj in self.devices:
-            if isinstance(obj, (Playbulb, Milight)):
+            if isinstance(obj, (Playbulb, Milight, Decora)):
                 desctext += str(i) + " - " + obj.descriptions() + "\n"
             else:
                 desctext += str(i) + " - " + "Unknown bulb type\n"
@@ -502,8 +526,8 @@ class LightManager(object):
                         _color = self.devices[i].convert(colors[i])
 
                         if not self.devices[i].success:
-                            LightManager.debugger("DEVICE: {}, REQUESTED COLOR: {}, \
-                                                  FROM STATE: {}, PRIORITY: {}"
+                            LightManager.debugger(("DEVICE: {}, REQUESTED COLOR: {} "
+                                                  "FROM STATE: {}, PRIORITY: {}")
                                                   .format(self.devices[i].device,
                                                           _color, _state,
                                                           self.devices[i].priority),
@@ -870,6 +894,119 @@ class Milight(Bulb):
         return ''.join(hexs)
 
 
+class Decora(object):
+    """ Methods for driving a Decora wifi switch """
+    def __init__(self, devid, email, password, device, description, group, subgroup, intensity, server):
+        self.devid = devid
+        self.email = email
+        self.password = password
+        self.device = device
+        self.description = description
+        self.group = group
+        self.subgroup = subgroup
+        self.intensity = intensity
+        self.server = server
+        self.device_type = "Decora"
+        self.state = "0"
+        self.priority = 0
+        self.success = False
+        self.session = DecoraWiFiSession()
+        self.residences = None
+        self.get_switch()
+
+    def convert(self, color):
+        """ Conversion to a color code acceptable by the device """
+        #TODO rrggbb to ...this format...
+        return color
+
+    def color(self, color, priority):
+        """ Checks the request and trigger a light change if needed """
+        if len(color) > 3:
+            LightManager.debugger("Unhandled color format {}".format(color), 1)
+            return True
+        if self.success:
+            return True
+        if color == self.convert(LIGHT_SKIP):
+            self.success = True
+            return True
+        if self.priority > priority:
+            LightManager.debugger("Decora bulb {} is set with higher priority ({}), skipping."
+                                  .format(self.device, self.priority), 0)
+            self.success = True
+            return True
+        if priority == 3:
+            self.priority = 1
+        else:
+            self.priority = priority
+        _att = {}
+        if color == self.convert(LIGHT_OFF):
+            _att['power'] = 'OFF'
+            self.get_switch().update_attributes(_att)
+            self.state = "0"
+            self.success = True
+            return True
+        elif self.state == color:
+            self.success = True
+            LightManager.debugger("Device (decora) {} is already of the requested color, skipping."
+                                  .format(self.device), 0)
+            return True
+        elif color == LIGHT_ON:
+            _att['power'] = 'ON'
+            _att['brightness'] = int(self.intensity)
+            self.get_switch().update_attributes(_att)
+            self.state = "1"
+            self.success = True
+            return True
+        else:
+            _att['brightness'] = int(color)
+            self.get_switch().update_attributes(_att)
+            self.state = self.color
+            self.success = True
+            return True
+
+    def reinit(self):
+        """ Prepares the device for a future request """
+        self.success = False
+
+    def get_state(self):
+        """ Getter for the actual color """
+        return self.state
+
+    def descriptions(self):
+        """ Getter for the device description """
+        desctext = "[Decora account email: " + self.email + "] " + self.description
+        return desctext
+
+    def get_switch(self):
+        self.session.login(self.email, self.password)
+        if self.residences is None:
+            self._initialize()
+        for residence in self.residences:
+            for switch in residence.get_iot_switches():
+                if switch.name == self.device:
+                    return switch
+        self.disconnect()
+        return False
+
+    def disconnect(self):
+        Person.logout(self.session)
+
+    def _initialize(self):
+        perms = self.session.user.get_residential_permissions()
+        self.residences = []
+        for permission in perms:
+            if permission.residentialAccountId is not None:
+                acct = ResidentialAccount(self.session, permission.residentialAccountId)
+                for res in acct.get_residences():
+                    self.residences.append(res)
+            elif permission.residenceId is not None:
+                res = Residence(self.session, permission.residenceId)
+                self.residences.append(res)
+        for residence in self.residences:
+            for switch in residence.get_iot_switches():
+                LightManager.debugger("Decora account {} got switch: {}".format(self.email, switch.name), 0)
+
+
 """ Script executed directly """
 if __name__ == "__main__":
     #TODO externalize?
@@ -883,6 +1020,7 @@ if __name__ == "__main__":
                         help='color hex values for the lightbulbs (see list below)')
     parser.add_argument('--playbulb', metavar='P', type=str, nargs="*", help='Change playbulbs colors only')
     parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights colors only')
+    parser.add_argument('--decora', metavar='M', type=str, nargs="*", help='Change decora colors only')
     parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1,
                         help='Request priority from 1 to 3')
     parser.add_argument('--group', metavar='group', type=str, nargs="?", default=None,
@@ -909,7 +1047,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.server and (args.playbulb or args.milight or args.on
+    if args.server and (args.playbulb or args.milight or args.decora or args.on
                         or args.off or args.toggle or args.stream_dev
                         or args.stream_group):
         LightManager.debugger("You cannot start the daemon and send arguments at the same time. \
