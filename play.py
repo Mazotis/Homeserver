@@ -363,7 +363,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
             elif action == "television_salon_on":
                 os.system('./playclient.py --tvon --priority 3')
                 time.sleep(2)
-                os.system('/usr/sbin/ether-wake 4C:CC:6A:F4:79:EC -i br0')
+                os.system('/usr/bin/wakeonlan 4C:CC:6A:F4:79:EC')
             elif action == "television_salon_off":
                 os.system('./playclient.py --tvoff --priority 3')
             elif action == "television_salon_restart":
