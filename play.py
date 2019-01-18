@@ -36,26 +36,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import bluepy.btle as ble
 from __main__ import *
 
-JOURNALING = False #do not edit - use the --journal option
-
 ###
-
-def connect_ble(_f):
-    """ Wrapper for functions which requires an active BLE connection using bluepy """
-    @functools.wraps(_f)
-    def _conn_wrap(self, *args):
-        if self._connection is None:
-            try:
-                LightManager.debugger("CONnecting to device ({}) {}".format(self.device_type,
-                                                                            self.device), 0)
-                connection = ble.Peripheral(self.device)
-                self._connection = connection.withDelegate(self)
-            except Exception as ex:
-                LightManager.debugger("Device ({}) {} connection failed. Exception: {}" \
-                                      .format(self.device_type, self.device, ex), 1)
-                self._connection = None
-        return _f(self, *args)
-    return _conn_wrap
 
 ###
 # CONSTANTS
@@ -64,9 +45,53 @@ LIGHT_OFF = "0"
 LIGHT_ON = "1"
 ###
 
+class DebugLog(object):
+    def __init__(self):
+        """ Handles debug logging """
+        self.config = configparser.ConfigParser()
+        self.config.read('play.ini')
+        self.LEVELS = {0: "DEBUG", 1: "ERROR", 2: "FATAL"}
+        #TODO Dynamic history limits
+        if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log"):
+            if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log"):
+                if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/play.2.log"):
+                    os.remove(self.config['SERVER']['JOURNAL_DIR'] + "/play.2.log")
+                os.rename(self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log",
+                          self.config['SERVER']['JOURNAL_DIR'] + "/play.2.log")
+            os.rename(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log",
+                      self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log")
+
+    def write(self, msg, level):
+        debugtext = "({}) - [{}] {}".format(datetime.datetime.now().time(), self.LEVELS[level], msg)
+        print(debugtext)
+        if self.config['SERVER']['JOURNALING']:
+            with open(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log", "a") as jfile:
+                jfile.write(debugtext + "\n")
+
+debug = DebugLog()
+
+def connect_ble(_f):
+    """ Wrapper for functions which requires an active BLE connection using bluepy """
+    @functools.wraps(_f)
+    def _conn_wrap(self, *args):
+        if self._connection is None:
+            try:
+                debug.write("CONnecting to device ({}) {}".format(self.device_type,
+                                                                            self.device), 0)
+                connection = ble.Peripheral(self.device)
+                self._connection = connection.withDelegate(self)
+            except Exception as ex:
+                debug.write("Device ({}) {} connection failed. Exception: {}" \
+                                      .format(self.device_type, self.device, ex), 1)
+                self._connection = None
+        return _f(self, *args)
+    return _conn_wrap
+
+
 class LightServer(object):
     """ Handles server-side request reception and handling """
     def __init__(self, lm, host, port):
+        global debug
         self.host = host
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -81,13 +106,13 @@ class LightServer(object):
 
     def listen(self):
         """ Starts the server """
-        LightManager.debugger('Server started', 0)
+        debug.write('Server started', 0)
         # Cleanup connection to allow new sock.accepts faster as sched is blocking
         self.disconnect_devices()
         self.sock.listen(5)
         while True:
             client, address = self.sock.accept()
-            LightManager.debugger("Connected with {}:{}".format(address[0], address[1]), 0)
+            debug.write("Connected with {}:{}".format(address[0], address[1]), 0)
             client.settimeout(30)
             threading.Thread(target=self.listen_client, args=(client, address)).start()
 
@@ -102,23 +127,23 @@ class LightServer(object):
                 if self.scheduled_disconnect is not None:
                     self.sched_disconnect.cancel(self.scheduled_disconnect)
                     self.scheduled_disconnect = None
-                #LightManager.debugger("Set message size {}".format(msize), 0)
+                #debug.write("Set message size {}".format(msize), 0)
                 data = client.recv(msize)
                 if data:
                     if data.decode('utf-8') == "getstate":
-                        LightManager.debugger('Sending lightserver status', 0)
+                        debug.write('Sending lightserver status', 0)
                         client.send(str.encode(str(lm.get_state())))
                         break
                     if data.decode('utf-8') == "stream":
-                        LightManager.debugger('Starting streaming mode', 0)
+                        debug.write('Starting streaming mode', 0)
                         streamingdev = True
                         continue
                     if data.decode('utf-8') == "streamgroup":
-                        LightManager.debugger('Starting group streaming mode', 0)
+                        debug.write('Starting group streaming mode', 0)
                         streaminggrp = True
                         continue
                     if data.decode('utf-8') == "nostream":
-                        LightManager.debugger('Ending streaming mode', 0)
+                        debug.write('Ending streaming mode', 0)
                         streamingdev = False
                         streaminggrp = False
                         streaming_id = None
@@ -126,29 +151,29 @@ class LightServer(object):
                     if streamingdev:
                         if streaming_id is None:
                             streaming_id = int(data.decode('utf-8'))
-                            LightManager.debugger('Set streaming devid to {}' \
+                            debug.write('Set streaming devid to {}' \
                                                   .format(streaming_id), 0)
                             continue
-                        LightManager.debugger("Sending request to devid {} for color: {}" \
+                        debug.write("Sending request to devid {} for color: {}" \
                                               .format(streaming_id, data.decode('utf-8')), 0)
                         lm.set_light_stream(streaming_id, data.decode('utf-8'), False)
                         continue
                     if streaminggrp:
                         if streaming_id is None:
                             streaming_id = data.decode('utf-8')
-                            LightManager.debugger('Set streaming group to {}' \
+                            debug.write('Set streaming group to {}' \
                                                   .format(streaming_id), 0)
                             continue
-                        LightManager.debugger("Sending request to group '{}' for color: {}" \
+                        debug.write("Sending request to group '{}' for color: {}" \
                                               .format(streaming_id, data.decode('utf-8')), 0)
                         lm.set_light_stream(streaming_id, data.decode('utf-8'), True)
                         continue
                     try:
                         args = self._sanitize(json.loads(data.decode('utf-8')))
                     except: #fallback - data is not formatted
-                        LightManager.debugger("Error - improperly formatted JSON", 2)
+                        debug.write("Error - improperly formatted JSON", 2)
                         break
-                    LightManager.debugger('Change of lights requested with args: ' + str(args), 0)
+                    debug.write('Change of lights requested with args: ' + str(args), 0)
                     self._validate_and_execute_req(args)
                     break
 
@@ -156,13 +181,13 @@ class LightServer(object):
             pass
 
         except Exception as ex:
-            LightManager.debugger('Unhandled exception of type {}: {}, {}' \
+            debug.write('Unhandled exception of type {}: {}, {}' \
                                   .format(type(ex), ex, 
                                           ''.join(traceback.format_tb(ex.__traceback__))
                                          ), 2)
 
         finally:
-            LightManager.debugger('Closing connection.', 0)
+            debug.write('Closing connection.', 0)
             lm.set_lock(0)
             lm.reinit()
             client.close()
@@ -173,13 +198,13 @@ class LightServer(object):
     def disconnect_devices(self):
         """ Disconnects all configured devices """
         self.scheduled_disconnect = None
-        LightManager.debugger("Server unused. Disconnecting devices.", 0)
+        debug.write("Server unused. Disconnecting devices.", 0)
         for _dev in lm.devices:
             _dev.disconnect()
 
     def remove_server(self, signal, frame):
         """ Shuts down server and cleans resources """
-        LightManager.debugger("Closing down server and lights.", 0)
+        debug.write("Closing down server and lights.", 0)
         lm.skip_time(0)
         lm.set_colors([LIGHT_OFF] * len(lm.devices))
         lm.run()
@@ -187,65 +212,65 @@ class LightServer(object):
         self.sock.close()
 
     def _validate_and_execute_req(self, args):
-        LightManager.debugger("Validating arguments", 0)
+        debug.write("Validating arguments", 0)
         if args["hexvalues"] and (args["playbulb"] or args["milight"] or args["decora"]):
-            LightManager.debugger("Got color hexvalues for milights and/or playbulbs \
+            debug.write("Got color hexvalues for milights and/or playbulbs \
                                    and/or other devices in the same request, which is not \
                                    supported. Use '{} -h' for help. Quitting".format(sys.argv[0]),
                                  2)
             return
         if args["tvon"] and args["tvoff"]:
-            LightManager.debugger("Cannot ON and OFF the TV in the same request. Quitting.", 2)
+            debug.write("Cannot ON and OFF the TV in the same request. Quitting.", 2)
             return         
         if len(args["hexvalues"]) != len(lm.devices) and not any([args["notime"], args["off"], args["on"], 
                                                                   args["playbulb"], args["milight"], 
                                                                   args["toggle"], args["tvon"], 
                                                                   args["tvoff"], args["tvrestart"],
                                                                   args["decora"]]):
-            LightManager.debugger("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting" \
+            debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting" \
                                   .format(len(args["hexvalues"]), len(lm.devices), sys.argv[0]), 2)
             return
         if args["tvon"]:
-            LightManager.debugger("Setting TV on", 0)
+            debug.write("Setting TV on", 0)
             self._set_tv(1)
             return #Do not accept any more requests for now.
         if args["tvoff"]:
-            LightManager.debugger("Setting TV off", 0)
+            debug.write("Setting TV off", 0)
             self._set_tv(0)
         if args["tvrestart"]:
-            LightManager.debugger("Rebooting KODI", 0)
+            debug.write("Rebooting KODI", 0)
             self._set_tv(2)
             return
         if args["priority"]:
             lm.priority = args["priority"]
         if args["hexvalues"]:
-            LightManager.debugger("Received color hexvalues length {} for {} devices" \
+            debug.write("Received color hexvalues length {} for {} devices" \
                                   .format(len(args["hexvalues"]), len(lm.devices)), 0)
             lm.set_colors(args["hexvalues"])
         else:
             if args["playbulb"] is not None:
-                LightManager.debugger("Received playbulb change request", 0)
+                debug.write("Received playbulb change request", 0)
                 lm.set_typed_colors(args["playbulb"], "Playbulb")
             if args["milight"] is not None:
-                LightManager.debugger("Received milight change request", 0)
+                debug.write("Received milight change request", 0)
                 lm.set_typed_colors(args["milight"], "Milight")
             if args["decora"] is not None:
-                LightManager.debugger("Received decora change request", 0)
+                debug.write("Received decora change request", 0)
                 lm.set_typed_colors(args["decora"], "Decora")
             if args["off"]:
-                LightManager.debugger("Received OFF change request", 0)
+                debug.write("Received OFF change request", 0)
                 lm.set_colors([LIGHT_OFF] * len(lm.devices))
             if args["on"]:
-                LightManager.debugger("Received ON change request", 0)
+                debug.write("Received ON change request", 0)
                 lm.set_colors([LIGHT_ON] * len(lm.devices))
             if args["toggle"]:
-                LightManager.debugger("Received TOGGLE change request", 0)
+                debug.write("Received TOGGLE change request", 0)
                 lm.set_colors(lm.get_toggle())
         if args["notime"] or args["off"]:
             lm.skip_time(0)
         if args["group"] is not None:
             lm.get_group(args["group"], args["subgroup"])
-        LightManager.debugger("Arguments are OK", 0)
+        debug.write("Arguments are OK", 0)
         lm.run()
         return
 
@@ -270,8 +295,6 @@ class LightServer(object):
             args["server"] = False
         if "ifttt" not in args:
             args["ifttt"] = False
-        if "journal" not in args:
-            args["journal"] = False
         if "notime" not in args:
             args["notime"] = False
         if "tvoff" not in args:
@@ -285,13 +308,13 @@ class LightServer(object):
         if "subgroup" not in args:
             args["subgroup"] = None
         if type(args["playbulb"]).__name__ == "str":
-            LightManager.debugger('Converting values to lists for playbulb', 0)
+            debug.write('Converting values to lists for playbulb', 0)
             args["playbulb"] = args["playbulb"].replace("'", "").split(',')
         if type(args["milight"]).__name__ == "str":
-            LightManager.debugger('Converting values to lists for milight', 0)
+            debug.write('Converting values to lists for milight', 0)
             args["milight"] = args["milight"].replace("'", "").split(',')
         if type(args["decora"]).__name__ == "str":
-            LightManager.debugger('Converting values to lists for decora', 0)
+            debug.write('Converting values to lists for decora', 0)
             args["decora"] = args["decora"].replace("'", "").split(',')
         return args
 
@@ -300,15 +323,15 @@ class LightServer(object):
             ## TV OFF
             os.system("echo 'standby 0' | cec-client -s")
             os.system("ssh kodi@192.168.1.200 'sudo shutdown now'")
-            LightManager.debugger('Set the TV and KODI to OFF', 0)
+            debug.write('Set the TV and KODI to OFF', 0)
         elif value == 1:
             ## TV ON
             os.system("echo 'on 0' | cec-client -s")
-            LightManager.debugger('Set the TV ON', 0)
+            debug.write('Set the TV ON', 0)
         elif value == 2:
             ## TV RESTART        
             os.system("ssh kodi@192.168.1.200 'sudo reboot'")
-            LightManager.debugger('Restarted KODI', 0)
+            debug.write('Restarted KODI', 0)
 
 
 class IFTTTServer(BaseHTTPRequestHandler):
@@ -318,16 +341,17 @@ class IFTTTServer(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
+        global debug
         """ Receives and handles POST request """
         SALT = "mazout360"
-        LightManager.debugger('IFTTTServer getting request', 0)
+        debug.write('IFTTTServer getting request', 0)
         content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
         postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
         action = postvars[b'action'][0].decode('utf-8')
         _hash = postvars[b'hash'][0].decode('utf-8')
 
         if _hash == hashlib.sha512(bytes(SALT.encode('utf-8') + action.encode('utf-8'))).hexdigest():
-            LightManager.debugger('IFTTTServer running action : {}\n'.format(action), 0)
+            debug.write('IFTTTServer running action : {}\n'.format(action), 0)
             if action == "lumieres_salon_off":
                 os.system('./playclient.py --off --notime --priority 3 --group salon')
             elif action == "lumieres_salon_on":
@@ -355,7 +379,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
             elif action == "lumieres_off":
                 os.system('./playclient.py --off --notime --priority 3')
         else:
-            LightManager.debugger('IFTTTServer got unwanted request with action : {}\n'.format(action), 1)
+            debug.write('IFTTTServer got unwanted request with action : {}\n'.format(action), 1)
 
         self._set_response()
 
@@ -363,6 +387,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
 class LightManager(object):
     """ Methods for instanciating and managing BLE lightbulbs """
     def __init__(self, config=None):
+        global debug
         self.config = config
         ## TWEAKABLES ##
         self.devices = []
@@ -376,7 +401,7 @@ class LightManager(object):
                                                  self.config["DEVICE"+str(i)]["SUBGROUP"],
                                                  self.config["DEVICE"+str(i)]["DEFAULT_INTENSITY"],
                                                  self))
-                    LightManager.debugger("Created device Playbulb {}. Description: {}" \
+                    debug.write("Created device Playbulb {}. Description: {}" \
                                           .format(self.config["DEVICE"+str(i)]["ADDRESS"],
                                                   self.config["DEVICE"+str(i)]["DESCRIPTION"]),
                                           0)
@@ -388,7 +413,7 @@ class LightManager(object):
                                                 self.config["DEVICE"+str(i)]["GROUP"],
                                                 self.config["DEVICE"+str(i)]["SUBGROUP"],
                                                 self))
-                    LightManager.debugger("Created device Milight {}. Description: {}" \
+                    debug.write("Created device Milight {}. Description: {}" \
                                           .format(self.config["DEVICE"+str(i)]["ADDRESS"],
                                                   self.config["DEVICE"+str(i)]["DESCRIPTION"]),
                                           0)
@@ -401,12 +426,12 @@ class LightManager(object):
                                                 self.config["DEVICE"+str(i)]["SUBGROUP"],
                                                 self.config["DEVICE"+str(i)]["DEFAULT_INTENSITY"],
                                                 self))
-                    LightManager.debugger("Created device Decora for email {}. Description: {}" \
+                    debug.write("Created device Decora for email {}. Description: {}" \
                                           .format(self.config["DEVICE"+str(i)]["EMAIL"],
                                                   self.config["DEVICE"+str(i)]["DESCRIPTION"]),
                                           0)
                 else:
-                    LightManager.debugger('Unsupported device type {}' \
+                    debug.write('Unsupported device type {}' \
                                           .format(self.config["DEVICE"+str(i)]["TYPE"]), 1)
             except KeyError:
                 break
@@ -419,7 +444,6 @@ class LightManager(object):
         self.colors = [LIGHT_OFF] * len(self.devices)
         self.set_lock(0)
         self.lockcount = 0
-        self.journaling = False
         self.priority = 0
         self.threaded = False
         self.light_threads = [None] * len(self.devices)
@@ -433,10 +457,10 @@ class LightManager(object):
     def skip_time(self, serverwide=0):
         """ Enables skipping time check """
         if serverwide:
-            LightManager.debugger("Skipping time check for all requests", 0)
+            debug.write("Skipping time check for all requests", 0)
             self.starttime = None
         else:
-            LightManager.debugger("Skipping time check", 0)
+            debug.write("Skipping time check", 0)
             self.skiptime = 1
 
     def set_colors(self, color):
@@ -447,12 +471,12 @@ class LightManager(object):
         """ Gets devices from a specific group/subgroup for the light change """
         for _cnt, device in enumerate(self.devices):
             if device.group != group:
-                LightManager.debugger("Skipping device {} as it does not belong in the '{}' group" \
+                debug.write("Skipping device {} as it does not belong in the '{}' group" \
                                       .format(device.device, group), 0)
                 self.colors[_cnt] = LIGHT_SKIP
             else:
                 if subgroup is not None and device.subgroup != subgroup:
-                    LightManager.debugger("Skipping device {} as it does not belong in the '{}' subgroup" \
+                    debug.write("Skipping device {} as it does not belong in the '{}' subgroup" \
                                           .format(device.device, subgroup), 0)
                     self.colors[_cnt] = LIGHT_SKIP
 
@@ -470,7 +494,7 @@ class LightManager(object):
         """ Gets devices of a specific  type for the light change """
         cvals = self._get_type_index(atype)
         if cvals[0] != len(colorargs):
-            LightManager.debugger("Received color hexvalues length {} for {} devices. Quitting" \
+            debug.write("Received color hexvalues length {} for {} devices. Quitting" \
                                   .format(len(colorargs), cvals[0]), 2)
             return
         self.colors[cvals[1]:cvals[1]+cvals[0]] = colorargs
@@ -480,7 +504,7 @@ class LightManager(object):
         if self._check_time():
             self.queue.put(self.colors)
             #TODO Manage locking out when the run thread hangs
-            LightManager.debugger("Locked status: {}".format(self.locked), 0)
+            debug.write("Locked status: {}".format(self.locked), 0)
             if not self.locked or self.lockcount == 2:
                 self._set_lights()
             else:
@@ -497,20 +521,6 @@ class LightManager(object):
                 desctext += str(i) + " - " + "Unknown bulb type\n"
             i += 1
         return desctext
-
-    def enable_journaling(self):
-        """ Enables journaling to file """
-        global JOURNALING
-        JOURNALING = True
-        #TODO Dynamic history limits
-        if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log"):
-            if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log"):
-                if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/play.2.log"):
-                    os.remove(self.config['SERVER']['JOURNAL_DIR'] + "/play.2.log")
-                os.rename(self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log",
-                          self.config['SERVER']['JOURNAL_DIR'] + "/play.2.log")
-            os.rename(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log",
-                      self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log")
 
     def set_lock(self, is_locked):
         """ Locks the light change request """
@@ -559,7 +569,7 @@ class LightManager(object):
             i += 1
 
     def _set_lights(self):
-        LightManager.debugger("Running a change of lights (priority level: {})..." \
+        debug.write("Running a change of lights (priority level: {})..." \
                               .format(self.priority), 0)
         try:
             self.lockcount = 0
@@ -568,10 +578,10 @@ class LightManager(object):
                 while not self.queue.empty():
                     colors = None
                     if firstran:
-                        LightManager.debugger("Getting remainder of queue", 0)
+                        debug.write("Getting remainder of queue", 0)
                         self.reinit()
                     colors = self.queue.get() #TODO Check performance
-                    LightManager.debugger("Changing colors to {} from state {}" \
+                    debug.write("Changing colors to {} from state {}" \
                                           .format(colors, self.get_state()), 0)
                     self.set_lock(1)
                     i = 0
@@ -583,7 +593,7 @@ class LightManager(object):
                         _color = self.devices[i].convert(colors[i])
 
                         if not self.devices[i].success:
-                            LightManager.debugger(("DEVICE: {}, REQUESTED COLOR: {} "
+                            debug.write(("DEVICE: {}, REQUESTED COLOR: {} "
                                                   "FROM STATE: {}, PRIORITY: {}")
                                                   .format(self.devices[i].device,
                                                           _color, _state,
@@ -600,7 +610,7 @@ class LightManager(object):
 
                         if i == len(self.devices):
                             if self.threaded:
-                                LightManager.debugger("Awaiting results", 0)
+                                debug.write("Awaiting results", 0)
                                 for _cnt, _thread in enumerate(self.light_threads):
                                     if _thread is not None:
                                         try:
@@ -623,16 +633,16 @@ class LightManager(object):
                                     break
 
             except queue.Empty:
-                LightManager.debugger("Nothing in queue", 0)
+                debug.write("Nothing in queue", 0)
                 pass
 
             finally:
-                LightManager.debugger("Clearing up light change queues.", 0)
+                debug.write("Clearing up light change queues.", 0)
                 if colors:
                     self.queue.task_done()
 
         except Exception as ex:
-            LightManager.debugger('Unhandled exception of type {}: {}, {}'
+            debug.write('Unhandled exception of type {}: {}, {}'
                                   .format(type(ex), ex, 
                                           ''.join(traceback.format_tb(ex.__traceback__))), 2)
 
@@ -640,7 +650,7 @@ class LightManager(object):
             self.reinit()
             self.set_lock(0)
 
-        LightManager.debugger("Change of lights completed.", 0)
+        debug.write("Change of lights completed.", 0)
 
     def _check_time(self):
         #TODO Check if we keep this...
@@ -648,7 +658,7 @@ class LightManager(object):
             self.skiptime = 0
             return 1
         if datetime.time(6, 00) < datetime.datetime.now().time() < self.starttime:
-            LightManager.debugger("Too soon, no change of light required", 0)
+            debug.write("Too soon, no change of light required", 0)
             return 0
         return 1
 
@@ -667,22 +677,11 @@ class LightManager(object):
             raise Exception('Invalid bulb type given. Quitting')
         return [count, firstindex]
 
-    @staticmethod
-    def debugger(msg, level):
-        """ Handles debug logging """
-        playconfig = configparser.ConfigParser()
-        playconfig.read('play.ini')
-        levels = {0: "DEBUG", 1: "ERROR", 2: "FATAL"}
-        debugtext = "({}) - [{}] {}".format(datetime.datetime.now().time(), levels[level], msg)
-        print(debugtext)
-        if JOURNALING:
-            with open(playconfig['SERVER']['JOURNAL_DIR'] + "/play.0.log", "a") as jfile:
-                jfile.write(debugtext + "\n")
-
 
 class Bulb(object):
     """ Global bulb functions and variables """
     def __init__(self, devid, device, description, group, subgroup, server):
+        global debug
         self.devid = devid
         self.device = device
         self.description = description
@@ -707,10 +706,10 @@ class Bulb(object):
         """ Disconnects the device """
         try:
             if self._connection is not None:
-                LightManager.debugger("DISconnecting from device {}".format(self.device), 0)
+                debug.write("DISconnecting from device {}".format(self.device), 0)
                 self._connection.disconnect()
         except ble.BTLEException:
-            LightManager.debugger("Device ({}) {} disconnection failed. Already disconnected?"
+            debug.write("Device ({}) {} disconnection failed. Already disconnected?"
                                   .format(self.device_type, self.device), 1)
             pass
         except:
@@ -739,7 +738,7 @@ class Playbulb(Bulb):
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
         if len(color) not in (1, 8) and color != self.convert(LIGHT_SKIP):
-            LightManager.debugger("Unhandled color format {}".format(color), 1)
+            debug.write("Unhandled color format {}".format(color), 1)
             return True
         if self.success:
             return True
@@ -747,7 +746,7 @@ class Playbulb(Bulb):
             self.success = True
             return True
         if self.priority > priority:
-            LightManager.debugger("Playbulb bulb {} is set with higher priority ({}), skipping."
+            debug.write("Playbulb bulb {} is set with higher priority ({}), skipping."
                                   .format(self.device, self.priority), 0)
             self.success = True
             return True
@@ -757,10 +756,10 @@ class Playbulb(Bulb):
             self.priority = priority
         if self.state == color and color != self.convert(LIGHT_OFF):
             self.success = True
-            LightManager.debugger("Bulb {} is already of the requested color, skipping."
+            debug.write("Bulb {} is already of the requested color, skipping."
                                   .format(self.device), 0)
             return True
-        LightManager.debugger("Changing playbulb {} color to {}".format(self.device, color), 0)
+        debug.write("Changing playbulb {} color to {}".format(self.device, color), 0)
         if not self._write(color): return False
         return True
 
@@ -780,12 +779,12 @@ class Playbulb(Bulb):
 #                       state = "00000000"
 #                   elif (state == "1"):
 #                       state = self.intensity
-#                   LightManager.debugger("Got color: {} and state: {}".format(color, state), 0)
+#                   debug.write("Got color: {} and state: {}".format(color, state), 0)
 #                   delta_w = (int(color[0:2]) - int(state[0:2]))/20
 #                   delta_r = (int(color[2:4]) - int(state[2:4]))/20
 #                   delta_g = (int(color[4:6]) - int(state[4:6]))/20
 #                   delta_b = (int(color[6:8]) - int(state[6:8]))/20
-#                   LightManager.debugger("deltaw: {}, deltar: {}, deltag: {}, deltab: {}".format(delta_w, delta_r, delta_g, delta_b), 0)
+#                   debug.write("deltaw: {}, deltar: {}, deltag: {}, deltab: {}".format(delta_w, delta_r, delta_g, delta_b), 0)
 #                   for _iter in range(20):
 #                       if (int(_iter*delta_w) != 0 and int(_iter*delta_r) != 0 and int(_iter*delta_g) != 0 and int(_iter*delta_b) != 0):
 #                           deltacolor = str(int(color[0:2]) + int(_iter*delta_w)) + str(int(color[2:4]) + int(_iter*delta_r)) + str(int(color[4:6]) + int(_iter*delta_g)) + str(int(color[6:8]) + int(_iter*delta_b))
@@ -794,17 +793,17 @@ class Playbulb(Bulb):
 
 
                 self.state = color
-                LightManager.debugger("Setting playbulb {} color to {}".format(self.device, color), 0)
+                debug.write("Setting playbulb {} color to {}".format(self.device, color), 0)
                 self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0] \
                                 .write(bytearray.fromhex(color))
 
                 #Prebuilt animations: blink=00, pulse=01, hard rainbow=02, smooth rainbow=03, candle=04
                 #self._connection.getCharacteristics(uuid="0000fffb-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color+"02ffffff"))
                 self.success = True
-                LightManager.debugger("Playbulb {} color changed to {}".format(self.device, color), 0)
+                debug.write("Playbulb {} color changed to {}".format(self.device, color), 0)
                 return True
             self.state = _oldcolor
-            LightManager.debugger("Connection error to device (playbulb) {}. Retrying" \
+            debug.write("Connection error to device (playbulb) {}. Retrying" \
                                   .format(self.device), 1)
             time.sleep(0.2)
             return False
@@ -812,7 +811,7 @@ class Playbulb(Bulb):
         except Exception as ex:
             #TODO manage "overwritten" thread by queued requests
             self.state = _oldcolor
-            LightManager.debugger("Unhandled response. Thread died?\n{}".format(ex), 0)
+            debug.write("Unhandled response. Thread died?\n{}".format(ex), 0)
             self.disconnect()
             return False
 
@@ -856,7 +855,7 @@ class Milight(Bulb):
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
         if len(color) > 3:
-            LightManager.debugger("Unhandled color format {}".format(color), 1)
+            debug.write("Unhandled color format {}".format(color), 1)
             return True
         if self.success:
             return True
@@ -864,7 +863,7 @@ class Milight(Bulb):
             self.success = True
             return True
         if self.priority > priority:
-            LightManager.debugger("Milight bulb {} is set with higher priority ({}), skipping."
+            debug.write("Milight bulb {} is set with higher priority ({}), skipping."
                                   .format(self.device, self.priority), 0)
             self.success = True
             return True
@@ -877,7 +876,7 @@ class Milight(Bulb):
             return True
         elif self.state == color:
             self.success = True
-            LightManager.debugger("Device (milight) {} is already of the requested color, skipping."
+            debug.write("Device (milight) {} is already of the requested color, skipping."
                                   .format(self.device), 0)
             return True
         elif color == LIGHT_ON:
@@ -911,21 +910,21 @@ class Milight(Bulb):
         try:
             if self._connection is not None:
                 self.state = color
-                LightManager.debugger("Setting milight {} color to {}".format(self.device, color), 0)
+                debug.write("Setting milight {} color to {}".format(self.device, color), 0)
                 self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0] \
                                                     .write(bytearray.fromhex(command \
                                                                              .replace('\n', '') \
                                                                              .replace('\r', '')))
                 self.success = True
-                LightManager.debugger("Milight {} color changed to {}".format(self.device, color), 0)
+                debug.write("Milight {} color changed to {}".format(self.device, color), 0)
                 return True
             self.state = _oldcolor
-            LightManager.debugger("Connection error to device (milight)  {}. Retrying" \
+            debug.write("Connection error to device (milight)  {}. Retrying" \
                                   .format(self.device), 1)
             return False
         except:
             self.state = _oldcolor
-            LightManager.debugger("Error sending data to device (milight) {}. Retrying" \
+            debug.write("Error sending data to device (milight) {}. Retrying" \
                                    .format(self.device), 1)
             self._connection = None
             return False
@@ -954,6 +953,7 @@ class Milight(Bulb):
 class Decora(object):
     """ Methods for driving a Decora wifi switch """
     def __init__(self, devid, email, password, device, description, group, subgroup, intensity, server):
+        global debug
         self.devid = devid
         self.email = email
         self.password = password
@@ -979,7 +979,7 @@ class Decora(object):
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
         if len(color) > 3:
-            LightManager.debugger("Unhandled color format {}".format(color), 1)
+            debug.write("Unhandled color format {}".format(color), 1)
             return True
         if self.success:
             return True
@@ -987,7 +987,7 @@ class Decora(object):
             self.success = True
             return True
         if self.priority > priority:
-            LightManager.debugger("Decora bulb {} is set with higher priority ({}), skipping."
+            debug.write("Decora bulb {} is set with higher priority ({}), skipping."
                                   .format(self.device, self.priority), 0)
             self.success = True
             return True
@@ -1004,7 +1004,7 @@ class Decora(object):
             return True
         elif self.state == color:
             self.success = True
-            LightManager.debugger("Device (decora) {} is already of the requested color, skipping."
+            debug.write("Device (decora) {} is already of the requested color, skipping."
                                   .format(self.device), 0)
             return True
         elif color == LIGHT_ON:
@@ -1061,7 +1061,7 @@ class Decora(object):
                 self.residences.append(res)
         for residence in self.residences:
             for switch in residence.get_iot_switches():
-                LightManager.debugger("Decora account {} got switch: {}".format(self.email, switch.name), 0)
+                debug.write("Decora account {} got switch: {}".format(self.email, switch.name), 0)
 
 
 def runServer():
@@ -1069,17 +1069,18 @@ def runServer():
                 .listen()
 
 def runIFTTTServer():
+    global debug
     port = 1234
     server_address = ('', port)
     httpd = HTTPServer(server_address, IFTTTServer)
-    LightManager.debugger('Starting IFTTTServer for getting lightserver POST requests on port {}\n' \
+    debug.write('Starting IFTTTServer for getting lightserver POST requests on port {}\n' \
                           .format(port), 0)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         pass
     httpd.server_close()
-    LightManager.debugger('Stopping IFTTTServer', 0)
+    debug.write('Stopping IFTTTServer', 0)
 
 """ Script executed directly """
 if __name__ == "__main__":
@@ -1112,7 +1113,6 @@ if __name__ == "__main__":
                         help='Start a ifttt websocket receiver along with server')
     parser.add_argument('--threaded', action='store_true', default=False,
                         help='Starts the server daemon with threaded light change requests')
-    parser.add_argument('--journal', action='store_true', default=False, help='Enables file journaling')
     parser.add_argument('--tvon', action='store_true', default=False, help='Turns TV on')
     parser.add_argument('--tvoff', action='store_true', default=False, help='Turns TV off')
     parser.add_argument('--tvrestart', action='store_true', default=False, help='Reboots KODI')
@@ -1126,16 +1126,13 @@ if __name__ == "__main__":
     if args.server and (args.playbulb or args.milight or args.decora or args.on
                         or args.off or args.toggle or args.stream_dev
                         or args.stream_group):
-        LightManager.debugger("You cannot start the daemon and send arguments at the same time. \
+        debug.write("You cannot start the daemon and send arguments at the same time. \
                               Quitting.", 2)
         sys.exit()
 
     if args.stream_dev and args.stream_group:
-        LightManager.debugger("You cannot stream data to both devices and groups. Quitting.", 2)
+        debug.write("You cannot stream data to both devices and groups. Quitting.", 2)
         sys.exit()
-
-    if args.journal:
-        lm.enable_journaling()
 
     if args.server:
         if args.notime:
@@ -1198,8 +1195,8 @@ if __name__ == "__main__":
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT'])))
         #TODO report connection errors or allow feedback response
-        LightManager.debugger('Connecting with lightmanager daemon', 0)
-        LightManager.debugger('Sending request: ' + json.dumps(vars(args)), 0)
+        debug.write('Connecting with lightmanager daemon', 0)
+        debug.write('Sending request: ' + json.dumps(vars(args)), 0)
         s.sendall("1024".encode('utf-8'))
         s.sendall(json.dumps(vars(args)).encode('utf-8'))
         s.close()

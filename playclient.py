@@ -17,6 +17,8 @@ import configparser
 from argparse import RawTextHelpFormatter
 from __main__ import *
 
+DEBUG = False
+
 class LightManager(object):
     """ Methods for instanciating and managing BLE lightbulbs """
     @staticmethod
@@ -25,17 +27,19 @@ class LightManager(object):
         levels = {0: "DEBUG", 1: "ERROR", 2: "FATAL"}
         debugtext = "({}) - [{}] {}".format(datetime.datetime.now().time(), levels[level], msg)
         print(debugtext)
-        with open("./play.0.log", "a") as jfile:
-            jfile.write(debugtext + "\n")
+        if DEBUG:
+            with open("./play.0.log", "a") as jfile:
+                jfile.write(debugtext + "\n")
 
 """ Script executed directly """
 if __name__ == "__main__":
-    if os.path.isfile("./play.0.log"):
-        if os.path.isfile("./play.1.log"):
-            if os.path.isfile("./play.2.log"):
-                os.remove("./play.2.log")
-            os.rename("./play.1.log", "./play.2.log")
-        os.rename("./play.0.log", "./play.1.log")
+    if DEBUG:
+        if os.path.isfile("./play.0.log"):
+            if os.path.isfile("./play.1.log"):
+                if os.path.isfile("./play.2.log"):
+                    os.remove("./play.2.log")
+                os.rename("./play.1.log", "./play.2.log")
+            os.rename("./play.0.log", "./play.1.log")
 
     PLAYCONFIG = configparser.ConfigParser()
     PLAYCONFIG.read('play.ini')
@@ -65,7 +69,6 @@ if __name__ == "__main__":
                         help='Start a ifttt websocket receiver along with server')
     parser.add_argument('--threaded', action='store_true', default=False,
                         help='Starts the server daemon with threaded light change requests')
-    parser.add_argument('--journal', action='store_true', default=False, help='Enables file journaling')
     parser.add_argument('--tvon', action='store_true', default=False, help='Turns TV on')
     parser.add_argument('--tvoff', action='store_true', default=False, help='Turns TV off')
     parser.add_argument('--tvrestart', action='store_true', default=False, help='Reboots KODI')
