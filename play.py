@@ -392,6 +392,7 @@ class LightManager(object):
         ## TWEAKABLES ##
         self.devices = []
         i = 0
+        decora = None
         while True:
             try:
                 if self.config["DEVICE"+str(i)]["TYPE"] == "Playbulb":
@@ -418,14 +419,14 @@ class LightManager(object):
                                                   self.config["DEVICE"+str(i)]["DESCRIPTION"]),
                                           0)
                 elif self.config["DEVICE"+str(i)]["TYPE"] == "Decora":
-                    self.devices.append(Decora(i, self.config["DEVICE"+str(i)]["EMAIL"],
-                                                self.config["DEVICE"+str(i)]["PASSWORD"],
-                                                self.config["DEVICE"+str(i)]["NAME"],
-                                                self.config["DEVICE"+str(i)]["DESCRIPTION"],
-                                                self.config["DEVICE"+str(i)]["GROUP"],
-                                                self.config["DEVICE"+str(i)]["SUBGROUP"],
-                                                self.config["DEVICE"+str(i)]["DEFAULT_INTENSITY"],
-                                                self))
+                    if decora is None:
+                        decora = Decora(self.config["DEVICE"+str(i)]["EMAIL"], self.config["DEVICE"+str(i)]["PASSWORD"])
+                    self.devices.append(DecoraSwitch(i,self.config["DEVICE"+str(i)]["NAME"],
+                                               self.config["DEVICE"+str(i)]["DESCRIPTION"],
+                                               self.config["DEVICE"+str(i)]["GROUP"],
+                                               self.config["DEVICE"+str(i)]["SUBGROUP"],
+                                               self.config["DEVICE"+str(i)]["DEFAULT_INTENSITY"],
+                                               decora, self))
                     debug.write("Created device Decora for email {}. Description: {}" \
                                           .format(self.config["DEVICE"+str(i)]["EMAIL"],
                                                   self.config["DEVICE"+str(i)]["DESCRIPTION"]),
@@ -951,25 +952,64 @@ class Milight(Bulb):
 
 
 class Decora(object):
-    """ Methods for driving a Decora wifi switch """
-    def __init__(self, devid, email, password, device, description, group, subgroup, intensity, server):
+    def __init__(self, email, password):
         global debug
-        self.devid = devid
         self.email = email
         self.password = password
+        self.residences = None
+        self.session = DecoraWiFiSession()
+        self.get_switch()
+
+    def get_switch(self, name = None):
+        self.session.login(self.email, self.password)
+        if self.residences is None:
+            self._initialize()
+        if name is not None:
+            for residence in self.residences:
+                for switch in residence.get_iot_switches():
+                    if switch.name == name:
+                        return switch
+        self.disconnect()
+        return False
+
+    def request(self, name, attribs):
+        self.get_switch(name).update_attributes(attribs)
+
+    def disconnect(self):
+        Person.logout(self.session)
+
+    def _initialize(self):
+        perms = self.session.user.get_residential_permissions()
+        self.residences = []
+        for permission in perms:
+            if permission.residentialAccountId is not None:
+                acct = ResidentialAccount(self.session, permission.residentialAccountId)
+                for res in acct.get_residences():
+                    self.residences.append(res)
+            elif permission.residenceId is not None:
+                res = Residence(self.session, permission.residenceId)
+                self.residences.append(res)
+        for residence in self.residences:
+            for switch in residence.get_iot_switches():
+                debug.write("Decora account {} got switch: {}".format(self.email, switch.name), 0)
+
+
+class DecoraSwitch(object):
+    """ Methods for driving a Decora wifi switch """
+    def __init__(self, devid, device, description, group, subgroup, intensity, decora, server):
+        global debug
+        self.devid = devid
         self.device = device
         self.description = description
         self.group = group
         self.subgroup = subgroup
         self.intensity = intensity
+        self.decora = decora
         self.server = server
         self.device_type = "Decora"
         self.state = "0"
         self.priority = 0
         self.success = False
-        self.session = DecoraWiFiSession()
-        self.residences = None
-        self.get_switch()
 
     def convert(self, color):
         """ Conversion to a color code acceptable by the device """
@@ -998,7 +1038,7 @@ class Decora(object):
         _att = {}
         if color == self.convert(LIGHT_OFF):
             _att['power'] = 'OFF'
-            self.get_switch().update_attributes(_att)
+            self.decora.request(self.device, _att)
             self.state = "0"
             self.success = True
             return True
@@ -1010,13 +1050,13 @@ class Decora(object):
         elif color == LIGHT_ON:
             _att['power'] = 'ON'
             _att['brightness'] = int(self.intensity)
-            self.get_switch().update_attributes(_att)
+            self.decora.request(self.device, _att)
             self.state = "1"
             self.success = True
             return True
         else:
             _att['brightness'] = int(color)
-            self.get_switch().update_attributes(_att)
+            self.decora.request(self.device, _att)
             self.state = self.color
             self.success = True
             return True
@@ -1034,34 +1074,8 @@ class Decora(object):
         desctext = "[Decora account email: " + self.email + "] " + self.description
         return desctext
 
-    def get_switch(self):
-        self.session.login(self.email, self.password)
-        if self.residences is None:
-            self._initialize()
-        for residence in self.residences:
-            for switch in residence.get_iot_switches():
-                if switch.name == self.device:
-                    return switch
-        self.disconnect()
-        return False
-
     def disconnect(self):
-        Person.logout(self.session)
-
-    def _initialize(self):
-        perms = self.session.user.get_residential_permissions()
-        self.residences = []
-        for permission in perms:
-            if permission.residentialAccountId is not None:
-                acct = ResidentialAccount(self.session, permission.residentialAccountId)
-                for res in acct.get_residences():
-                    self.residences.append(res)
-            elif permission.residenceId is not None:
-                res = Residence(self.session, permission.residenceId)
-                self.residences.append(res)
-        for residence in self.residences:
-            for switch in residence.get_iot_switches():
-                debug.write("Decora account {} got switch: {}".format(self.email, switch.name), 0)
+        pass
 
 
 def runServer():
