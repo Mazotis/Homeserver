@@ -67,6 +67,8 @@ if __name__ == "__main__":
                         help='Start as a socket server daemon')
     parser.add_argument('--ifttt', action='store_true', default=False,
                         help='Start a ifttt websocket receiver along with server')
+    parser.add_argument('--detector', action='store_true', default=False,
+                        help='Start a ping-based device detector (usually for mobiles)')
     parser.add_argument('--threaded', action='store_true', default=False,
                         help='Starts the server daemon with threaded light change requests')
     parser.add_argument('--tvon', action='store_true', default=False, help='Turns TV on')

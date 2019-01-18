@@ -344,7 +344,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
         global debug
         """ Receives and handles POST request """
         SALT = "mazout360"
-        debug.write('IFTTTServer getting request', 0)
+        debug.write('[IFTTTServer] Getting request', 0)
         content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
         postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
         action = postvars[b'action'][0].decode('utf-8')
@@ -379,7 +379,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
             elif action == "lumieres_off":
                 os.system('./playclient.py --off --notime --priority 3')
         else:
-            debug.write('IFTTTServer got unwanted request with action : {}\n'.format(action), 1)
+            debug.write('[IFTTTServer] Got unwanted request with action : {}\n'.format(action), 1)
 
         self._set_response()
 
@@ -1087,14 +1087,61 @@ def runIFTTTServer():
     port = 1234
     server_address = ('', port)
     httpd = HTTPServer(server_address, IFTTTServer)
-    debug.write('Starting IFTTTServer for getting lightserver POST requests on port {}\n' \
+    debug.write('[IFTTTServer] Getting lightserver POST requests on port {}\n' \
                           .format(port), 0)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         pass
     httpd.server_close()
-    debug.write('Stopping IFTTTServer', 0)
+    debug.write('[IFTTTServer] Stopping.', 0)
+
+def runDetectorServer(config):
+    global debug
+    DEVICE_STATUS = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
+    STATUS = 0
+    DELAYED_START = 0
+    debug.write("[Detector] Starting ping-based device detector", 0)
+
+    for _cnt, device in enumerate(config['DETECTOR']['TRACKED_IPS'].split(",")):
+        if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
+            DEVICE_STATUS[_cnt] = 1
+        else:
+            DEVICE_STATUS[_cnt] = 0
+    debug.write("[Detector] Got initial states {} and status {}".format(DEVICE_STATUS, STATUS), 0)
+
+    while True:
+        for _cnt, device in enumerate(config['DETECTOR']['TRACKED_IPS'].split(",")):
+            if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
+                if DEVICE_STATUS[_cnt] == 0:
+                    debug.write("[Detector] DEVICE {} CONnected".format(device), 0)
+                DEVICE_STATUS[_cnt] = 1
+            else:
+                if DEVICE_STATUS[_cnt] == 1:
+                    debug.write("[Detector] DEVICE {} DISconnected".format(device), 0)
+                DEVICE_STATUS[_cnt] = 0
+
+        if STATUS == 1 and all(s == 0 for s in DEVICE_STATUS):
+            debug.write("[Detector] STATE changed to {} and DELAYED_START {}, turned off" \
+                                  .format(DEVICE_STATUS, DELAYED_START), 0)
+            os.system('./playclient.py --off --notime --priority 3')
+            STATUS = 0
+            DELAYED_START = 0
+        if datetime.datetime.now().hour == int(config['DETECTOR']['EVENT_HOUR']) and DELAYED_START == 1:
+            debug.write("[Detector] DELAYED STATE with actual state {}, turned on".format(DEVICE_STATUS), 0)
+            os.system('./playclient.py --on --group passage')
+            DELAYED_START = 0
+        if STATUS == 0 and 1 in DEVICE_STATUS:
+            if datetime.datetime.now().hour < int(config['DETECTOR']['EVENT_HOUR']):
+                debug.write("[Detector] Scheduling state change, with actual state {}" \
+                                      .format(DEVICE_STATUS), 0)
+                DELAYED_START = 1
+            else:
+                debug.write("[Detector] STATE changed to {}, turned on".format(DEVICE_STATUS), 0)
+                os.system('./playclient.py --on --group passage')
+            STATUS = 1
+
+        time.sleep(10)
 
 """ Script executed directly """
 if __name__ == "__main__":
@@ -1125,6 +1172,8 @@ if __name__ == "__main__":
                         help='Start as a socket server daemon')
     parser.add_argument('--ifttt', action='store_true', default=False,
                         help='Start a ifttt websocket receiver along with server')
+    parser.add_argument('--detector', action='store_true', default=False,
+                        help='Start a ping-based device detector (usually for mobiles)')
     parser.add_argument('--threaded', action='store_true', default=False,
                         help='Starts the server daemon with threaded light change requests')
     parser.add_argument('--tvon', action='store_true', default=False, help='Turns TV on')
@@ -1155,6 +1204,8 @@ if __name__ == "__main__":
             lm.start_threaded()
         if args.ifttt:
             Thread(target = runIFTTTServer).start()
+        if args.detector:
+            Thread(target = runDetectorServer, args = (PLAYCONFIG,)).start()
         Thread(target = runServer).start()
 
     elif args.stream_dev or args.stream_group:
