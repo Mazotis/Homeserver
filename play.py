@@ -132,7 +132,7 @@ class LightServer(object):
                 if data:
                     if data.decode('utf-8') == "getstate":
                         debug.write('Sending lightserver status', 0)
-                        client.send(str.encode(str(lm.get_state())))
+                        client.send(str.encode("State: " + str(lm.get_state()).replace("[","").replace("]","")))
                         break
                     if data.decode('utf-8') == "stream":
                         debug.write('Starting streaming mode', 0)
@@ -170,8 +170,8 @@ class LightServer(object):
                         continue
                     try:
                         args = self._sanitize(json.loads(data.decode('utf-8')))
-                    except: #fallback - data is not formatted
-                        debug.write("Error - improperly formatted JSON", 2)
+                    except: #fallback - data is not UTF-8 formatted and/or JSON compatible ?
+                        debug.write("Error - improperly formatted JSON. Got: {}".format(data.decode('utf-8')), 2)
                         break
                     debug.write('Change of lights requested with args: ' + str(args), 0)
                     self._validate_and_execute_req(args)
@@ -256,7 +256,7 @@ class LightServer(object):
                 lm.set_typed_colors(args["milight"], "Milight")
             if args["decora"] is not None:
                 debug.write("Received decora change request", 0)
-                lm.set_typed_colors(args["decora"], "Decora")
+                lm.set_typed_colors(args["decora"], "DecoraSwitch")
             if args["off"]:
                 debug.write("Received OFF change request", 0)
                 lm.set_colors([LIGHT_OFF] * len(lm.devices))
@@ -291,6 +291,8 @@ class LightServer(object):
             args["playbulb"] = None
         if "milight" not in args:
             args["milight"] = None
+        if "decora" not in args:
+            args["decora"] = None
         if "server" not in args:
             args["server"] = False
         if "ifttt" not in args:
@@ -418,7 +420,7 @@ class LightManager(object):
                                           .format(self.config["DEVICE"+str(i)]["ADDRESS"],
                                                   self.config["DEVICE"+str(i)]["DESCRIPTION"]),
                                           0)
-                elif self.config["DEVICE"+str(i)]["TYPE"] == "Decora":
+                elif self.config["DEVICE"+str(i)]["TYPE"] == "DecoraSwitch":
                     if decora is None:
                         decora = Decora(self.config["DEVICE"+str(i)]["EMAIL"], self.config["DEVICE"+str(i)]["PASSWORD"])
                     self.devices.append(DecoraSwitch(i,self.config["DEVICE"+str(i)]["NAME"],
@@ -427,7 +429,7 @@ class LightManager(object):
                                                self.config["DEVICE"+str(i)]["SUBGROUP"],
                                                self.config["DEVICE"+str(i)]["DEFAULT_INTENSITY"],
                                                decora, self))
-                    debug.write("Created device Decora for email {}. Description: {}" \
+                    debug.write("Created device Decora Switch for email {}. Description: {}" \
                                           .format(self.config["DEVICE"+str(i)]["EMAIL"],
                                                   self.config["DEVICE"+str(i)]["DESCRIPTION"]),
                                           0)
@@ -442,7 +444,7 @@ class LightManager(object):
         self.starttime = datetime.time(18, 00) #Light change minimal time
         self.skiptime = 0
         self.queue = queue.Queue()
-        self.colors = [LIGHT_OFF] * len(self.devices)
+        self.colors = ["-1"] * len(self.devices)
         self.set_lock(0)
         self.lockcount = 0
         self.priority = 0
@@ -493,6 +495,7 @@ class LightManager(object):
 
     def set_typed_colors(self, colorargs, atype):
         """ Gets devices of a specific  type for the light change """
+        self.colors = ["-1"] * len(self.devices)
         cvals = self._get_type_index(atype)
         if cvals[0] != len(colorargs):
             debug.write("Received color hexvalues length {} for {} devices. Quitting" \
@@ -516,7 +519,7 @@ class LightManager(object):
         desctext = ""
         i = 1
         for obj in self.devices:
-            if isinstance(obj, (Playbulb, Milight, Decora)):
+            if isinstance(obj, (Playbulb, Milight, DecoraSwitch)):
                 desctext += str(i) + " - " + obj.descriptions() + "\n"
             else:
                 desctext += str(i) + " - " + "Unknown bulb type\n"
@@ -1006,7 +1009,7 @@ class DecoraSwitch(object):
         self.intensity = intensity
         self.decora = decora
         self.server = server
-        self.device_type = "Decora"
+        self.device_type = "DecoraSwitch"
         self.state = "0"
         self.priority = 0
         self.success = False
@@ -1071,7 +1074,7 @@ class DecoraSwitch(object):
 
     def descriptions(self):
         """ Getter for the device description """
-        desctext = "[Decora account email: " + self.email + "] " + self.description
+        desctext = "[Decora account email: " + self.decora.email + "] " + self.description
         return desctext
 
     def disconnect(self):
