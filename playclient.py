@@ -42,12 +42,12 @@ if __name__ == "__main__":
             os.rename("./play.0.log", "./play.1.log")
 
     PLAYCONFIG = configparser.ConfigParser()
-    PLAYCONFIG.read('play.ini')
+    PLAYCONFIG.readfp(open(os.path.dirname(os.path.realpath(__file__)) + '/play.ini'))
     lm = LightManager()
 
     parser = argparse.ArgumentParser(description='BLE light bulbs manager script',
                                      formatter_class=RawTextHelpFormatter)
-    parser.add_argument('hexvalues', metavar='N', type=str, nargs="*",
+    parser.add_argument('hexvalues', metavar='N', type=str, nargs="*", default=None,
                         help='color hex values for the lightbulbs (see list below)')
     parser.add_argument('--playbulb', metavar='P', type=str, nargs="*", help='Change playbulbs colors only')
     parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights colors only')

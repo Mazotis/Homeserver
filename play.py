@@ -227,7 +227,7 @@ class LightServer(object):
                                                                   args["playbulb"], args["milight"], 
                                                                   args["toggle"], args["tvon"], 
                                                                   args["tvoff"], args["tvrestart"],
-                                                                  args["decora"]]):
+                                                                  args["decora"], args["preset"]]):
             debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting" \
                                   .format(len(args["hexvalues"]), len(lm.devices), sys.argv[0]), 2)
             return
