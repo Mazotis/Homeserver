@@ -2,7 +2,7 @@
 '''
     File name: play.py
     Author: Maxime Bergeron
-    Date last modified: 16/01/2019
+    Date last modified: 29/01/2019
     Python Version: 3.7
 
     A python websocket server/client and IFTTT receiver to control various cheap IoT
@@ -90,7 +90,7 @@ def connect_ble(_f):
 
 class LightServer(object):
     """ Handles server-side request reception and handling """
-    def __init__(self, lm, host, port):
+    def __init__(self, lm, host, port, config):
         global debug
         self.host = host
         self.port = port
@@ -99,6 +99,7 @@ class LightServer(object):
         self.sock.bind((self.host, self.port))
         self.sched_disconnect = sched.scheduler(time.time, time.sleep)
         self.scheduled_disconnect = None
+        self.config = config
         #TODO Fix signaling
         #signal.signal(signal.SIGTERM, self.remove_server)
         lm.set_colors([LIGHT_ON] * len(lm.devices))
@@ -257,6 +258,13 @@ class LightServer(object):
             if args["decora"] is not None:
                 debug.write("Received decora change request", 0)
                 lm.set_typed_colors(args["decora"], "DecoraSwitch")
+            if args["preset"] is not None:
+                debug.write("Received change to preset [{}] request".format(args["preset"]), 0)
+                try:
+                    lm.set_colors(self.config["PRESETS"][args["preset"]].split(','))
+                except:
+                    debug.write("Preset {} not found in play.ini. Quitting.".format(args["preset"]), 3)
+                    return                       
             if args["off"]:
                 debug.write("Received OFF change request", 0)
                 lm.set_colors([LIGHT_OFF] * len(lm.devices))
@@ -305,6 +313,8 @@ class LightServer(object):
             args["priority"] = 1
         if "priority" not in args:
             args["priority"] = 1
+        if "preset" not in args:
+            args["preset"] = None
         if "group" not in args:
             args["group"] = None
         if "subgroup" not in args:
@@ -370,6 +380,10 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 os.system('./playclient.py --tvoff --priority 3')
             elif action == "television_salon_restart":
                 os.system('./playclient.py --tvrestart')
+            elif action == "salon_open":
+                os.system('./playclient.py --tvon --on --priority 3 --group salon')
+                time.sleep(2)
+                os.system('/usr/bin/wakeonlan 4C:CC:6A:F4:79:EC')
             elif action == "salon_close":
                 os.system('./playclient.py --tvoff --off --notime --priority 3 --group salon')
             elif action == "luminaire_salon_off":
@@ -380,6 +394,8 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 os.system('./playclient.py --on --notime --priority 2')
             elif action == "lumieres_off":
                 os.system('./playclient.py --off --notime --priority 3')
+            elif action == "home_off":
+                os.system('./playclient.py --tvoff --off --notime --priority 3')
         else:
             debug.write('[IFTTTServer] Got unwanted request with action : {}\n'.format(action), 1)
 
@@ -1081,8 +1097,8 @@ class DecoraSwitch(object):
         pass
 
 
-def runServer():
-    LightServer(lm, PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT'])) \
+def runServer(config = None):
+    LightServer(lm, PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT']), config) \
                 .listen()
 
 def runIFTTTServer():
@@ -1162,6 +1178,8 @@ if __name__ == "__main__":
     parser.add_argument('--decora', metavar='M', type=str, nargs="*", help='Change decora colors only')
     parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1,
                         help='Request priority from 1 to 3')
+    parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
+                        help='Apply light actions from specified preset name defined in play.ini')
     parser.add_argument('--group', metavar='group', type=str, nargs="?", default=None,
                         help='Apply light actions on specified light group')
     parser.add_argument('--subgroup', metavar='group', type=str, nargs="?", default=None,
@@ -1191,7 +1209,7 @@ if __name__ == "__main__":
 
     if args.server and (args.playbulb or args.milight or args.decora or args.on
                         or args.off or args.toggle or args.stream_dev
-                        or args.stream_group):
+                        or args.stream_group or args.preset):
         debug.write("You cannot start the daemon and send arguments at the same time. \
                               Quitting.", 2)
         sys.exit()
@@ -1209,7 +1227,7 @@ if __name__ == "__main__":
             Thread(target = runIFTTTServer).start()
         if args.detector:
             Thread(target = runDetectorServer, args = (PLAYCONFIG,)).start()
-        Thread(target = runServer).start()
+        Thread(target = runServer, args = (PLAYCONFIG,)).start()
 
     elif args.stream_dev or args.stream_group:
         colorval = ""

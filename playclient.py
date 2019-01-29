@@ -2,7 +2,7 @@
 '''
     File name: playclient.py
     Author: Maxime Bergeron
-    Date last modified: 16/01/2019
+    Date last modified: 29/01/2019
     Python Version: 3.7
 
     The stripped-down version of play.py
@@ -54,6 +54,8 @@ if __name__ == "__main__":
     parser.add_argument('--decora', metavar='M', type=str, nargs="*", help='Change decora colors only')
     parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1,
                         help='Request priority from 1 to 3')
+    parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
+                        help='Apply light actions from specified preset name defined in play.ini')
     parser.add_argument('--group', metavar='group', type=str, nargs="?", default=None,
                         help='Apply light actions on specified light group')
     parser.add_argument('--subgroup', metavar='group', type=str, nargs="?", default=None,
