@@ -333,17 +333,17 @@ class LightServer(object):
     def _set_tv(self, value):
         if value == 0:
             ## TV OFF
-            os.system("echo 'standby 0' | cec-client -s")
-            os.system("ssh kodi@192.168.1.200 'sudo shutdown now'")
-            debug.write('Set the TV and KODI to OFF', 0)
+            os.system(self.config["SERVER"]["TV_OFF"])
+            os.system(self.config["SERVER"]["HTPC_SHUTDOWN"])
+            debug.write('Set the TV and HTPC to OFF', 0)
         elif value == 1:
             ## TV ON
-            os.system("echo 'on 0' | cec-client -s")
+            os.system(self.config["SERVER"]["TV_ON"])
             debug.write('Set the TV ON', 0)
         elif value == 2:
             ## TV RESTART        
-            os.system("ssh kodi@192.168.1.200 'sudo reboot'")
-            debug.write('Restarted KODI', 0)
+            os.system(self.config["SERVER"]["HTPC_RESTART"])
+            debug.write('Restarted HTPC', 0)
 
 
 class IFTTTServer(BaseHTTPRequestHandler):
@@ -354,8 +354,10 @@ class IFTTTServer(BaseHTTPRequestHandler):
 
     def do_POST(self):
         global debug
+        config = configparser.ConfigParser()
+        config.read('play.ini')
         """ Receives and handles POST request """
-        SALT = "mazout360"
+        SALT = config["IFTTT"]["SALT"]
         debug.write('[IFTTTServer] Getting request', 0)
         content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
         postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
@@ -363,41 +365,26 @@ class IFTTTServer(BaseHTTPRequestHandler):
         _hash = postvars[b'hash'][0].decode('utf-8')
 
         if _hash == hashlib.sha512(bytes(SALT.encode('utf-8') + action.encode('utf-8'))).hexdigest():
-            debug.write('IFTTTServer running action : {}\n'.format(action), 0)
-            if action == "lumieres_salon_off":
-                os.system('./playclient.py --off --notime --priority 3 --group salon')
-            elif action == "lumieres_salon_on":
-                os.system('./playclient.py --on --notime --priority 2 --group salon')
-            elif action == "luminaire_passage_off":
-                os.system('./playclient.py --off --notime --priority 3 --group passage')
-            elif action == "luminaire_passage_on":
-                os.system('./playclient.py --on --notime --priority 2 --group passage')
-            elif action == "television_salon_on":
-                os.system('./playclient.py --tvon --priority 3')
-                time.sleep(2)
-                os.system('/usr/bin/wakeonlan 4C:CC:6A:F4:79:EC')
-            elif action == "television_salon_off":
-                os.system('./playclient.py --tvoff --priority 3')
-            elif action == "television_salon_restart":
-                os.system('./playclient.py --tvrestart')
-            elif action == "salon_open":
-                os.system('./playclient.py --tvon --on --priority 3 --group salon')
-                time.sleep(2)
-                os.system('/usr/bin/wakeonlan 4C:CC:6A:F4:79:EC')
-            elif action == "salon_close":
-                os.system('./playclient.py --tvoff --off --notime --priority 3 --group salon')
-            elif action == "luminaire_salon_off":
-                os.system('./playclient.py --off --notime --priority 3 --group salon --subgroup luminaire')
-            elif action == "luminaire_salon_on":
-                os.system('./playclient.py --on --notime --priority 2 --group salon --subgroup luminaire')
-            elif action == "lumieres_on":
-                os.system('./playclient.py --on --notime --priority 2')
-            elif action == "lumieres_off":
-                os.system('./playclient.py --off --notime --priority 3')
-            elif action == "home_off":
-                os.system('./playclient.py --tvoff --off --notime --priority 3')
+            debug.write('IFTTTServer running action : {}'.format(action), 0)
+            if action in config["IFTTT"]:
+                debug.write('[IFTTTServer] Running action : {}'.format(config["IFTTT"][action]), 0)
+                os.system(config["IFTTT"][action])
+            else:
+                #
+                # Complex actions should be hardcoded here
+                #
+                if action == "television_salon_on":
+                    os.system('./playclient.py --tvon --priority 3')
+                    time.sleep(2)
+                    os.system('/usr/bin/wakeonlan 4C:CC:6A:F4:79:EC')
+                elif action == "salon_open":
+                    os.system('./playclient.py --tvon --on --priority 3 --group salon')
+                    time.sleep(2)
+                    os.system('/usr/bin/wakeonlan 4C:CC:6A:F4:79:EC')
+                else:
+                    debug.write('[IFTTTServer] Unknown action : {}'.format(action), 1)
         else:
-            debug.write('[IFTTTServer] Got unwanted request with action : {}\n'.format(action), 1)
+            debug.write('[IFTTTServer] Got unwanted request with action : {}'.format(action), 1)
 
         self._set_response()
 
