@@ -45,41 +45,25 @@ To turn off the living room lights over the tv any time:
 ```
 
 ## Development
-More devices can be hardcoded directly in the play.py script. They will then be instantiated as configured in the play.ini file: [DEVICE#] TYPE = MyNewDevice.
-You can pass play.ini configurables and needed variables from the lightmanager __init__ block (where the devices are instantiated).
+More devices can be hardcoded directly in the devices folder. See below for examples.
+The __init__ function of your device will receive variables devid (device number) and config (handler for the play.ini configparser).
+Decora compatible devices should use the decora variable to send requests (created by the Decora.py module).
+BLE bulbs can use the Bulb.py module to simplify development. Integrate this module using super().__init__(devid, config) in the __init__ block.
 ```
-class LightManager(object):
-    """ Methods for instanciating and managing BLE lightbulbs """
-    def __init__(self, config=None):
-            if self.config["DEVICE"+str(i)]["TYPE"] == "MyNewDevice":
-                    self.devices.append(MyNewDevice(i, self.config["DEVICE"+str(i)]["ADDRESS"],
-                                                 self.config["DEVICE"+str(i)]["DESCRIPTION"],
-                                                 self.config["DEVICE"+str(i)]["GROUP"],
-                                                 self.config["DEVICE"+str(i)]["SUBGROUP"],
-                                                 self.config["DEVICE"+str(i)]["DEFAULT_INTENSITY"],
-                                                 self))
-                    debug.write("Created device MyNewDevice {}. Description: {}" \
-                                          .format(self.config["DEVICE"+str(i)]["ADDRESS"],
-                                                  self.config["DEVICE"+str(i)]["DESCRIPTION"]),
-                                          0)
-
-...
-
 class MyNewDevice(object):
-    def __init__(self, devid, device, description, group, subgroup, default_intensity):
-        global debug # Needed to access the debug log
+    def __init__(self, devid, config):
         self.devid = devid # In this case, this device's index within the lightmanager device list
-        self.device = device
-        self.description = description
-        self.success = False # You might need a thread-safe boolean flag to avoid requests when your device is already of the good color 
+        self.device = config["DEVICE"+str(devid)]["DEVICE"] # Value of the DEVICE configurable in play.ini for DEVICE# (where # is devid)
+        self.description = config["DEVICE"+str(devid)]["DESCRIPTION"] # Value of the DESCRIPTION configurable in play.ini for DEVICE# (where # is devid)
+        self.success = False # You might need a thread-safe boolean flag to avoid requests when your device is already of the good color. Turn to True  when request is satisfied. 
         self._connection = None # You might want a variable to handle your device connection
-        self.group = group
-        self.subgroup = subgroup
-        self.default_intensity = default_intensity
+        self.group = config["DEVICE"+str(devid)]["GROUP"] # Value of the GROUP configurable in play.ini for DEVICE# (where # is devid)
+        self.subgroup = config["DEVICE"+str(devid)]["SUBGROUP"] # Value of the SUBGROUP configurable in play.ini for DEVICE# (where # is devid)
         self.priority = 0 # You might need a variable to handle the device actual light change priority level
         self.color = 0 # You might want a variable to keep in memory the actual color/state of your bulb/device
 ```
-Each new device class must provide the following functions to properly work. This is subject to change
+Each new device class must provide the following functions to properly work. This is subject to change.
+First 3 functions are handled by Bulb.py for BLE bulbs, so they are not required.
 ```
     def reinit(self):
         """ Prepares the device for a future request. """

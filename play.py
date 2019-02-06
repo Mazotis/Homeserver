@@ -17,7 +17,6 @@ import time
 import datetime
 import socket
 import threading
-import functools
 import configparser
 import traceback
 import json
@@ -25,73 +24,18 @@ import signal
 import queue
 import urllib.parse
 import hashlib
+from devices.common import *
+from devices import *
 from argparse import RawTextHelpFormatter, Namespace
 from multiprocessing.pool import ThreadPool
 from threading import Thread
-from decora_wifi import DecoraWiFiSession
-from decora_wifi.models.person import Person
-from decora_wifi.models.residential_account import ResidentialAccount
-from decora_wifi.models.residence import Residence
 from http.server import BaseHTTPRequestHandler, HTTPServer
-import bluepy.btle as ble
 from __main__ import *
-
-###
-
-###
-# CONSTANTS
-LIGHT_SKIP = "-1"
-LIGHT_OFF = "0"
-LIGHT_ON = "1"
-###
-
-class DebugLog(object):
-    def __init__(self):
-        """ Handles debug logging """
-        self.config = configparser.ConfigParser()
-        self.config.read('play.ini')
-        self.LEVELS = {0: "DEBUG", 1: "ERROR", 2: "FATAL"}
-        #TODO Dynamic history limits
-        if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log"):
-            if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log"):
-                if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/play.2.log"):
-                    os.remove(self.config['SERVER']['JOURNAL_DIR'] + "/play.2.log")
-                os.rename(self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log",
-                          self.config['SERVER']['JOURNAL_DIR'] + "/play.2.log")
-            os.rename(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log",
-                      self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log")
-
-    def write(self, msg, level):
-        debugtext = "({}) - [{}] {}".format(datetime.datetime.now().time(), self.LEVELS[level], msg)
-        print(debugtext)
-        if self.config['SERVER']['JOURNALING']:
-            with open(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log", "a") as jfile:
-                jfile.write(debugtext + "\n")
-
-debug = DebugLog()
-
-def connect_ble(_f):
-    """ Wrapper for functions which requires an active BLE connection using bluepy """
-    @functools.wraps(_f)
-    def _conn_wrap(self, *args):
-        if self._connection is None:
-            try:
-                debug.write("CONnecting to device ({}) {}".format(self.device_type,
-                                                                            self.device), 0)
-                connection = ble.Peripheral(self.device)
-                self._connection = connection.withDelegate(self)
-            except Exception as ex:
-                debug.write("Device ({}) {} connection failed. Exception: {}" \
-                                      .format(self.device_type, self.device, ex), 1)
-                self._connection = None
-        return _f(self, *args)
-    return _conn_wrap
 
 
 class LightServer(object):
     """ Handles server-side request reception and handling """
     def __init__(self, lm, host, port, config):
-        global debug
         self.host = host
         self.port = port
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -334,11 +278,13 @@ class LightServer(object):
         if value == 0:
             ## TV OFF
             os.system(self.config["SERVER"]["TV_OFF"])
+            os.system("irsend SEND_ONCE logitech_z906 POWER")
             os.system(self.config["SERVER"]["HTPC_SHUTDOWN"])
             debug.write('Set the TV and HTPC to OFF', 0)
         elif value == 1:
             ## TV ON
             os.system(self.config["SERVER"]["TV_ON"])
+            os.system("irsend SEND_ONCE logitech_z906 POWER")
             debug.write('Set the TV ON', 0)
         elif value == 2:
             ## TV RESTART        
@@ -353,7 +299,6 @@ class IFTTTServer(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_POST(self):
-        global debug
         config = configparser.ConfigParser()
         config.read('play.ini')
         """ Receives and handles POST request """
@@ -392,50 +337,18 @@ class IFTTTServer(BaseHTTPRequestHandler):
 class LightManager(object):
     """ Methods for instanciating and managing BLE lightbulbs """
     def __init__(self, config=None):
-        global debug
         self.config = config
         ## TWEAKABLES ##
         self.devices = []
         i = 0
-        decora = None
         while True:
             try:
-                if self.config["DEVICE"+str(i)]["TYPE"] == "Playbulb":
-                    self.devices.append(Playbulb(i, self.config["DEVICE"+str(i)]["ADDRESS"],
-                                                 self.config["DEVICE"+str(i)]["DESCRIPTION"],
-                                                 self.config["DEVICE"+str(i)]["GROUP"],
-                                                 self.config["DEVICE"+str(i)]["SUBGROUP"],
-                                                 self.config["DEVICE"+str(i)]["DEFAULT_INTENSITY"],
-                                                 self))
-                    debug.write("Created device Playbulb {}. Description: {}" \
-                                          .format(self.config["DEVICE"+str(i)]["ADDRESS"],
-                                                  self.config["DEVICE"+str(i)]["DESCRIPTION"]),
-                                          0)
-                elif self.config["DEVICE"+str(i)]["TYPE"] == "Milight":
-                    self.devices.append(Milight(i, self.config["DEVICE"+str(i)]["ADDRESS"],
-                                                self.config["DEVICE"+str(i)]["ID1"],
-                                                self.config["DEVICE"+str(i)]["ID2"],
-                                                self.config["DEVICE"+str(i)]["DESCRIPTION"],
-                                                self.config["DEVICE"+str(i)]["GROUP"],
-                                                self.config["DEVICE"+str(i)]["SUBGROUP"],
-                                                self))
-                    debug.write("Created device Milight {}. Description: {}" \
-                                          .format(self.config["DEVICE"+str(i)]["ADDRESS"],
-                                                  self.config["DEVICE"+str(i)]["DESCRIPTION"]),
-                                          0)
-                elif self.config["DEVICE"+str(i)]["TYPE"] == "DecoraSwitch":
-                    if decora is None:
-                        decora = Decora(self.config["DEVICE"+str(i)]["EMAIL"], self.config["DEVICE"+str(i)]["PASSWORD"])
-                    self.devices.append(DecoraSwitch(i,self.config["DEVICE"+str(i)]["NAME"],
-                                               self.config["DEVICE"+str(i)]["DESCRIPTION"],
-                                               self.config["DEVICE"+str(i)]["GROUP"],
-                                               self.config["DEVICE"+str(i)]["SUBGROUP"],
-                                               self.config["DEVICE"+str(i)]["DEFAULT_INTENSITY"],
-                                               decora, self))
-                    debug.write("Created device Decora Switch for email {}. Description: {}" \
-                                          .format(self.config["DEVICE"+str(i)]["EMAIL"],
-                                                  self.config["DEVICE"+str(i)]["DESCRIPTION"]),
-                                          0)
+                if self.config["DEVICE"+str(i)]["TYPE"] in getDevices():
+                    _module = __import__("devices." + self.config["DEVICE"+str(i)]["TYPE"])
+                    #TODO Needed twice ? looks unpythonic
+                    _class = getattr(_module,self.config["DEVICE"+str(i)]["TYPE"])
+                    _class = getattr(_class,self.config["DEVICE"+str(i)]["TYPE"])
+                    self.devices.append(_class(i, self.config))
                 else:
                     debug.write('Unsupported device type {}' \
                                           .format(self.config["DEVICE"+str(i)]["TYPE"]), 1)
@@ -522,7 +435,8 @@ class LightManager(object):
         desctext = ""
         i = 1
         for obj in self.devices:
-            if isinstance(obj, (Playbulb, Milight, DecoraSwitch)):
+            #TODO make this dynamic
+            if isinstance(obj, (Playbulb.Playbulb, Milight.Milight, DecoraSwitch.DecoraSwitch)):
                 desctext += str(i) + " - " + obj.descriptions() + "\n"
             else:
                 desctext += str(i) + " - " + "Unknown bulb type\n"
@@ -685,411 +599,11 @@ class LightManager(object):
         return [count, firstindex]
 
 
-class Bulb(object):
-    """ Global bulb functions and variables """
-    def __init__(self, devid, device, description, group, subgroup, server):
-        global debug
-        self.devid = devid
-        self.device = device
-        self.description = description
-        self.success = False
-        self._connection = None
-        self.group = group
-        self.subgroup = subgroup
-        self.server = server
-        self.priority = 0
-        self.state = None
-        self.device_type = None
-
-    def reinit(self):
-        """ Prepares the device for a future request """
-        self.success = False
-
-    def get_state(self):
-        """ Getter for the actual color """
-        return self.state
-
-    def disconnect(self):
-        """ Disconnects the device """
-        try:
-            if self._connection is not None:
-                debug.write("DISconnecting from device {}".format(self.device), 0)
-                self._connection.disconnect()
-        except ble.BTLEException:
-            debug.write("Device ({}) {} disconnection failed. Already disconnected?"
-                                  .format(self.device_type, self.device), 1)
-            pass
-        except:
-            pass
-
-        self._connection = None
-
-
-class Playbulb(Bulb):
-    """ Methods for driving a rainbow BLE lightbulb """
-    def __init__(self, devid, device, description, group, subgroup, intensity, server):
-        super().__init__(devid, device, description, group, subgroup, server)
-        self.device_type = "Playbulb"
-        #TODO get actual color at instanciation
-        self.state = "00000000"
-        self.intensity = intensity
-
-    def convert(self, color):
-        """ Conversion to a color code acceptable by the device """
-        if color == LIGHT_OFF:
-            color = "00000000"
-        elif color == LIGHT_ON:
-            color = self.intensity
-        return color
-
-    def color(self, color, priority):
-        """ Checks the request and trigger a light change if needed """
-        if len(color) not in (1, 8) and color != self.convert(LIGHT_SKIP):
-            debug.write("Unhandled color format {}".format(color), 1)
-            return True
-        if self.success:
-            return True
-        if color == self.convert(LIGHT_SKIP):
-            self.success = True
-            return True
-        if self.priority > priority:
-            debug.write("Playbulb bulb {} is set with higher priority ({}), skipping."
-                                  .format(self.device, self.priority), 0)
-            self.success = True
-            return True
-        if priority == 3:
-            self.priority = 1
-        else:
-            self.priority = priority
-        if self.state == color and color != self.convert(LIGHT_OFF):
-            self.success = True
-            debug.write("Bulb {} is already of the requested color, skipping."
-                                  .format(self.device), 0)
-            return True
-        debug.write("Changing playbulb {} color to {}".format(self.device, color), 0)
-        if not self._write(color): return False
-        return True
-
-    def descriptions(self):
-        """ Getter for the device description """
-        desctext = "[Playbulb MAC: " + self.device + "] " + self.description
-        return desctext
-
-    @connect_ble
-    def _write(self, color):
-        _oldcolor = self.state
-        try:
-            if self._connection is not None:
-                    #NOT YET STABLE
-#                   state = self.server.get_state(self.devid)
-#                   if (state == "0"):
-#                       state = "00000000"
-#                   elif (state == "1"):
-#                       state = self.intensity
-#                   debug.write("Got color: {} and state: {}".format(color, state), 0)
-#                   delta_w = (int(color[0:2]) - int(state[0:2]))/20
-#                   delta_r = (int(color[2:4]) - int(state[2:4]))/20
-#                   delta_g = (int(color[4:6]) - int(state[4:6]))/20
-#                   delta_b = (int(color[6:8]) - int(state[6:8]))/20
-#                   debug.write("deltaw: {}, deltar: {}, deltag: {}, deltab: {}".format(delta_w, delta_r, delta_g, delta_b), 0)
-#                   for _iter in range(20):
-#                       if (int(_iter*delta_w) != 0 and int(_iter*delta_r) != 0 and int(_iter*delta_g) != 0 and int(_iter*delta_b) != 0):
-#                           deltacolor = str(int(color[0:2]) + int(_iter*delta_w)) + str(int(color[2:4]) + int(_iter*delta_r)) + str(int(color[4:6]) + int(_iter*delta_g)) + str(int(color[6:8]) + int(_iter*delta_b))
-#                           self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(deltacolor))
-#                           time.sleep(0.5)
-
-
-                self.state = color
-                debug.write("Setting playbulb {} color to {}".format(self.device, color), 0)
-                self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0] \
-                                .write(bytearray.fromhex(color))
-
-                #Prebuilt animations: blink=00, pulse=01, hard rainbow=02, smooth rainbow=03, candle=04
-                #self._connection.getCharacteristics(uuid="0000fffb-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color+"02ffffff"))
-                self.success = True
-                debug.write("Playbulb {} color changed to {}".format(self.device, color), 0)
-                return True
-            self.state = _oldcolor
-            debug.write("Connection error to device (playbulb) {}. Retrying" \
-                                  .format(self.device), 1)
-            time.sleep(0.2)
-            return False
-
-        except Exception as ex:
-            #TODO manage "overwritten" thread by queued requests
-            self.state = _oldcolor
-            debug.write("Unhandled response. Thread died?\n{}".format(ex), 0)
-            self.disconnect()
-            return False
-
-
-class Milight(Bulb):
-    """ Methods for driving a milight BLE lightbulb """
-    def __init__(self, devid, device, id1, id2, description, group, subgroup, server):
-        super().__init__(devid, device, description, group, subgroup, server)
-        self.device_type = "Milight"
-        self.id1 = id1
-        self.id2 = id2
-        self.state = "0"
-
-    def turn_on(self):
-        """ Helper function to turn on device """
-        return self._write(self.get_query(32, 161, 1, self.id1, self.id2), "1")
-
-    def turn_off(self):
-        """ Helper function to turn off device """
-        return self._write(self.get_query(32, 161, 2, self.id1, self.id2), "0")
-
-    def turn_on_and_set_color(self, color):
-        """ Helper function to change color """
-        if not self.turn_on(): return False
-        return self._write(self.get_query(45, 161, 4, self.id1, self.id2, color, 2, 50), color)
-
-    def turn_on_and_dim_on(self, color):
-        """ Helper function to turn on device to default intensity """
-        if not self.turn_on(): return False
-        return self.dim_on(color)
-
-    def dim_on(self, color):
-        """ Helper function to set default intensity """
-        return self._write(self.get_query(20, 161, 5, self.id1, self.id2, 200, 4, 50), color)
-
-    def convert(self, color):
-        """ Conversion to a color code acceptable by the device """
-        #TODO rrggbb to ...this format...
-        return color
-
-    def color(self, color, priority):
-        """ Checks the request and trigger a light change if needed """
-        if len(color) > 3:
-            debug.write("Unhandled color format {}".format(color), 1)
-            return True
-        if self.success:
-            return True
-        if color == self.convert(LIGHT_SKIP):
-            self.success = True
-            return True
-        if self.priority > priority:
-            debug.write("Milight bulb {} is set with higher priority ({}), skipping."
-                                  .format(self.device, self.priority), 0)
-            self.success = True
-            return True
-        if priority == 3:
-            self.priority = 1
-        else:
-            self.priority = priority
-        if color == self.convert(LIGHT_OFF):
-            if not self.turn_off(): return False
-            return True
-        elif self.state == color:
-            self.success = True
-            debug.write("Device (milight) {} is already of the requested color, skipping."
-                                  .format(self.device), 0)
-            return True
-        elif color == LIGHT_ON:
-            if not self.turn_on_and_dim_on(color):
-                return False
-            return True
-        else:
-            if not self.turn_on_and_set_color(color): return False
-            return True
-
-    def get_query(self, value1, value2, value3, id1, id2, value4=0, value5=2, value6=0):
-        """
-        Generate encrypted request string.
-        ON (value3 = 1)/OFF (value3 = 2): value1 = 32, value2 = 161
-        CHANGE COLOR: value1 = 45, value2 = 161, value3 = 4, value4 = colorid
-        """
-        packet = self._create_command("[" + str(value1) + ", " + str(value2) + ", " + str(id1)
-                                      + ", " + str(id2) + ", " + str(value5) + ", " + str(value3)
-                                      + ", " + str(value4) + ", " + str(value6) + ", 0, 0, 0]")
-        return packet
-
-    def descriptions(self):
-        """ Getter for the device description """
-        desctext = "[Milight MAC: {}, ID1: {}, ID2: {}] {}" \
-                    .format(self.device, self.id1, self.id2, self.description)
-        return desctext
-
-    @connect_ble
-    def _write(self, command, color):
-        _oldcolor = self.state
-        try:
-            if self._connection is not None:
-                self.state = color
-                debug.write("Setting milight {} color to {}".format(self.device, color), 0)
-                self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0] \
-                                                    .write(bytearray.fromhex(command \
-                                                                             .replace('\n', '') \
-                                                                             .replace('\r', '')))
-                self.success = True
-                debug.write("Milight {} color changed to {}".format(self.device, color), 0)
-                return True
-            self.state = _oldcolor
-            debug.write("Connection error to device (milight)  {}. Retrying" \
-                                  .format(self.device), 1)
-            return False
-        except:
-            self.state = _oldcolor
-            debug.write("Error sending data to device (milight) {}. Retrying" \
-                                   .format(self.device), 1)
-            self._connection = None
-            return False
-
-    def _create_command(self, bledata):
-        _input = eval(bledata)
-        k = _input[0]
-        j = 0
-        i = 0
-        while i <= 10:
-            j += _input[i] & 0xff
-            i += 1
-        checksum = ((((k ^ j) & 0xff) + 131) & 0xff)
-        xored = [(s&0xff)^k for s in _input]
-        offs = [0, 16, 24, 1, 129, 55, 169, 87, 35, 70, 23, 0]
-        adds = [x+y&0xff for(x, y) in zip(xored, offs)]
-        adds[0] = k
-        adds.append(checksum)
-        hexs = [hex(x) for x in adds]
-        hexs = [x[2:] for x in hexs]
-        hexs = [x.zfill(2) for x in hexs]
-
-        return ''.join(hexs)
-
-
-class Decora(object):
-    def __init__(self, email, password):
-        global debug
-        self.email = email
-        self.password = password
-        self.residences = None
-        self.session = DecoraWiFiSession()
-        self.get_switch()
-
-    def get_switch(self, name = None):
-        self.session.login(self.email, self.password)
-        if self.residences is None:
-            self._initialize()
-        if name is not None:
-            for residence in self.residences:
-                for switch in residence.get_iot_switches():
-                    if switch.name == name:
-                        return switch
-        self.disconnect()
-        return False
-
-    def request(self, name, attribs):
-        self.get_switch(name).update_attributes(attribs)
-
-    def disconnect(self):
-        Person.logout(self.session)
-
-    def _initialize(self):
-        perms = self.session.user.get_residential_permissions()
-        self.residences = []
-        for permission in perms:
-            if permission.residentialAccountId is not None:
-                acct = ResidentialAccount(self.session, permission.residentialAccountId)
-                for res in acct.get_residences():
-                    self.residences.append(res)
-            elif permission.residenceId is not None:
-                res = Residence(self.session, permission.residenceId)
-                self.residences.append(res)
-        for residence in self.residences:
-            for switch in residence.get_iot_switches():
-                debug.write("Decora account {} got switch: {}".format(self.email, switch.name), 0)
-
-
-class DecoraSwitch(object):
-    """ Methods for driving a Decora wifi switch """
-    def __init__(self, devid, device, description, group, subgroup, intensity, decora, server):
-        global debug
-        self.devid = devid
-        self.device = device
-        self.description = description
-        self.group = group
-        self.subgroup = subgroup
-        self.intensity = intensity
-        self.decora = decora
-        self.server = server
-        self.device_type = "DecoraSwitch"
-        self.state = "0"
-        self.priority = 0
-        self.success = False
-
-    def convert(self, color):
-        """ Conversion to a color code acceptable by the device """
-        #TODO rrggbb to ...this format...
-        return color
-
-    def color(self, color, priority):
-        """ Checks the request and trigger a light change if needed """
-        if len(color) > 3:
-            debug.write("Unhandled color format {}".format(color), 1)
-            return True
-        if self.success:
-            return True
-        if color == self.convert(LIGHT_SKIP):
-            self.success = True
-            return True
-        if self.priority > priority:
-            debug.write("Decora bulb {} is set with higher priority ({}), skipping."
-                                  .format(self.device, self.priority), 0)
-            self.success = True
-            return True
-        if priority == 3:
-            self.priority = 1
-        else:
-            self.priority = priority
-        _att = {}
-        if color == self.convert(LIGHT_OFF):
-            _att['power'] = 'OFF'
-            self.decora.request(self.device, _att)
-            self.state = "0"
-            self.success = True
-            return True
-        elif self.state == color:
-            self.success = True
-            debug.write("Device (decora) {} is already of the requested color, skipping."
-                                  .format(self.device), 0)
-            return True
-        elif color == LIGHT_ON:
-            _att['power'] = 'ON'
-            _att['brightness'] = int(self.intensity)
-            self.decora.request(self.device, _att)
-            self.state = "1"
-            self.success = True
-            return True
-        else:
-            _att['brightness'] = int(color)
-            self.decora.request(self.device, _att)
-            self.state = self.color
-            self.success = True
-            return True
-
-    def reinit(self):
-        """ Prepares the device for a future request """
-        self.success = False
-
-    def get_state(self):
-        """ Getter for the actual color """
-        return self.state
-
-    def descriptions(self):
-        """ Getter for the device description """
-        desctext = "[Decora account email: " + self.decora.email + "] " + self.description
-        return desctext
-
-    def disconnect(self):
-        pass
-
-
 def runServer(config = None):
     LightServer(lm, PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT']), config) \
                 .listen()
 
 def runIFTTTServer():
-    global debug
     port = 1234
     server_address = ('', port)
     httpd = HTTPServer(server_address, IFTTTServer)
@@ -1103,7 +617,6 @@ def runIFTTTServer():
     debug.write('[IFTTTServer] Stopping.', 0)
 
 def runDetectorServer(config):
-    global debug
     DEVICE_STATUS = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
     STATUS = 0
     DELAYED_START = 0
