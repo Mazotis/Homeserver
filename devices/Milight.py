@@ -74,7 +74,7 @@ class Milight(Bulb):
             return True
         if self.success:
             return True
-        if color == self.convert(LIGHT_SKIP):
+        if color == LIGHT_SKIP:
             self.success = True
             return True
         if self.priority > priority:
@@ -86,7 +86,7 @@ class Milight(Bulb):
             self.priority = 1
         else:
             self.priority = priority
-        if color == self.convert(LIGHT_OFF):
+        if color == LIGHT_OFF:
             if not self.turn_off(): return False
             return True
         elif self.state == color:

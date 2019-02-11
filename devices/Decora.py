@@ -20,8 +20,8 @@ class Decora(object):
         self.email = config["DEVICE"+str(devid)]["EMAIL"]
         self.password = config["DEVICE"+str(devid)]["PASSWORD"]
         self.residences = None
-        self.session = DecoraWiFiSession()
-        self.get_switch()
+        self._connected = False
+        self.connect()
         decora = self
         debug.write("Created device Decora with account {}.".format(self.email), 0)
 
@@ -38,10 +38,18 @@ class Decora(object):
         return False
 
     def request(self, name, attribs):
+        if not self._connected:
+            self.connect()
         self.get_switch(name).update_attributes(attribs)
+
+    def connect(self):
+        self.session = DecoraWiFiSession()
+        self.get_switch()
+        self._connected = True
 
     def disconnect(self):
         Person.logout(self.session)
+        self._connected = False
 
     def _initialize(self):
         perms = self.session.user.get_residential_permissions()

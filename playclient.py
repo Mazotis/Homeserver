@@ -19,7 +19,7 @@ from __main__ import *
 
 DEBUG = False
 
-class LightManager(object):
+class DeviceManager(object):
     """ Methods for instanciating and managing BLE lightbulbs """
     @staticmethod
     def debugger(msg, level):
@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     PLAYCONFIG = configparser.ConfigParser()
     PLAYCONFIG.readfp(open(os.path.dirname(os.path.realpath(__file__)) + '/play.ini'))
-    lm = LightManager()
+    lm = DeviceManager()
 
     parser = argparse.ArgumentParser(description='BLE light bulbs manager script',
                                      formatter_class=RawTextHelpFormatter)
@@ -64,6 +64,7 @@ if __name__ == "__main__":
                         help='Skip the time check and run the script anyways')
     parser.add_argument('--on', action='store_true', default=False, help='Turn everything on')
     parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')
+    parser.add_argument('--restart', action='store_true', default=False, help='Restart generics')
     parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all lights on/off')
     parser.add_argument('--server', action='store_true', default=False,
                         help='Start as a socket server daemon')
@@ -73,9 +74,6 @@ if __name__ == "__main__":
                         help='Start a ping-based device detector (usually for mobiles)')
     parser.add_argument('--threaded', action='store_true', default=False,
                         help='Starts the server daemon with threaded light change requests')
-    parser.add_argument('--tvon', action='store_true', default=False, help='Turns TV on')
-    parser.add_argument('--tvoff', action='store_true', default=False, help='Turns TV off')
-    parser.add_argument('--tvrestart', action='store_true', default=False, help='Reboots KODI')
     parser.add_argument('--stream-dev', metavar='str-dev', type=int, nargs="?", default=None,
                         help='Stream colors directly to device id')
     parser.add_argument('--stream-group', metavar='str-grp', type=str, nargs="?", default=None,
@@ -84,7 +82,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.stream_dev and args.stream_group:
-        LightManager.debugger("You cannot stream data to both devices and groups. Quitting.", 2)
+        DeviceManager.debugger("You cannot stream data to both devices and groups. Quitting.", 2)
         sys.exit()
 
     elif args.stream_dev or args.stream_group:
@@ -139,8 +137,8 @@ if __name__ == "__main__":
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT'])))
         #todo report connection errors or allow feedback response
-        LightManager.debugger('Connecting with lightmanager daemon', 0)
-        LightManager.debugger('Sending request: ' + json.dumps(vars(args)), 0)
+        DeviceManager.debugger('Connecting with lightmanager daemon', 0)
+        DeviceManager.debugger('Sending request: ' + json.dumps(vars(args)), 0)
         s.sendall("1024".encode('utf-8'))
         s.sendall(json.dumps(vars(args)).encode('utf-8'))
         s.close()

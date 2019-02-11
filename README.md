@@ -5,11 +5,18 @@ A python websocket server/client to control various cheap IoT RGB BLE lightbulbs
 - Milight BLE light bulbs
 - Mipow Playbulbs (tested with Rainbow, other BLE Pb devices should work)
 - Decora Leviton switches (accessible via the MyLeviton app)
+- Generic ON/OFF devices (devices that can be turned ON, OFF or restarted using a sh/bash command. Includes TVs with cec-client commands, HTPCs with wakeonlan commands, IR Devices with LIRC irsend commands and everything else. TIP - Group or subgroup them together with a similar name (for example SUBGROUP = livingroom) and call "./playclient.py --on --subgroup livingroom" to turn them all ON simultaneously)
 
 ## Requirements
+### Absolute requirements
 - Python 3
 - Some BLE-enabled microprocessor (runs the server. Tested with the RPi3)
-- HDMI cable (to send HDMI-CEC commands to TV)
+
+### Relative requirements
+- HDMI cable (to send HDMI-CEC commands to TV. Check cec-client for infos about how to use this)
+- RPI-GPIO + LIRC setup (to create a small, sub-20$ IR remote controller for IR devices, such as a sound device)
+- Edited sudoers file to allow shutdown/reboot requests via ssh (UNIX systems)
+
 
 ## Installation and configuration
 ### On a RPi3 or a linux-based bluetooth-enabled processor board

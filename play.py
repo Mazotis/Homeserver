@@ -2,7 +2,7 @@
 '''
     File name: play.py
     Author: Maxime Bergeron
-    Date last modified: 29/01/2019
+    Date last modified: 11/02/2019
     Python Version: 3.7
 
     A python websocket server/client and IFTTT receiver to control various cheap IoT
@@ -33,7 +33,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from __main__ import *
 
 
-class LightServer(object):
+class HomeServer(object):
     """ Handles server-side request reception and handling """
     def __init__(self, lm, host, port, config):
         self.host = host
@@ -163,28 +163,13 @@ class LightServer(object):
                                    and/or other devices in the same request, which is not \
                                    supported. Use '{} -h' for help. Quitting".format(sys.argv[0]),
                                  2)
-            return
-        if args["tvon"] and args["tvoff"]:
-            debug.write("Cannot ON and OFF the TV in the same request. Quitting.", 2)
-            return         
+            return     
         if len(args["hexvalues"]) != len(lm.devices) and not any([args["notime"], args["off"], args["on"], 
                                                                   args["playbulb"], args["milight"], 
-                                                                  args["toggle"], args["tvon"], 
-                                                                  args["tvoff"], args["tvrestart"],
-                                                                  args["decora"], args["preset"]]):
+                                                                  args["toggle"], args["decora"], 
+                                                                  args["preset"], args["restart"]]):
             debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting" \
                                   .format(len(args["hexvalues"]), len(lm.devices), sys.argv[0]), 2)
-            return
-        if args["tvon"]:
-            debug.write("Setting TV on", 0)
-            self._set_tv(1)
-            return #Do not accept any more requests for now.
-        if args["tvoff"]:
-            debug.write("Setting TV off", 0)
-            self._set_tv(0)
-        if args["tvrestart"]:
-            debug.write("Rebooting KODI", 0)
-            self._set_tv(2)
             return
         if args["priority"]:
             lm.priority = args["priority"]
@@ -195,13 +180,13 @@ class LightServer(object):
         else:
             if args["playbulb"] is not None:
                 debug.write("Received playbulb change request", 0)
-                lm.set_typed_colors(args["playbulb"], "Playbulb")
+                lm.set_typed_colors(args["playbulb"], Playbulb.Playbulb)
             if args["milight"] is not None:
                 debug.write("Received milight change request", 0)
-                lm.set_typed_colors(args["milight"], "Milight")
+                lm.set_typed_colors(args["milight"], Milight.Milight)
             if args["decora"] is not None:
                 debug.write("Received decora change request", 0)
-                lm.set_typed_colors(args["decora"], "DecoraSwitch")
+                lm.set_typed_colors(args["decora"], DecoraSwitch.DecoraSwitch)
             if args["preset"] is not None:
                 debug.write("Received change to preset [{}] request".format(args["preset"]), 0)
                 try:
@@ -215,12 +200,15 @@ class LightServer(object):
             if args["on"]:
                 debug.write("Received ON change request", 0)
                 lm.set_colors([LIGHT_ON] * len(lm.devices))
+            if args["restart"]:
+                debug.write("Received RESTART change request", 0)
+                lm.set_typed_colors(2, GenericOnOff.GenericOnOff)
             if args["toggle"]:
                 debug.write("Received TOGGLE change request", 0)
                 lm.set_colors(lm.get_toggle())
         if args["notime"] or args["off"]:
             lm.skip_time(0)
-        if args["group"] is not None:
+        if args["group"] is not None or args["subgroup"] is not None:
             lm.get_group(args["group"], args["subgroup"])
         debug.write("Arguments are OK", 0)
         lm.run()
@@ -231,12 +219,10 @@ class LightServer(object):
             args["hexvalues"] = []
         if "off" not in args:
             args["off"] = False
-        if "tvrestart" not in args:
-            args["tvrestart"] = False
         if "on" not in args:
             args["on"] = False
-        if "tvon" not in args:
-            args["tvon"] = False
+        if "restart" not in args:
+            args["restart"] = False
         if "toggle" not in args:
             args["toggle"] = False
         if "playbulb" not in args:
@@ -251,8 +237,6 @@ class LightServer(object):
             args["ifttt"] = False
         if "notime" not in args:
             args["notime"] = False
-        if "tvoff" not in args:
-            args["tvoff"] = False
         if "priority" in args and args["priority"] is None:
             args["priority"] = 1
         if "priority" not in args:
@@ -273,23 +257,6 @@ class LightServer(object):
             debug.write('Converting values to lists for decora', 0)
             args["decora"] = args["decora"].replace("'", "").split(',')
         return args
-
-    def _set_tv(self, value):
-        if value == 0:
-            ## TV OFF
-            os.system(self.config["SERVER"]["TV_OFF"])
-            os.system("irsend SEND_ONCE logitech_z906 POWER")
-            os.system(self.config["SERVER"]["HTPC_SHUTDOWN"])
-            debug.write('Set the TV and HTPC to OFF', 0)
-        elif value == 1:
-            ## TV ON
-            os.system(self.config["SERVER"]["TV_ON"])
-            os.system("irsend SEND_ONCE logitech_z906 POWER")
-            debug.write('Set the TV ON', 0)
-        elif value == 2:
-            ## TV RESTART        
-            os.system(self.config["SERVER"]["HTPC_RESTART"])
-            debug.write('Restarted HTPC', 0)
 
 
 class IFTTTServer(BaseHTTPRequestHandler):
@@ -319,11 +286,11 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 # Complex actions should be hardcoded here
                 #
                 if action == "television_salon_on":
-                    os.system('./playclient.py --tvon --priority 3')
+                    os.system('./playclient.py --on --notime --priority 3 --subgroup tv')
                     time.sleep(2)
                     os.system('/usr/bin/wakeonlan 4C:CC:6A:F4:79:EC')
                 elif action == "salon_open":
-                    os.system('./playclient.py --tvon --on --priority 3 --group salon')
+                    os.system('./playclient.py --on --priority 3 --group salon')
                     time.sleep(2)
                     os.system('/usr/bin/wakeonlan 4C:CC:6A:F4:79:EC')
                 else:
@@ -334,11 +301,10 @@ class IFTTTServer(BaseHTTPRequestHandler):
         self._set_response()
 
 
-class LightManager(object):
-    """ Methods for instanciating and managing BLE lightbulbs """
+class DeviceManager(object):
+    """ Methods for instanciating and managing devices """
     def __init__(self, config=None):
         self.config = config
-        ## TWEAKABLES ##
         self.devices = []
         i = 0
         while True:
@@ -389,7 +355,7 @@ class LightManager(object):
     def get_group(self, group, subgroup):
         """ Gets devices from a specific group/subgroup for the light change """
         for _cnt, device in enumerate(self.devices):
-            if device.group != group:
+            if group is not None and device.group != group:
                 debug.write("Skipping device {} as it does not belong in the '{}' group" \
                                       .format(device.device, group), 0)
                 self.colors[_cnt] = LIGHT_SKIP
@@ -413,6 +379,9 @@ class LightManager(object):
         """ Gets devices of a specific  type for the light change """
         self.colors = ["-1"] * len(self.devices)
         cvals = self._get_type_index(atype)
+        if type(colorargs) is int:
+            # Allow a single value to be repeated to n devices
+            colorargs = [colorargs] * cvals[0]
         if cvals[0] != len(colorargs):
             debug.write("Received color hexvalues length {} for {} devices. Quitting" \
                                   .format(len(colorargs), cvals[0]), 2)
@@ -436,7 +405,8 @@ class LightManager(object):
         i = 1
         for obj in self.devices:
             #TODO make this dynamic
-            if isinstance(obj, (Playbulb.Playbulb, Milight.Milight, DecoraSwitch.DecoraSwitch)):
+            if isinstance(obj, (Playbulb.Playbulb, Milight.Milight, DecoraSwitch.DecoraSwitch, 
+                                GenericOnOff.GenericOnOff)):
                 desctext += str(i) + " - " + obj.descriptions() + "\n"
             else:
                 desctext += str(i) + " - " + "Unknown bulb type\n"
@@ -589,7 +559,7 @@ class LightManager(object):
         count = 0
         firstindex = 0
         for obj in self.devices:
-            if isinstance(obj, eval(atype)):
+            if isinstance(obj, atype):
                 if count == 0: 
                     firstindex = i
                 count += 1
@@ -600,14 +570,14 @@ class LightManager(object):
 
 
 def runServer(config = None):
-    LightServer(lm, PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT']), config) \
+    HomeServer(lm, PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT']), config) \
                 .listen()
 
 def runIFTTTServer():
     port = 1234
     server_address = ('', port)
     httpd = HTTPServer(server_address, IFTTTServer)
-    debug.write('[IFTTTServer] Getting lightserver POST requests on port {}\n' \
+    debug.write('[IFTTTServer] Getting lightserver POST requests on port {}' \
                           .format(port), 0)
     try:
         httpd.serve_forever()
@@ -631,14 +601,19 @@ def runDetectorServer(config):
 
     while True:
         for _cnt, device in enumerate(config['DETECTOR']['TRACKED_IPS'].split(",")):
+            #TODO Maintain the two pings requirement for status change ?
             if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
-                if DEVICE_STATUS[_cnt] == 0:
+                if DEVICE_STATUS[_cnt] == 1:
                     debug.write("[Detector] DEVICE {} CONnected".format(device), 0)
-                DEVICE_STATUS[_cnt] = 1
+                if DEVICE_STATUS[_cnt] != 2:
+                    # Increase state level up to two (ON)
+                    DEVICE_STATUS[_cnt] = DEVICE_STATUS[_cnt] + 1
             else:
                 if DEVICE_STATUS[_cnt] == 1:
                     debug.write("[Detector] DEVICE {} DISconnected".format(device), 0)
-                DEVICE_STATUS[_cnt] = 0
+                if DEVICE_STATUS[_cnt] != 0:
+                    # Decrease state level down to zero (OFF)
+                    DEVICE_STATUS[_cnt] = DEVICE_STATUS[_cnt] - 1
 
         if STATUS == 1 and all(s == 0 for s in DEVICE_STATUS):
             debug.write("[Detector] STATE changed to {} and DELAYED_START {}, turned off" \
@@ -650,16 +625,22 @@ def runDetectorServer(config):
             debug.write("[Detector] DELAYED STATE with actual state {}, turned on".format(DEVICE_STATUS), 0)
             os.system('./playclient.py --on --group passage')
             DELAYED_START = 0
-        if STATUS == 0 and 1 in DEVICE_STATUS:
+            STATUS = 1  
+        if 2 in DEVICE_STATUS and DELAYED_START == 0:
             if datetime.datetime.now().hour < int(config['DETECTOR']['EVENT_HOUR']):
                 debug.write("[Detector] Scheduling state change, with actual state {}" \
                                       .format(DEVICE_STATUS), 0)
                 DELAYED_START = 1
-            else:
-                debug.write("[Detector] STATE changed to {}, turned on".format(DEVICE_STATUS), 0)
-                os.system('./playclient.py --on --group passage')
+                STATUS = 0
+        if 2 in DEVICE_STATUS and STATUS == 0 and datetime.datetime.now().hour >= int(config['DETECTOR']['EVENT_HOUR']):
+            debug.write("[Detector] STATE changed to {}, turned on".format(DEVICE_STATUS), 0)
+            os.system('./playclient.py --on --group passage')
             STATUS = 1
-
+            DELAYED_START = 0
+        if all(s == 0 for s in DEVICE_STATUS) and STATUS == 0 and DELAYED_START == 1:
+            debug.write("[Detector] Aborting light change, with actual state {}" \
+                                      .format(DEVICE_STATUS), 0)
+            DELAYED_START = 0
         time.sleep(10)
 
 """ Script executed directly """
@@ -667,7 +648,7 @@ if __name__ == "__main__":
     #TODO externalize?
     PLAYCONFIG = configparser.ConfigParser()
     PLAYCONFIG.read('play.ini')
-    lm = LightManager(PLAYCONFIG)
+    lm = DeviceManager(PLAYCONFIG)
 
     parser = argparse.ArgumentParser(description='BLE light bulbs manager script', epilog=lm.descriptions(),
                                      formatter_class=RawTextHelpFormatter)
@@ -688,6 +669,7 @@ if __name__ == "__main__":
                         help='Skip the time check and run the script anyways')
     parser.add_argument('--on', action='store_true', default=False, help='Turn everything on')
     parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')
+    parser.add_argument('--restart', action='store_true', default=False, help='Restart generics')
     parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all lights on/off')
     parser.add_argument('--server', action='store_true', default=False,
                         help='Start as a socket server daemon')
@@ -697,9 +679,6 @@ if __name__ == "__main__":
                         help='Start a ping-based device detector (usually for mobiles)')
     parser.add_argument('--threaded', action='store_true', default=False,
                         help='Starts the server daemon with threaded light change requests')
-    parser.add_argument('--tvon', action='store_true', default=False, help='Turns TV on')
-    parser.add_argument('--tvoff', action='store_true', default=False, help='Turns TV off')
-    parser.add_argument('--tvrestart', action='store_true', default=False, help='Reboots KODI')
     parser.add_argument('--stream-dev', metavar='str-dev', type=int, nargs="?", default=None,
                         help='Stream colors directly to device id')
     parser.add_argument('--stream-group', metavar='str-grp', type=str, nargs="?", default=None,
@@ -709,7 +688,7 @@ if __name__ == "__main__":
 
     if args.server and (args.playbulb or args.milight or args.decora or args.on
                         or args.off or args.toggle or args.stream_dev
-                        or args.stream_group or args.preset):
+                        or args.stream_group or args.preset or args.restart):
         debug.write("You cannot start the daemon and send arguments at the same time. \
                               Quitting.", 2)
         sys.exit()

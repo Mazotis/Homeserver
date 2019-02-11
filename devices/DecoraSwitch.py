@@ -41,7 +41,7 @@ class DecoraSwitch(object):
             return True
         if self.success:
             return True
-        if color == self.convert(LIGHT_SKIP):
+        if color == LIGHT_SKIP:
             self.success = True
             return True
         if self.priority > priority:
@@ -54,7 +54,7 @@ class DecoraSwitch(object):
         else:
             self.priority = priority
         _att = {}
-        if color == self.convert(LIGHT_OFF):
+        if color == LIGHT_OFF:
             _att['power'] = 'OFF'
             self.decora.request(self.device, _att)
             self.state = "0"
@@ -75,7 +75,7 @@ class DecoraSwitch(object):
         else:
             _att['brightness'] = int(color)
             self.decora.request(self.device, _att)
-            self.state = self.color
+            self.state = color
             self.success = True
             return True
 
@@ -93,4 +93,4 @@ class DecoraSwitch(object):
         return desctext
 
     def disconnect(self):
-        pass
+        self.decora.disconnect()
