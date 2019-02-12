@@ -46,8 +46,6 @@ class HomeServer(object):
         self.config = config
         #TODO Fix signaling
         #signal.signal(signal.SIGTERM, self.remove_server)
-        lm.set_colors([LIGHT_ON] * len(lm.devices))
-        lm.run()
 
     def listen(self):
         """ Starts the server """
