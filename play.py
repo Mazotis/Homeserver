@@ -10,6 +10,7 @@
 '''
 import os
 import os.path
+import subprocess
 import sys
 import argparse
 import sched
@@ -321,7 +322,13 @@ class DeviceManager(object):
             i = i + 1
 
         #TODO allow reporting of device state to the lightserver
-        self.starttime = datetime.datetime.strptime(self.config['SERVER']['EVENT_HOUR'],'%H:%M').time()
+        if str(self.config['SERVER']['EVENT_HOUR']) != "auto":
+            self.lastupdate = None
+            self.starttime = datetime.datetime.strptime(self.config['SERVER']['EVENT_HOUR'],'%H:%M').time()
+        else:
+            self.lastupdate = datetime.date.today()
+            self.starttime = self._update_sunset_time(self.config['SERVER']['EVENT_LOCALIZATION'])
+            debug.write("Event time set as sunset time: {}".format(self.starttime), 0)
         self.skiptime = 0
         self.queue = queue.Queue()
         self.colors = ["-1"] * len(self.devices)
@@ -543,10 +550,12 @@ class DeviceManager(object):
         debug.write("Change of lights completed.", 0)
 
     def _check_time(self):
-        #TODO Check if we keep this...
         if self.skiptime or self.starttime is None:
             self.skiptime = 0
             return 1
+        if self.lastupdate != datetime.date.today():
+            self.starttime = self._update_sunset_time(self.config['SERVER']['EVENT_LOCALIZATION'])
+            debug.write("Event time set as sunset time: {}".format(self.starttime), 0)            
         if datetime.time(6, 00) < datetime.datetime.now().time() < self.starttime:
             debug.write("Too soon, no change of light required. Light changes begins at {}"
                         .format(self.starttime), 0)
@@ -568,6 +577,13 @@ class DeviceManager(object):
             raise Exception('Invalid bulb type given. Quitting')
         return [count, firstindex]
 
+    def _update_sunset_time(self, localization):
+        p1 = subprocess.Popen('./scripts/sunset.sh %s' % str(localization), stdout=subprocess.PIPE, \
+                              shell=True)
+        (output,_) = p1.communicate()
+        p1.wait()
+        return datetime.datetime.strptime(output.rstrip().decode('UTF-8'),'%H:%M').time()
+
 
 def runServer(config = None):
     HomeServer(lm, PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT']), config) \
@@ -586,13 +602,12 @@ def runIFTTTServer():
     httpd.server_close()
     debug.write('[IFTTTServer] Stopping.', 0)
 
-def runDetectorServer(config):
+def runDetectorServer(config, lm):
     DEVICE_STATE_LEVEL = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
     DEVICE_STATE_MAX = int(config['DETECTOR']['MAX_STATE_LEVEL'])
     DEVICE_STATUS = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
     STATUS = 0
     DELAYED_START = 0
-    EVENT_TIME = datetime.datetime.strptime(config['SERVER']['EVENT_HOUR'],'%H:%M').time()
     debug.write("[Detector] Starting ping-based device detector", 0)
 
     for _cnt, device in enumerate(config['DETECTOR']['TRACKED_IPS'].split(",")):
@@ -605,6 +620,7 @@ def runDetectorServer(config):
     debug.write("[Detector] Got initial states {} and status {}".format(DEVICE_STATE_LEVEL, STATUS), 0)
 
     while True:
+        EVENT_TIME = lm.starttime
         for _cnt, device in enumerate(config['DETECTOR']['TRACKED_IPS'].split(",")):
             #TODO Maintain the two pings requirement for status change ?
             if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
@@ -713,7 +729,7 @@ if __name__ == "__main__":
         if args.ifttt:
             Thread(target = runIFTTTServer).start()
         if args.detector:
-            Thread(target = runDetectorServer, args = (PLAYCONFIG,)).start()
+            Thread(target = runDetectorServer, args = (PLAYCONFIG,lm,)).start()
         Thread(target = runServer, args = (PLAYCONFIG,)).start()
 
     elif args.stream_dev or args.stream_group:
