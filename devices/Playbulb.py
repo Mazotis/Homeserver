@@ -108,7 +108,6 @@ class Playbulb(Bulb):
 
 
                 self.state = color
-                debug.write("Setting playbulb {} color to {}".format(self.device, color), 0)
                 self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0] \
                                 .write(bytearray.fromhex(color))
 

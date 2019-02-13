@@ -321,7 +321,7 @@ class DeviceManager(object):
             i = i + 1
 
         #TODO allow reporting of device state to the lightserver
-        self.starttime = datetime.time(18, 00) #Light change minimal time
+        self.starttime = datetime.datetime.strptime(self.config['SERVER']['EVENT_HOUR'],'%H:%M').time()
         self.skiptime = 0
         self.queue = queue.Queue()
         self.colors = ["-1"] * len(self.devices)
@@ -482,7 +482,8 @@ class DeviceManager(object):
                         _color = self.devices[i].convert(colors[i])
 
                         if not self.devices[i].success:
-                            debug.write(("DEVICE: {}, REQUESTED COLOR: {} "
+                            if _color != LIGHT_SKIP:
+                                debug.write(("DEVICE: {}, REQUESTED COLOR: {} "
                                                   "FROM STATE: {}, PRIORITY: {}")
                                                   .format(self.devices[i].device,
                                                           _color, _state,
@@ -547,7 +548,8 @@ class DeviceManager(object):
             self.skiptime = 0
             return 1
         if datetime.time(6, 00) < datetime.datetime.now().time() < self.starttime:
-            debug.write("Too soon, no change of light required", 0)
+            debug.write("Too soon, no change of light required. Light changes begins at {}"
+                        .format(self.starttime), 0)
             return 0
         return 1
 
@@ -585,61 +587,69 @@ def runIFTTTServer():
     debug.write('[IFTTTServer] Stopping.', 0)
 
 def runDetectorServer(config):
+    DEVICE_STATE_LEVEL = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
+    DEVICE_STATE_MAX = int(config['DETECTOR']['MAX_STATE_LEVEL'])
     DEVICE_STATUS = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
     STATUS = 0
     DELAYED_START = 0
+    EVENT_TIME = datetime.datetime.strptime(config['SERVER']['EVENT_HOUR'],'%H:%M').time()
     debug.write("[Detector] Starting ping-based device detector", 0)
 
     for _cnt, device in enumerate(config['DETECTOR']['TRACKED_IPS'].split(",")):
         if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
+            DEVICE_STATE_LEVEL[_cnt] = DEVICE_STATE_MAX
             DEVICE_STATUS[_cnt] = 1
         else:
+            DEVICE_STATE_LEVEL[_cnt] = 0
             DEVICE_STATUS[_cnt] = 0
-    debug.write("[Detector] Got initial states {} and status {}".format(DEVICE_STATUS, STATUS), 0)
+    debug.write("[Detector] Got initial states {} and status {}".format(DEVICE_STATE_LEVEL, STATUS), 0)
 
     while True:
         for _cnt, device in enumerate(config['DETECTOR']['TRACKED_IPS'].split(",")):
             #TODO Maintain the two pings requirement for status change ?
             if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
-                if DEVICE_STATUS[_cnt] == 1:
+                if DEVICE_STATE_LEVEL[_cnt] == DEVICE_STATE_MAX and DEVICE_STATUS[_cnt] == 0:
                     debug.write("[Detector] DEVICE {} CONnected".format(device), 0)
-                if DEVICE_STATUS[_cnt] != 2:
-                    # Increase state level up to two (ON)
-                    DEVICE_STATUS[_cnt] = DEVICE_STATUS[_cnt] + 1
+                    DEVICE_STATUS[_cnt] = 1
+                elif DEVICE_STATE_LEVEL[_cnt] != DEVICE_STATE_MAX:
+                    DEVICE_STATE_LEVEL[_cnt] = DEVICE_STATE_LEVEL[_cnt] + 1
             else:
-                if DEVICE_STATUS[_cnt] == 1:
+                if DEVICE_STATE_LEVEL[_cnt] == 0 and DEVICE_STATUS[_cnt] == 1:
                     debug.write("[Detector] DEVICE {} DISconnected".format(device), 0)
-                if DEVICE_STATUS[_cnt] != 0:
+                    DEVICE_STATUS[_cnt] == 0
+                elif DEVICE_STATE_LEVEL[_cnt] != 0:
                     # Decrease state level down to zero (OFF)
-                    DEVICE_STATUS[_cnt] = DEVICE_STATUS[_cnt] - 1
+                    DEVICE_STATE_LEVEL[_cnt] = DEVICE_STATE_LEVEL[_cnt] - 1
 
-        if STATUS == 1 and all(s == 0 for s in DEVICE_STATUS):
+        if STATUS == 1 and all(s == 0 for s in DEVICE_STATE_LEVEL):
             debug.write("[Detector] STATE changed to {} and DELAYED_START {}, turned off" \
-                                  .format(DEVICE_STATUS, DELAYED_START), 0)
+                                  .format(DEVICE_STATE_LEVEL, DELAYED_START), 0)
             os.system('./playclient.py --off --notime --priority 3')
             STATUS = 0
             DELAYED_START = 0
-        if datetime.datetime.now().hour == int(config['DETECTOR']['EVENT_HOUR']) and DELAYED_START == 1:
-            debug.write("[Detector] DELAYED STATE with actual state {}, turned on".format(DEVICE_STATUS), 0)
+        if datetime.datetime.now().time() == EVENT_TIME and DELAYED_START == 1:
+            debug.write("[Detector] DELAYED STATE with actual state {}, turned on".format(DEVICE_STATE_LEVEL), 
+                                                                                          0)
             os.system('./playclient.py --on --group passage')
             DELAYED_START = 0
             STATUS = 1  
-        if 2 in DEVICE_STATUS and DELAYED_START == 0:
-            if datetime.datetime.now().hour < int(config['DETECTOR']['EVENT_HOUR']):
+        if DEVICE_STATE_MAX in DEVICE_STATE_LEVEL and DELAYED_START == 0:
+            if datetime.datetime.now().time() < EVENT_TIME:
                 debug.write("[Detector] Scheduling state change, with actual state {}" \
-                                      .format(DEVICE_STATUS), 0)
+                                      .format(DEVICE_STATE_LEVEL), 0)
                 DELAYED_START = 1
                 STATUS = 0
-        if 2 in DEVICE_STATUS and STATUS == 0 and datetime.datetime.now().hour >= int(config['DETECTOR']['EVENT_HOUR']):
-            debug.write("[Detector] STATE changed to {}, turned on".format(DEVICE_STATUS), 0)
+        if DEVICE_STATE_MAX in DEVICE_STATE_LEVEL and STATUS == 0 and datetime.datetime.now().time() \
+           >= EVENT_TIME:
+            debug.write("[Detector] STATE changed to {}, turned on".format(DEVICE_STATE_LEVEL), 0)
             os.system('./playclient.py --on --group passage')
             STATUS = 1
             DELAYED_START = 0
-        if all(s == 0 for s in DEVICE_STATUS) and STATUS == 0 and DELAYED_START == 1:
+        if all(s == 0 for s in DEVICE_STATE_LEVEL) and STATUS == 0 and DELAYED_START == 1:
             debug.write("[Detector] Aborting light change, with actual state {}" \
-                                      .format(DEVICE_STATUS), 0)
+                                      .format(DEVICE_STATE_LEVEL), 0)
             DELAYED_START = 0
-        time.sleep(10)
+        time.sleep(int(config['DETECTOR']['PING_FREQ_SEC']))
 
 """ Script executed directly """
 if __name__ == "__main__":

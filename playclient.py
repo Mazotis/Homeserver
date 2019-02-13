@@ -21,11 +21,13 @@ DEBUG = False
 
 class DeviceManager(object):
     """ Methods for instanciating and managing BLE lightbulbs """
+    #TODO: keep a separate debug function ?
     @staticmethod
     def debugger(msg, level):
         """ Handles debug logging """
         levels = {0: "DEBUG", 1: "ERROR", 2: "FATAL"}
-        debugtext = "({}) - [{}] {}".format(datetime.datetime.now().time(), levels[level], msg)
+        debugtext = "({}) - [{}] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), 
+                                            levels[level], msg)
         print(debugtext)
         if DEBUG:
             with open("./play.0.log", "a") as jfile:

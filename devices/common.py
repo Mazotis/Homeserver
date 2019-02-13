@@ -37,7 +37,8 @@ class DebugLog(object):
                       self.config['SERVER']['JOURNAL_DIR'] + "/play.1.log")
 
     def write(self, msg, level):
-        debugtext = "({}) - [{}] {}".format(datetime.datetime.now().time(), self.LEVELS[level], msg)
+        debugtext = "({}) - [{}] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), 
+                                            self.LEVELS[level], msg)
         print(debugtext)
         if self.config['SERVER']['JOURNALING']:
             with open(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log", "a") as jfile:
