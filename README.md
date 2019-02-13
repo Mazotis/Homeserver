@@ -1,11 +1,15 @@
 # Lightserver
-A python websocket server/client to control various cheap IoT RGB BLE lightbulbs and HDMI-CEC-to-TV RPi3
+A python websocket server/client to control various cheap IoT RGB BLE lightbulbs, DIY devices and programmable ON/OFF devices (TVs via HDMI-CEC, sound systems using LIRC, HTPCs using shutdown/wake-on-lan functions...)
+
+The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and waits for requests, either from IFTTT (using a webhook Then That), from a device on-connection event (detected by pinging a static local IP, ie. for a mobile phone) or by a direct command-line call using playclient.py (for example, when called on a specific event/via a menu button on Kodi - or other HTPC softwares). 
+
 
 ## Supported devices
 - Milight BLE light bulbs
 - Mipow Playbulbs (tested with Rainbow, other BLE Pb devices should work)
-- Decora Leviton switches (accessible via the MyLeviton app)
+- Decora Leviton switches (all switches that are accessible via the MyLeviton app)
 - Generic ON/OFF devices (devices that can be turned ON, OFF or restarted using a sh/bash command. Includes TVs with cec-client commands, HTPCs with wakeonlan commands, IR Devices with LIRC irsend commands and everything else. TIP - Group or subgroup them together with a similar name (for example SUBGROUP = livingroom) and call "./playclient.py --on --subgroup livingroom" to turn them all ON simultaneously)
+
 
 ## Requirements
 ### Absolute requirements
@@ -21,7 +25,7 @@ A python websocket server/client to control various cheap IoT RGB BLE lightbulbs
 ## Installation and configuration
 ### On a RPi3 or a linux-based bluetooth-enabled processor board
 1) Setup python3 + required pip imports.
-2) Configure your server and bulbs in the play.ini file.
+2) Configure your server and devices in the play.ini file. Read the file itself for all the tweakable parameters.
 3) Run 
 ```
 ./play.py --server 
@@ -34,12 +38,13 @@ Optional command-line options:
 4) To use HDMI-CEC, connect HDMI cable to a free TV port.
 
 Note - to run the IFTTT server, you need to configure your actions on IFTTT and send the response via websocket. Configure a
-dynamic DNS for your local LAN and forward the IFTTT port (as set by the port variable in the script) to your raspberry pi local LAN address.
+dynamic DNS for your local LAN and forward the server port (as set by the PORT variable in play.ini) to your raspberry pi local LAN address port on your router.
 
 ### On a client device
 1) Setup python3 + required pip imports
 2) You can also trigger light changes/HDMI-CEC requests by runing ./playclient.py OPTIONS
 ```
+Examples:
 To turn everything on:
 ./playclient.py --on
 To turn everything on any time of day:
@@ -59,7 +64,7 @@ BLE bulbs can use the Bulb.py module to simplify development. Integrate this mod
 ```
 class MyNewDevice(object):
     def __init__(self, devid, config):
-        self.devid = devid # In this case, this device's index within the lightmanager device list
+        self.devid = devid # In this case, this device's index within the devicemanager device list
         self.device = config["DEVICE"+str(devid)]["DEVICE"] # Value of the DEVICE configurable in play.ini for DEVICE# (where # is devid)
         self.description = config["DEVICE"+str(devid)]["DESCRIPTION"] # Value of the DESCRIPTION configurable in play.ini for DEVICE# (where # is devid)
         self.success = False # You might need a thread-safe boolean flag to avoid requests when your device is already of the good color. Turn to True  when request is satisfied. 
