@@ -1,8 +1,17 @@
 # Lightserver
+New - [Read the WIKI](https://github.com/Mazotis/Lightserver/wiki)
+
 A python websocket server/client to control various cheap IoT RGB BLE lightbulbs, DIY devices and programmable ON/OFF devices (TVs via HDMI-CEC, sound systems using LIRC, HTPCs using shutdown/wake-on-lan functions...)
 
 The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and waits for requests, either from IFTTT (using a webhook Then That), from a device on-connection event (detected by pinging a static local IP, ie. for a mobile phone) or by a direct command-line call using playclient.py (for example, when called on a specific event/via a menu button on Kodi - or other HTPC softwares). 
 
+## Why Lightserver ?
+* It allows to control multiple devices that uses different protocols at the same time.
+* It can change device states using threads, which is much faster than running individual scripts one after another.
+* It can be integrated with any project that can run python, for example Kodi HTPCs.
+* It allows to change device states (turn lights on/off for example) depending on someone's presence at home or depending on the sunset time at your actual location.
+* It is portable - the server can be executed on any python3 compatible machine. You may also have multiple servers if, for example, your bluetooth devices are too far away.
+* Compatible with IFTTT (can be interfaced with Google Assistant/Google home and other voice devices) to add vocal commands to any non-smart device.
 
 ## Supported devices
 - Milight BLE light bulbs
@@ -25,7 +34,7 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 ## Installation and configuration
 ### On a RPi3 or a linux-based bluetooth-enabled processor board
 1) Setup python3 + required pip imports.
-2) Configure your server and devices in the play.ini file. Read the file itself for all the tweakable parameters.
+2) Configure your server and devices in the play.ini file. Read the file itself or the wiki for all the tweakable parameters.
 3) Run 
 ```
 ./play.py --server 
@@ -58,8 +67,11 @@ To turn off the living room lights over the tv any time:
 
 ## Development
 More devices can be hardcoded directly in the devices folder. See below for examples.
+
 The __init__ function of your device will receive variables devid (device number) and config (handler for the play.ini configparser).
+
 Decora compatible devices should use the decora variable to send requests (created by the Decora.py module).
+
 BLE bulbs can use the Bulb.py module to simplify development. Integrate this module using super().__init__(devid, config) in the __init__ block.
 ```
 class MyNewDevice(object):
@@ -75,6 +87,7 @@ class MyNewDevice(object):
         self.color = 0 # You might want a variable to keep in memory the actual color/state of your bulb/device
 ```
 Each new device class must provide the following functions to properly work. This is subject to change.
+
 First 3 functions are handled by Bulb.py for BLE bulbs, so they are not required.
 ```
     def reinit(self):
