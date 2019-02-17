@@ -632,7 +632,7 @@ def runDetectorServer(config, lm):
             else:
                 if DEVICE_STATE_LEVEL[_cnt] == 0 and DEVICE_STATUS[_cnt] == 1:
                     debug.write("[Detector] DEVICE {} DISconnected".format(device), 0)
-                    DEVICE_STATUS[_cnt] == 0
+                    DEVICE_STATUS[_cnt] = 0
                 elif DEVICE_STATE_LEVEL[_cnt] != 0:
                     # Decrease state level down to zero (OFF)
                     DEVICE_STATE_LEVEL[_cnt] = DEVICE_STATE_LEVEL[_cnt] - 1
