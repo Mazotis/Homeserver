@@ -179,13 +179,16 @@ class HomeServer(object):
         else:
             if args["playbulb"] is not None:
                 debug.write("Received playbulb change request", 0)
-                lm.set_typed_colors(args["playbulb"], Playbulb.Playbulb)
+                if not lm.set_typed_colors(args["playbulb"], Playbulb.Playbulb):
+                    return
             if args["milight"] is not None:
                 debug.write("Received milight change request", 0)
-                lm.set_typed_colors(args["milight"], Milight.Milight)
+                if not lm.set_typed_colors(args["milight"], Milight.Milight):
+                    return
             if args["decora"] is not None:
                 debug.write("Received decora change request", 0)
-                lm.set_typed_colors(args["decora"], DecoraSwitch.DecoraSwitch)
+                if not lm.set_typed_colors(args["decora"], DecoraSwitch.DecoraSwitch):
+                    return
             if args["preset"] is not None:
                 debug.write("Received change to preset [{}] request".format(args["preset"]), 0)
                 try:
@@ -201,7 +204,8 @@ class HomeServer(object):
                 lm.set_colors([LIGHT_ON] * len(lm.devices))
             if args["restart"]:
                 debug.write("Received RESTART change request", 0)
-                lm.set_typed_colors(2, GenericOnOff.GenericOnOff)
+                if not lm.set_typed_colors(2, GenericOnOff.GenericOnOff):
+                    return
             if args["toggle"]:
                 debug.write("Received TOGGLE change request", 0)
                 lm.set_colors(lm.get_toggle())
@@ -384,14 +388,17 @@ class DeviceManager(object):
         """ Gets devices of a specific  type for the light change """
         self.colors = ["-1"] * len(self.devices)
         cvals = self._get_type_index(atype)
-        if type(colorargs) is int:
+        if len(colorargs) == 1 and cvals[0] > 1:
             # Allow a single value to be repeated to n devices
-            colorargs = [colorargs] * cvals[0]
+            debug.write("Expanding color {} to {} devices." \
+                                  .format(len(colorargs), cvals[0]), 0)
+            colorargs = [colorargs[0]] * cvals[0]
         if cvals[0] != len(colorargs):
             debug.write("Received color hexvalues length {} for {} devices. Quitting" \
                                   .format(len(colorargs), cvals[0]), 2)
-            return
+            return False
         self.colors[cvals[1]:cvals[1]+cvals[0]] = colorargs
+        return True
 
     def run(self):
         """ Validates the request and runs the light change """
