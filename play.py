@@ -286,18 +286,9 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 os.system(config["IFTTT"][action])
             else:
                 #
-                # Complex actions should be hardcoded here
+                # Complex actions should be hardcoded here if needed
                 #
-                if action == "television_salon_on":
-                    os.system('./playclient.py --on --notime --priority 3 --subgroup tv')
-                    time.sleep(2)
-                    os.system('/usr/bin/wakeonlan 4C:CC:6A:F4:79:EC')
-                elif action == "salon_open":
-                    os.system('./playclient.py --on --priority 3 --group salon')
-                    time.sleep(2)
-                    os.system('/usr/bin/wakeonlan 4C:CC:6A:F4:79:EC')
-                else:
-                    debug.write('[IFTTTServer] Unknown action : {}'.format(action), 1)
+                debug.write('[IFTTTServer] Unknown action : {}'.format(action), 1)
         else:
             debug.write('[IFTTTServer] Got unwanted request with action : {}'.format(action), 1)
 
