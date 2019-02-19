@@ -157,7 +157,8 @@ class HomeServer(object):
 
     def _validate_and_execute_req(self, args):
         debug.write("Validating arguments", 0)
-        if args["hexvalues"] and (args["playbulb"] or args["milight"] or args["decora"]):
+        if args["hexvalues"] and (args["playbulb"] or args["milight"] or args["decora"]
+                                  or args["meross"]):
             debug.write("Got color hexvalues for milights and/or playbulbs \
                                    and/or other devices in the same request, which is not \
                                    supported. Use '{} -h' for help. Quitting".format(sys.argv[0]),
@@ -166,7 +167,8 @@ class HomeServer(object):
         if len(args["hexvalues"]) != len(lm.devices) and not any([args["notime"], args["off"], args["on"], 
                                                                   args["playbulb"], args["milight"], 
                                                                   args["toggle"], args["decora"], 
-                                                                  args["preset"], args["restart"]]):
+                                                                  args["preset"], args["restart"],
+                                                                  args["meross"]]):
             debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting" \
                                   .format(len(args["hexvalues"]), len(lm.devices), sys.argv[0]), 2)
             return
@@ -188,6 +190,10 @@ class HomeServer(object):
             if args["decora"] is not None:
                 debug.write("Received decora change request", 0)
                 if not lm.set_typed_colors(args["decora"], DecoraSwitch.DecoraSwitch):
+                    return
+            if args["meross"] is not None:
+                debug.write("Received meross change request", 0)
+                if not lm.set_typed_colors(args["meross"], MerossSwitch.MerossSwitch):
                     return
             if args["preset"] is not None:
                 debug.write("Received change to preset [{}] request".format(args["preset"]), 0)
@@ -234,6 +240,8 @@ class HomeServer(object):
             args["milight"] = None
         if "decora" not in args:
             args["decora"] = None
+        if "meross" not in args:
+            args["meross"] = None
         if "server" not in args:
             args["server"] = False
         if "ifttt" not in args:
@@ -259,6 +267,9 @@ class HomeServer(object):
         if type(args["decora"]).__name__ == "str":
             debug.write('Converting values to lists for decora', 0)
             args["decora"] = args["decora"].replace("'", "").split(',')
+        if type(args["meross"]).__name__ == "str":
+            debug.write('Converting values to lists for meross', 0)
+            args["meross"] = args["meross"].replace("'", "").split(',')
         return args
 
 
@@ -409,7 +420,7 @@ class DeviceManager(object):
         for obj in self.devices:
             #TODO make this dynamic
             if isinstance(obj, (Playbulb.Playbulb, Milight.Milight, DecoraSwitch.DecoraSwitch, 
-                                GenericOnOff.GenericOnOff)):
+                                GenericOnOff.GenericOnOff, MerossSwitch.MerossSwitch)):
                 desctext += str(i) + " - " + obj.descriptions() + "\n"
             else:
                 desctext += str(i) + " - " + "Unknown bulb type\n"
@@ -679,6 +690,7 @@ if __name__ == "__main__":
     parser.add_argument('--playbulb', metavar='P', type=str, nargs="*", help='Change playbulbs colors only')
     parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights colors only')
     parser.add_argument('--decora', metavar='M', type=str, nargs="*", help='Change decora colors only')
+    parser.add_argument('--meross', metavar='M', type=str, nargs="*", help='Change meross states only')
     parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1,
                         help='Request priority from 1 to 3')
     parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
@@ -710,7 +722,8 @@ if __name__ == "__main__":
 
     if args.server and (args.playbulb or args.milight or args.decora or args.on
                         or args.off or args.toggle or args.stream_dev
-                        or args.stream_group or args.preset or args.restart):
+                        or args.stream_group or args.preset or args.restart 
+                        or args.meross):
         debug.write("You cannot start the daemon and send arguments at the same time. \
                               Quitting.", 2)
         sys.exit()

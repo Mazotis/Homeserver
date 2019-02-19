@@ -18,6 +18,7 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 - Mipow Playbulbs (tested with Rainbow, other BLE Pb devices should work)
 - Decora Leviton switches (all switches that are accessible via the MyLeviton app)
 - Generic ON/OFF devices (devices that can be turned ON, OFF or restarted using a sh/bash command. Includes TVs with cec-client commands, HTPCs with wakeonlan commands, IR Devices with LIRC irsend commands and everything else. TIP - Group or subgroup them together with a similar name (for example SUBGROUP = livingroom) and call "./playclient.py --on --subgroup livingroom" to turn them all ON simultaneously)
+- Meross smart switches MSS110, MSS210, MSS310 and MSS425E (ON/OFF functions - via the Meross cloud app)
 
 
 ## Requirements
@@ -121,3 +122,8 @@ First 3 functions are handled by Bulb.py for BLE bulbs, so they are not required
         """ Checks the request and trigger a light change if needed """
         # Some code that can handle a color/state (color) request and the priority level of current request (priority)
 ``` 
+
+## Credits
+* albertogeniola for the [Meross API](https://github.com/albertogeniola/MerossIot)
+* moosd for the [Milight BLE protocol](https://github.com/moosd/ReverseEngineeredMiLightBluetooth)
+* tlyakhov for the [Decora WIFI API](https://github.com/tlyakhov/python-decora_wifi)

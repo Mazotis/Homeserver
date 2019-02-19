@@ -47,7 +47,9 @@ class DebugLog(object):
 
 global debug 
 global decora
+global meross
 decora = None
+meross = None
 debug = DebugLog()
 
 def getDevices():
