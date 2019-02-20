@@ -2,7 +2,7 @@
 '''
     File name: play.py
     Author: Maxime Bergeron
-    Date last modified: 11/02/2019
+    Date last modified: 20/02/2019
     Python Version: 3.7
 
     A python websocket server/client and IFTTT receiver to control various cheap IoT
@@ -10,6 +10,7 @@
 '''
 import os
 import os.path
+import re
 import subprocess
 import sys
 import argparse
@@ -36,15 +37,16 @@ from __main__ import *
 
 class HomeServer(object):
     """ Handles server-side request reception and handling """
-    def __init__(self, lm, host, port, config):
-        self.host = host
-        self.port = port
+    def __init__(self, lm):
+        self.config = configparser.ConfigParser()
+        self.config.read('play.ini')
+        self.host = self.config['SERVER']['HOST']
+        self.port = int(self.config['SERVER']['PORT'])
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.host, self.port))
         self.sched_disconnect = sched.scheduler(time.time, time.sleep)
         self.scheduled_disconnect = None
-        self.config = config
         #TODO Fix signaling
         #signal.signal(signal.SIGTERM, self.remove_server)
 
@@ -220,7 +222,7 @@ class HomeServer(object):
         if args["group"] is not None or args["subgroup"] is not None:
             lm.get_group(args["group"], args["subgroup"])
         debug.write("Arguments are OK", 0)
-        lm.run()
+        lm.run(args["delay"])
         return
 
     def _sanitize(self, args):
@@ -248,6 +250,8 @@ class HomeServer(object):
             args["ifttt"] = False
         if "notime" not in args:
             args["notime"] = False
+        if "delay" not in args:
+            args["delay"] = False
         if "priority" in args and args["priority"] is None:
             args["priority"] = 1
         if "priority" not in args:
@@ -338,6 +342,7 @@ class DeviceManager(object):
         self.skiptime = 0
         self.queue = queue.Queue()
         self.colors = ["-1"] * len(self.devices)
+        self.delays = [0] * len(self.devices)
         self.set_lock(0)
         self.lockcount = 0
         self.priority = 0
@@ -400,10 +405,14 @@ class DeviceManager(object):
                                   .format(len(colorargs), cvals[0]), 2)
             return False
         self.colors[cvals[1]:cvals[1]+cvals[0]] = colorargs
+
         return True
 
-    def run(self):
+    def run(self, delay=None):
         """ Validates the request and runs the light change """
+        if delay is not None:
+            debug.write("Delaying request for {} seconds".format(delay), 0)
+            time.sleep(delay)
         if self._check_time():
             self.queue.put(self.colors)
             #TODO Manage locking out when the run thread hangs
@@ -473,6 +482,15 @@ class DeviceManager(object):
             self.devices[i].reinit()
             i += 1
 
+    def _decode_colors(self, colors):
+        self.delays = [0] * len(self.devices)
+        for _cnt, _col in enumerate(colors):
+            if re.match("[0-9a-fA-F]+d[0-9]+", _col) is not None:
+                _vals = _col.split("d")
+                colors[_cnt] = _vals[0]
+                self.delays[_cnt] = int(_vals[1])
+        return colors
+
     def _set_lights(self):
         debug.write("Running a change of lights (priority level: {})..." \
                               .format(self.priority), 0)
@@ -485,7 +503,7 @@ class DeviceManager(object):
                     if firstran:
                         debug.write("Getting remainder of queue", 0)
                         self.reinit()
-                    colors = self.queue.get() #TODO Check performance
+                    colors = self._decode_colors(self.queue.get()) #TODO Check performance
                     debug.write("Changing colors to {} from state {}" \
                                           .format(colors, self.get_state()), 0)
                     self.set_lock(1)
@@ -508,19 +526,24 @@ class DeviceManager(object):
                             if self.threaded:
                                 if not self.queue.empty():
                                     break
-                                self.light_threads[i] = self.light_pool.apply_async(self.devices[i].color, 
-                                                                                    args=(_color, self.priority, ))
+
+                                self.light_threads[i] = self.light_pool.apply_async(self._set_device,
+                                                                                    args=(i, _color, 
+                                                                                          self.priority,
+                                                                                          self.delays[i]))
                             else:
-                                self.devices[i].color(_color, self.priority)
+                                self._set_device(i, _color, self.priority, self.delays[i])
                         i += 1
 
                         if i == len(self.devices):
                             if self.threaded:
                                 debug.write("Awaiting results", 0)
                                 for _cnt, _thread in enumerate(self.light_threads):
+                                    if not self.queue.empty():
+                                        continue
                                     if _thread is not None:
                                         try:
-                                            if not _thread.get(5):
+                                            if _thread.get(self.delays[_cnt] + 5) is not None:
                                                 i = 0
                                         except:
                                             i = 0
@@ -530,9 +553,7 @@ class DeviceManager(object):
                             else:
                                 for _cnt, _dev in enumerate(self.devices):
                                     _state = self.get_state(_cnt)
-                                    if colors[_cnt] != _state \
-                                       or (colors[_cnt] == self.devices[_cnt].convert(LIGHT_OFF) \
-                                       and _state == self.devices[_cnt].convert(LIGHT_OFF)):
+                                    if self.devices[i].convert(colors[i]) != _state:
                                         i = 0
                                 tries = tries + 1
                                 if tries == 5:
@@ -557,6 +578,17 @@ class DeviceManager(object):
             self.set_lock(0)
 
         debug.write("Change of lights completed.", 0)
+
+    def _set_device(self, count, color, priority, delay):
+        #TODO Find a way to make the delays non blocking
+        if delay is not 0:
+            debug.write("Delaying for {} seconds request for device: {}"
+                        .format(delay, self.devices[count].description), 0) 
+            s = sched.scheduler(time.time, time.sleep)
+            s.enter(delay, 1, self.devices[count].color, (color, priority,))
+            s.run()
+        else:
+            self.devices[count].color(color, priority)
 
     def _check_time(self):
         if self.skiptime or self.starttime is None:
@@ -594,9 +626,8 @@ class DeviceManager(object):
         return datetime.datetime.strptime(output.rstrip().decode('UTF-8'),'%H:%M').time()
 
 
-def runServer(config = None):
-    HomeServer(lm, PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT']), config) \
-                .listen()
+def runServer():
+    HomeServer(lm).listen()
 
 def runIFTTTServer():
     port = 1234
@@ -676,9 +707,9 @@ def runDetectorServer(config, lm):
             DELAYED_START = 0
         time.sleep(int(config['DETECTOR']['PING_FREQ_SEC']))
 
+
 """ Script executed directly """
 if __name__ == "__main__":
-    #TODO externalize?
     PLAYCONFIG = configparser.ConfigParser()
     PLAYCONFIG.read('play.ini')
     lm = DeviceManager(PLAYCONFIG)
@@ -697,10 +728,12 @@ if __name__ == "__main__":
                         help='Apply light actions from specified preset name defined in play.ini')
     parser.add_argument('--group', metavar='group', type=str, nargs="?", default=None,
                         help='Apply light actions on specified light group')
-    parser.add_argument('--subgroup', metavar='group', type=str, nargs="?", default=None,
+    parser.add_argument('--subgroup', metavar='subgroup', type=str, nargs="?", default=None,
                         help='Apply light actions on specified light subgroup')
     parser.add_argument('--notime', action='store_true', default=False,
                         help='Skip the time check and run the script anyways')
+    parser.add_argument('--delay', metavar='delay', type=int, nargs="?", default=None,
+                        help='Run the request after a given number of seconds')
     parser.add_argument('--on', action='store_true', default=False, help='Turn everything on')
     parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')
     parser.add_argument('--restart', action='store_true', default=False, help='Restart generics')
@@ -741,7 +774,7 @@ if __name__ == "__main__":
             Thread(target = runIFTTTServer).start()
         if args.detector:
             Thread(target = runDetectorServer, args = (PLAYCONFIG,lm,)).start()
-        Thread(target = runServer, args = (PLAYCONFIG,)).start()
+        Thread(target = runServer).start()
 
     elif args.stream_dev or args.stream_group:
         colorval = ""

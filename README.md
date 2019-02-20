@@ -61,6 +61,8 @@ To turn everything on any time of day:
 ./playclient.py --on --notime
 To turn the living room (group) devices on any time:
 ./playclient.py --on --notime --group livingroom
+To turn the living room (group) devices off any time, after a 50 seconds delay:
+./playclient.py --off --notime --group livingroom --delay 50
 To turn off the living room lights over the tv any time:
 ./playclient.py --off --notime --group livingroom --subgroup tvlights
 

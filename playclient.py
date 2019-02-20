@@ -2,7 +2,7 @@
 '''
     File name: playclient.py
     Author: Maxime Bergeron
-    Date last modified: 29/01/2019
+    Date last modified: 20/02/2019
     Python Version: 3.7
 
     The stripped-down version of play.py
@@ -61,10 +61,12 @@ if __name__ == "__main__":
                         help='Apply light actions from specified preset name defined in play.ini')
     parser.add_argument('--group', metavar='group', type=str, nargs="?", default=None,
                         help='Apply light actions on specified light group')
-    parser.add_argument('--subgroup', metavar='group', type=str, nargs="?", default=None,
+    parser.add_argument('--subgroup', metavar='subgroup', type=str, nargs="?", default=None,
                         help='Apply light actions on specified light subgroup')
     parser.add_argument('--notime', action='store_true', default=False,
                         help='Skip the time check and run the script anyways')
+    parser.add_argument('--delay', metavar='delay', type=int, nargs="?", default=None,
+                        help='Run the request after a given number of seconds')
     parser.add_argument('--on', action='store_true', default=False, help='Turn everything on')
     parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')
     parser.add_argument('--restart', action='store_true', default=False, help='Restart generics')
