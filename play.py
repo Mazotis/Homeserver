@@ -2,7 +2,7 @@
 '''
     File name: play.py
     Author: Maxime Bergeron
-    Date last modified: 20/02/2019
+    Date last modified: 05/03/2019
     Python Version: 3.7
 
     A python websocket server/client and IFTTT receiver to control various cheap IoT
@@ -20,6 +20,7 @@ import datetime
 import socket
 import threading
 import configparser
+import requests
 import traceback
 import json
 import signal
@@ -646,9 +647,22 @@ def runDetectorServer(config, lm):
     DEVICE_STATE_LEVEL = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
     DEVICE_STATE_MAX = int(config['DETECTOR']['MAX_STATE_LEVEL'])
     DEVICE_STATUS = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
+    FIND3_SERVER = bool(config['DETECTOR']['FIND3_SERVER_ENABLE'])
     STATUS = 0
     DELAYED_START = 0
     debug.write("[Detector] Starting ping-based device detector", 0)
+
+    if FIND3_SERVER:
+        TRACKED_FIND3_DEVS = config['DETECTOR']['FIND3_TRACKED_DEVICES'].split(",")
+        TRACKED_FIND3_TIMES = [0]*len(TRACKED_FIND3_DEVS)
+        TRACKED_FIND3_LOCAL = [""]*len(TRACKED_FIND3_DEVS)
+        for _cnt, _dev in enumerate(TRACKED_FIND3_DEVS):
+            # Get last update times
+            if _dev != "_":
+                _r = requests.get("http://{}/api/v1/location/{}/{}".format(config['DETECTOR']['FIND3_SERVER_URL'],
+                                                                           config['DETECTOR']['FIND3_FAMILY_NAME'],
+                                                                           _dev))
+                TRACKED_FIND3_TIMES[_cnt] = _r.json()['sensors']['t']
 
     for _cnt, device in enumerate(config['DETECTOR']['TRACKED_IPS'].split(",")):
         if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
@@ -669,6 +683,29 @@ def runDetectorServer(config, lm):
                     DEVICE_STATUS[_cnt] = 1
                 elif DEVICE_STATE_LEVEL[_cnt] != DEVICE_STATE_MAX:
                     DEVICE_STATE_LEVEL[_cnt] = DEVICE_STATE_LEVEL[_cnt] + 1
+                if FIND3_SERVER and TRACKED_FIND3_DEVS[_cnt] != "_":
+                    _r = requests.get("http://{}/api/v1/location/{}/{}".format(config['DETECTOR']['FIND3_SERVER_URL'],
+                                                                               config['DETECTOR']['FIND3_FAMILY_NAME'],
+                                                                               TRACKED_FIND3_DEVS[_cnt]))
+                    if TRACKED_FIND3_TIMES[_cnt] != _r.json()['sensors']['t'] and \
+                       TRACKED_FIND3_LOCAL[_cnt] != _r.json()['analysis']['guesses'][0]['location']:
+                        if _r.json()['analysis']['guesses'][0]['location'] in config['FIND3-PRESETS']:
+                            os.system(config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
+                            debug.write("[Detector-FIND3] Device {} found in '{}'. Running change of lights."
+                                        .format(TRACKED_FIND3_DEVS[_cnt], 
+                                                _r.json()['analysis']['guesses'][0]['location']), 0)
+
+                        else:
+                            debug.write("[Detector-FIND3] Device {} found in '{}' but preset is not configured."
+                                        .format(TRACKED_FIND3_DEVS[_cnt], 
+                                                _r.json()['analysis']['guesses'][0]['location']), 0)
+                        if TRACKED_FIND3_LOCAL[_cnt]+"-off" in config['FIND3-PRESETS']:
+                            os.system(config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
+                            debug.write("[Detector-FIND3] Device {} left '{}'. Running change of lights."
+                                        .format(TRACKED_FIND3_DEVS[_cnt], 
+                                                TRACKED_FIND3_LOCAL[_cnt]), 0)
+                        TRACKED_FIND3_TIMES[_cnt] = _r.json()['sensors']['t']
+                        TRACKED_FIND3_LOCAL[_cnt] = _r.json()['analysis']['guesses'][0]['location']
             else:
                 if DEVICE_STATE_LEVEL[_cnt] == 0 and DEVICE_STATUS[_cnt] == 1:
                     debug.write("[Detector] DEVICE {} DISconnected".format(device), 0)

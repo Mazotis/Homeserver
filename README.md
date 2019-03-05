@@ -12,6 +12,7 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 * It allows to change device states (turn lights on/off for example) depending on someone's presence at home or depending on the sunset time at your actual location.
 * It is portable - the server can be executed on any python3 compatible machine. You may also have multiple servers if, for example, your bluetooth devices are too far away.
 * Compatible with IFTTT (can be interfaced with Google Assistant/Google home and other voice devices) to add vocal commands to any non-smart device.
+* Allows indoor localization with [FIND3](https://github.com/schollz/find3) to turn on/off devices depending on where you are located inside your home.
 
 ## Supported devices
 - Milight BLE light bulbs
@@ -129,3 +130,4 @@ First 3 functions are handled by Bulb.py for BLE bulbs, so they are not required
 * albertogeniola for the [Meross API](https://github.com/albertogeniola/MerossIot)
 * moosd for the [Milight BLE protocol](https://github.com/moosd/ReverseEngineeredMiLightBluetooth)
 * tlyakhov for the [Decora WIFI API](https://github.com/tlyakhov/python-decora_wifi)
+* schollz for the [FIND3](https://github.com/schollz/find3) protocol
