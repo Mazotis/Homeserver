@@ -48,6 +48,8 @@ class HomeServer(object):
         self.sock.bind((self.host, self.port))
         self.sched_disconnect = sched.scheduler(time.time, time.sleep)
         self.scheduled_disconnect = None
+        self.tcp_start_hour = datetime.datetime.strptime(self.config['SERVER']['TCP_START_HOUR'],'%H:%M').time()
+        self.tcp_end_hour = datetime.datetime.strptime(self.config['SERVER']['TCP_END_HOUR'],'%H:%M').time()
         #TODO Fix signaling
         #signal.signal(signal.SIGTERM, self.remove_server)
 
@@ -94,6 +96,18 @@ class HomeServer(object):
                         streamingdev = False
                         streaminggrp = False
                         streaming_id = None
+                        break
+                    if data.decode('utf-8')[:3] == "tcp":
+                        debug.write('Getting TCP request: {}'.format(data.decode('utf-8')), 0)
+                        if self.tcp_start_hour > datetime.datetime.now().time() or \
+                           self.tcp_end_hour < datetime.datetime.now().time():
+                           debug.write('TCP requests disabled until {}'.format(self.tcp_start_hour), 0)
+                           break
+                        if data.decode('utf-8')[3:] in self.config["TCP-PRESETS"]:
+                            debug.write("Running TCP preset {}".format(data.decode('utf-8')[3:]), 0)
+                            os.system(self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
+                        else:
+                            debug.write("TCP preset {} is not configured".format(data.decode('utf-8')[3:]), 1)
                         break
                     if streamingdev:
                         if streaming_id is None:
@@ -648,6 +662,8 @@ def runDetectorServer(config, lm):
     DEVICE_STATE_MAX = int(config['DETECTOR']['MAX_STATE_LEVEL'])
     DEVICE_STATUS = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
     FIND3_SERVER = bool(config['DETECTOR']['FIND3_SERVER_ENABLE'])
+    DETECTOR_START_HOUR = datetime.datetime.strptime(config['DETECTOR']['START_HOUR'],'%H:%M').time()
+    DETECTOR_END_HOUR = datetime.datetime.strptime(config['DETECTOR']['END_HOUR'],'%H:%M').time()
     STATUS = 0
     DELAYED_START = 0
     debug.write("[Detector] Starting ping-based device detector", 0)
@@ -673,7 +689,15 @@ def runDetectorServer(config, lm):
             DEVICE_STATUS[_cnt] = 0
     debug.write("[Detector] Got initial states {} and status {}".format(DEVICE_STATE_LEVEL, STATUS), 0)
 
+    if DETECTOR_START_HOUR > datetime.datetime.now().time() or \
+       DETECTOR_END_HOUR < datetime.datetime.now().time():
+           debug.write("[Detector] Standby. Running between {} and {}".format(DETECTOR_START_HOUR, 
+                                                                              DETECTOR_END_HOUR), 0)     
     while True:
+        if DETECTOR_START_HOUR > datetime.datetime.now().time() or \
+           DETECTOR_END_HOUR < datetime.datetime.now().time():
+            time.sleep(30000)
+            continue 
         EVENT_TIME = lm.starttime
         for _cnt, device in enumerate(config['DETECTOR']['TRACKED_IPS'].split(",")):
             #TODO Maintain the two pings requirement for status change ?

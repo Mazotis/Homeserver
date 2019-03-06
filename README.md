@@ -13,6 +13,7 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 * It is portable - the server can be executed on any python3 compatible machine. You may also have multiple servers if, for example, your bluetooth devices are too far away.
 * Compatible with IFTTT (can be interfaced with Google Assistant/Google home and other voice devices) to add vocal commands to any non-smart device.
 * Allows indoor localization with [FIND3](https://github.com/schollz/find3) to turn on/off devices depending on where you are located inside your home.
+* Can receive commands from any IoT device/detectors that can connect via TCP wifi socket (see [WIKI](https://github.com/Mazotis/Lightserver/wiki/Connecting-a-Arduino-ESP8266-other-devices-via-TCP-socket) page on this) 
 
 ## Supported devices
 - Milight BLE light bulbs
@@ -20,6 +21,7 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 - Decora Leviton switches (all switches that are accessible via the MyLeviton app)
 - Generic ON/OFF devices (devices that can be turned ON, OFF or restarted using a sh/bash command. Includes TVs with cec-client commands, HTPCs with wakeonlan commands, IR Devices with LIRC irsend commands and everything else. TIP - Group or subgroup them together with a similar name (for example SUBGROUP = livingroom) and call "./playclient.py --on --subgroup livingroom" to turn them all ON simultaneously)
 - Meross smart switches MSS110, MSS210, MSS310 and MSS425E (ON/OFF functions - via the Meross cloud app)
+- Input devices (arduinos, esp8266 and other wifi-enable boards) to link various sensors to the Lightserver setup
 
 
 ## Requirements
