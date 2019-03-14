@@ -80,8 +80,12 @@ class HomeServer(object):
                 data = client.recv(msize)
                 if data:
                     if data.decode('utf-8') == "getstate":
+                        ls_status = {}
+                        ls_status["state"] = lm.get_state()
+                        ls_status["type"] = lm.get_types()
+                        ls_status["description"] = lm.get_descriptions(True)
                         debug.write('Sending lightserver status', 0)
-                        client.send(str.encode("State: " + str(lm.get_state()).replace("[","").replace("]","")))
+                        client.send(json.dumps(ls_status).encode('UTF-8'))
                         break
                     if data.decode('utf-8') == "stream":
                         debug.write('Starting streaming mode', 0)
@@ -234,8 +238,8 @@ class HomeServer(object):
                 lm.set_colors(lm.get_toggle())
         if args["notime"] or args["off"]:
             lm.skip_time(0)
-        if args["group"] is not None or args["subgroup"] is not None:
-            lm.get_group(args["group"], args["subgroup"])
+        if args["group"] is not None:
+            lm.get_group(args["group"])
         debug.write("Arguments are OK", 0)
         lm.run(args["delay"])
         return
@@ -275,8 +279,6 @@ class HomeServer(object):
             args["preset"] = None
         if "group" not in args:
             args["group"] = None
-        if "subgroup" not in args:
-            args["subgroup"] = None
         if type(args["playbulb"]).__name__ == "str":
             debug.write('Converting values to lists for playbulb', 0)
             args["playbulb"] = args["playbulb"].replace("'", "").split(',')
@@ -383,18 +385,16 @@ class DeviceManager(object):
         """ Setter function for color request. Required. """
         self.colors = color
 
-    def get_group(self, group, subgroup):
-        """ Gets devices from a specific group/subgroup for the light change """
+    def get_group(self, group):
+        """ Gets devices from a specific group for the light change """
         for _cnt, device in enumerate(self.devices):
-            if group is not None and device.group != group:
-                debug.write("Skipping device {} as it does not belong in the '{}' group" \
-                                      .format(device.device, group), 0)
-                self.colors[_cnt] = LIGHT_SKIP
-            else:
-                if subgroup is not None and device.subgroup != subgroup:
-                    debug.write("Skipping device {} as it does not belong in the '{}' subgroup" \
-                                          .format(device.device, subgroup), 0)
-                    self.colors[_cnt] = LIGHT_SKIP
+            debug.write("{}".format(set(group).issubset(device.group)), 0)
+            if group is not None and set(group).issubset(device.group):
+                debug.write("IS SUBSET", 0)
+                continue
+            debug.write("Skipping device {} as it does not belong in the {} group(s)" \
+                        .format(device.device, group), 0)
+            self.colors[_cnt] = LIGHT_SKIP
 
     def get_toggle(self):
         """ Toggles the devices on/off """
@@ -437,8 +437,9 @@ class DeviceManager(object):
             else:
                 self.lockcount = self.lockcount + 1
 
-    def descriptions(self):
+    def get_descriptions(self, as_list = False):
         """ Getter for configured devices descriptions """
+        desclist = []
         desctext = ""
         i = 1
         for obj in self.devices:
@@ -446,10 +447,22 @@ class DeviceManager(object):
             if isinstance(obj, (Playbulb.Playbulb, Milight.Milight, DecoraSwitch.DecoraSwitch, 
                                 GenericOnOff.GenericOnOff, MerossSwitch.MerossSwitch)):
                 desctext += str(i) + " - " + obj.descriptions() + "\n"
+                if as_list:
+                    desclist.append(obj.descriptions())
             else:
-                desctext += str(i) + " - " + "Unknown bulb type\n"
+                desctext += str(i) + " - " + "Unknown device type\n"
+                if as_list:
+                    desclist.append("Unknown device type")
             i += 1
+        if as_list:
+            return desclist
         return desctext
+
+    def get_types(self):
+        typelist = []
+        for obj in self.devices:
+            typelist.append(obj.__class__.__name__)
+        return typelist
 
     def set_lock(self, is_locked):
         """ Locks the light change request """
@@ -519,8 +532,11 @@ class DeviceManager(object):
                         debug.write("Getting remainder of queue", 0)
                         self.reinit()
                     colors = self._decode_colors(self.queue.get()) #TODO Check performance
+                    if all(c == LIGHT_SKIP for c in colors):
+                        debug.write("All device requests skipped", 0)
+                        return                
                     debug.write("Changing colors to {} from state {}" \
-                                          .format(colors, self.get_state()), 0)
+                                .format(colors, self.get_state()), 0)
                     self.set_lock(1)
                     i = 0
                     tries = 0
@@ -568,7 +584,7 @@ class DeviceManager(object):
                             else:
                                 for _cnt, _dev in enumerate(self.devices):
                                     _state = self.get_state(_cnt)
-                                    if self.devices[i].convert(colors[i]) != _state:
+                                    if self.devices[_cnt].convert(colors[_cnt]) != _state:
                                         i = 0
                                 tries = tries + 1
                                 if tries == 5:
@@ -775,7 +791,7 @@ if __name__ == "__main__":
     PLAYCONFIG.read('play.ini')
     lm = DeviceManager(PLAYCONFIG)
 
-    parser = argparse.ArgumentParser(description='BLE light bulbs manager script', epilog=lm.descriptions(),
+    parser = argparse.ArgumentParser(description='BLE light bulbs manager script', epilog=lm.get_descriptions(),
                                      formatter_class=RawTextHelpFormatter)
     parser.add_argument('hexvalues', metavar='N', type=str, nargs="*",
                         help='color hex values for the lightbulbs (see list below)')
@@ -787,10 +803,8 @@ if __name__ == "__main__":
                         help='Request priority from 1 to 3')
     parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
                         help='Apply light actions from specified preset name defined in play.ini')
-    parser.add_argument('--group', metavar='group', type=str, nargs="?", default=None,
-                        help='Apply light actions on specified light group')
-    parser.add_argument('--subgroup', metavar='subgroup', type=str, nargs="?", default=None,
-                        help='Apply light actions on specified light subgroup')
+    parser.add_argument('--group', metavar='group', type=str, nargs="+", default=None,
+                        help='Apply light actions on specified device group(s)')
     parser.add_argument('--notime', action='store_true', default=False,
                         help='Skip the time check and run the script anyways')
     parser.add_argument('--delay', metavar='delay', type=int, nargs="?", default=None,

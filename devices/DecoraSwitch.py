@@ -20,8 +20,7 @@ class DecoraSwitch(object):
         self.devid = devid
         self.device = config["DEVICE"+str(devid)]["NAME"]
         self.description = config["DEVICE"+str(devid)]["DESCRIPTION"]
-        self.group = config["DEVICE"+str(devid)]["GROUP"]
-        self.subgroup = config["DEVICE"+str(devid)]["SUBGROUP"]
+        self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
         self.intensity = config["DEVICE"+str(devid)]["DEFAULT_INTENSITY"]
         self.device_type = "DecoraSwitch"
         self.state = "0"

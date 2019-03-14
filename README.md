@@ -67,7 +67,7 @@ To turn the living room (group) devices on any time:
 To turn the living room (group) devices off any time, after a 50 seconds delay:
 ./playclient.py --off --notime --group livingroom --delay 50
 To turn off the living room lights over the tv any time:
-./playclient.py --off --notime --group livingroom --subgroup tvlights
+./playclient.py --off --notime --group livingroom tvlights
 
 ```
 
@@ -87,8 +87,7 @@ class MyNewDevice(object):
         self.description = config["DEVICE"+str(devid)]["DESCRIPTION"] # Value of the DESCRIPTION configurable in play.ini for DEVICE# (where # is devid)
         self.success = False # You might need a thread-safe boolean flag to avoid requests when your device is already of the good color. Turn to True  when request is satisfied. 
         self._connection = None # You might want a variable to handle your device connection
-        self.group = config["DEVICE"+str(devid)]["GROUP"] # Value of the GROUP configurable in play.ini for DEVICE# (where # is devid)
-        self.subgroup = config["DEVICE"+str(devid)]["SUBGROUP"] # Value of the SUBGROUP configurable in play.ini for DEVICE# (where # is devid)
+        self.group = config["DEVICE"+str(devid)]["GROUP"].split(',') # Value of the GROUP configurable in play.ini for DEVICE# (where # is devid)
         self.priority = 0 # You might need a variable to handle the device actual light change priority level
         self.color = 0 # You might want a variable to keep in memory the actual color/state of your bulb/device
 ```

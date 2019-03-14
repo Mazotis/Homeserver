@@ -59,10 +59,8 @@ if __name__ == "__main__":
                         help='Request priority from 1 to 3')
     parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
                         help='Apply light actions from specified preset name defined in play.ini')
-    parser.add_argument('--group', metavar='group', type=str, nargs="?", default=None,
-                        help='Apply light actions on specified light group')
-    parser.add_argument('--subgroup', metavar='subgroup', type=str, nargs="?", default=None,
-                        help='Apply light actions on specified light subgroup')
+    parser.add_argument('--group', metavar='group', type=str, nargs="+", default=None,
+                        help='Apply light actions on specified device group(s)')
     parser.add_argument('--notime', action='store_true', default=False,
                         help='Skip the time check and run the script anyways')
     parser.add_argument('--delay', metavar='delay', type=int, nargs="?", default=None,

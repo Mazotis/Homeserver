@@ -16,8 +16,7 @@ class GenericOnOff(object):
         self.config = config
         self.device = config["DEVICE"+str(devid)]["NAME"]
         self.description = config["DEVICE"+str(devid)]["DESCRIPTION"]
-        self.group = config["DEVICE"+str(devid)]["GROUP"]
-        self.subgroup = config["DEVICE"+str(devid)]["SUBGROUP"]
+        self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
         self.priority = 0
         self.devid = devid
         debug.write("Created generic On/Off device named: {}".format(self.device), 0)

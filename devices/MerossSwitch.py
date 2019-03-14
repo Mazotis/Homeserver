@@ -21,8 +21,7 @@ class MerossSwitch(object):
         self.devid = devid
         self.device = config["DEVICE"+str(devid)]["ADDRESS"]
         self.description = config["DEVICE"+str(devid)]["DESCRIPTION"]
-        self.group = config["DEVICE"+str(devid)]["GROUP"]
-        self.subgroup = config["DEVICE"+str(devid)]["SUBGROUP"]
+        self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
         self.device_type = "MerossSwitch"
         self.state = "0"
         self.priority = 0

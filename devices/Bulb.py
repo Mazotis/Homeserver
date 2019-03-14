@@ -19,8 +19,7 @@ class Bulb(object):
         self.description = config["DEVICE"+str(devid)]["DESCRIPTION"]
         self.success = False
         self._connection = None
-        self.group = config["DEVICE"+str(devid)]["GROUP"]
-        self.subgroup = config["DEVICE"+str(devid)]["SUBGROUP"]
+        self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
         self.priority = 0
         self.state = None
         self.device_type = None
