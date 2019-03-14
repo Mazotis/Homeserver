@@ -55,20 +55,6 @@ class Playbulb(Bulb):
         if len(color) not in (1, 8) and color != self.convert(LIGHT_SKIP):
             debug.write("Unhandled color format {}".format(color), 1)
             return True
-        if self.success:
-            return True
-        if color == self.convert(LIGHT_SKIP):
-            self.success = True
-            return True
-        if self.priority > priority:
-            debug.write("Playbulb bulb {} is set with higher priority ({}), skipping."
-                                  .format(self.device, self.priority), 0)
-            self.success = True
-            return True
-        if priority == 3:
-            self.priority = 1
-        else:
-            self.priority = priority
         if self.state == color and color != self.convert(LIGHT_OFF):
             self.success = True
             debug.write("Bulb {} is already of the requested color, skipping."

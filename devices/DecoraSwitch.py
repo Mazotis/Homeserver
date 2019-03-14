@@ -2,7 +2,7 @@
 '''
     File name: DecoraSwitch.py
     Author: Maxime Bergeron
-    Date last modified: 6/02/2019
+    Date last modified: 14/03/2019
     Python Version: 3.7
 
     The DecoraSwitch for Leviton Decora Switches handler class
@@ -30,31 +30,12 @@ class DecoraSwitch(device):
         if len(color) > 3:
             debug.write("Unhandled color format {}".format(color), 1)
             return True
-        if self.success:
-            return True
-        if color == LIGHT_SKIP:
-            self.success = True
-            return True
-        if self.priority > priority:
-            debug.write("Decora bulb {} is set with higher priority ({}), skipping."
-                                  .format(self.device, self.priority), 0)
-            self.success = True
-            return True
-        if priority == 3:
-            self.priority = 1
-        else:
-            self.priority = priority
         _att = {}
         if color == LIGHT_OFF:
             _att['power'] = 'OFF'
             self.decora.request(self.device, _att)
             self.state = "0"
             self.success = True
-            return True
-        elif self.state == color:
-            self.success = True
-            debug.write("Device (decora) {} is already of the requested color, skipping."
-                                  .format(self.device), 0)
             return True
         elif color == LIGHT_ON:
             _att['power'] = 'ON'

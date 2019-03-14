@@ -86,13 +86,13 @@ from devices.device import device
 class MyNewDevice(device):
     def __init__(self, devid, config):
         super().__init__(devid, config) # loads base functions from device.py
-        # devid is this device's index within the devicemanager device list
+        # devid is this device's index within the devicemanager device list, and the play.ini DEVICE# number
         # config is the handler to the play.ini config file
         self.device = config["DEVICE"+str(devid)]["DEVICE"] # Value of the DEVICE configurable in play.ini for DEVICE# (where # is devid)
         # use the same approach for any required variable taken from the config file
         # self._connection is provided by device.py to handle your device connection - True or False
         # self.priority is provided by device.py to give you the actual priority level of this device
-        self.state = 0 # You might want a variable to keep in memory the actual color/state of your bulb/device, in the case the initial value is 0
+        self.state = 0 # You might want a variable to keep in memory the actual color/state of your bulb/device, in this case the initial value is 0
         self.device_type = "MyNewDevice" # Tells the lightserver the actual device type - inheritance safe
 ```
 Each new device class must provide the following functions to properly work. This is subject to change.
@@ -124,7 +124,21 @@ Bulb.py provides the device.py functions + additional features used in BLE light
         
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
-        # Some code that can handle a color/state (color) request and the priority level of current request (priority)
+        # Some code that can handle a state change request
+        # EXAMPLE BELOW. Returning True completes the request. False reruns the request.
+        if len(color) > 3:
+            debug.write("Unhandled color format {}".format(color), 1)
+            return True
+        if color == LIGHT_OFF:
+            if not self.turn_off(): return False
+            return True
+        elif color == LIGHT_ON:
+            if not self.turn_on_and_dim_on(color):
+                return False
+            return True
+        else:
+            if not self.turn_on_and_set_color(color): return False
+            return True
 ``` 
 
 ## Credits

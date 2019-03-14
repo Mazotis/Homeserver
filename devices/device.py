@@ -21,6 +21,28 @@ class device(object):
         self.state = None
         self.device_type = None
 
+    def run(self, color, priority):
+        if self.success:
+            return True
+        if color == LIGHT_SKIP:
+            self.success = True
+            return True
+        if self.priority > priority:
+            debug.write("{} device {} is set with higher priority ({}), skipping."
+                                  .format(self.device_type, self.device, self.priority), 0)
+            self.success = True
+            return True
+        if priority == 3:
+            self.priority = 1
+        else:
+            self.priority = priority
+        if self.state == color:
+            self.success = True
+            debug.write("Device ({}) {} is already of the requested state, skipping."
+                        .format(self.device_type, self.device), 0)
+            return True
+        return self.color(color, priority)
+
     def convert(self, color):
         """ Conversion to a color code acceptable by the device """
         return color

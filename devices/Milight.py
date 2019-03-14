@@ -67,27 +67,8 @@ class Milight(Bulb):
         if len(color) > 3:
             debug.write("Unhandled color format {}".format(color), 1)
             return True
-        if self.success:
-            return True
-        if color == LIGHT_SKIP:
-            self.success = True
-            return True
-        if self.priority > priority:
-            debug.write("Milight bulb {} is set with higher priority ({}), skipping."
-                                  .format(self.device, self.priority), 0)
-            self.success = True
-            return True
-        if priority == 3:
-            self.priority = 1
-        else:
-            self.priority = priority
         if color == LIGHT_OFF:
             if not self.turn_off(): return False
-            return True
-        elif self.state == color:
-            self.success = True
-            debug.write("Device (milight) {} is already of the requested color, skipping."
-                                  .format(self.device), 0)
             return True
         elif color == LIGHT_ON:
             if not self.turn_on_and_dim_on(color):

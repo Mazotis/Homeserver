@@ -485,7 +485,7 @@ class DeviceManager(object):
                     while True:
                         if cnt == 4:
                             break
-                        if device.color(_color, 3):
+                        if device.run(_color, 3):
                             break
                         time.sleep(0.3)
                         cnt = cnt + 1
@@ -495,7 +495,7 @@ class DeviceManager(object):
             while True:
                 if cnt == 4:
                     break
-                if self.devices[devid].color(_color, 3):
+                if self.devices[devid].run(_color, 3):
                     break
                 time.sleep(0.3)
                 cnt = cnt + 1
@@ -614,10 +614,10 @@ class DeviceManager(object):
             debug.write("Delaying for {} seconds request for device: {}"
                         .format(delay, self.devices[count].description), 0) 
             s = sched.scheduler(time.time, time.sleep)
-            s.enter(delay, 1, self.devices[count].color, (color, priority,))
+            s.enter(delay, 1, self.devices[count].run, (color, priority,))
             s.run()
         else:
-            self.devices[count].color(color, priority)
+            self.devices[count].run(color, priority)
 
     def _check_time(self):
         if self.skiptime or self.starttime is None:

@@ -2,7 +2,7 @@
 '''
     File name: Milight.py
     Author: Maxime Bergeron
-    Date last modified: 11/02/2019
+    Date last modified: 14/03/2019
     Python Version: 3.7
 
     A generic bash function On/Off device handler class 
@@ -29,30 +29,11 @@ class GenericOnOff(device):
         return 0
         
     def color(self, color, priority):
-        if self.success:
-            return True
-        if color == LIGHT_SKIP:
-            self.success = True
-            return True
-        if self.priority > priority:
-            debug.write("GenericOnOff {} is set with higher priority ({}), skipping."
-                                  .format(self.device, self.priority), 0)
-            self.success = True
-            return True
-        if priority == 3:
-            self.priority = 1
-        else:
-            self.priority = priority
         if color == 0 and self.config["DEVICE"+str(self.devid)]["OFF"] is not None:
             debug.write("Turning device {} OFF".format(self.device), 0)
             os.system(self.config["DEVICE"+str(self.devid)]["OFF"])
             self.success = True
             self.state = 0
-            return True
-        elif self.state == color:
-            self.success = True
-            debug.write("Device (GenericOnOff) {} is already of the requested state, skipping."
-                                  .format(self.device), 0)
             return True
         elif color == 1 and self.config["DEVICE"+str(self.devid)]["ON"] is not None:
             debug.write("Turning device {} ON".format(self.device), 0)

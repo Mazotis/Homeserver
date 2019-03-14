@@ -30,29 +30,10 @@ class MerossSwitch(device):
         if len(color) > 2:
             debug.write("Unhandled color format {}".format(color), 1)
             return True
-        if self.success:
-            return True
-        if color == LIGHT_SKIP:
-            self.success = True
-            return True
-        if self.priority > priority:
-            debug.write("Meross switch {} is set with higher priority ({}), skipping."
-                                  .format(self.device, self.priority), 0)
-            self.success = True
-            return True
-        if priority == 3:
-            self.priority = 1
-        else:
-            self.priority = priority
         if color == LIGHT_OFF:
             self.meross.request(self.device, False)
             self.state = "0"
             self.success = True
-            return True
-        elif self.state == color:
-            self.success = True
-            debug.write("Device (meross) {} is already of the requested color, skipping."
-                                  .format(self.device), 0)
             return True
         elif color == LIGHT_ON:
             self.meross.request(self.device, True)
