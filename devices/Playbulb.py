@@ -78,11 +78,6 @@ class Playbulb(Bulb):
         if not self._write(color): return False
         return True
 
-    def descriptions(self):
-        """ Getter for the device description """
-        desctext = "[Playbulb MAC: " + self.device + "] " + self.description
-        return desctext
-
     @connect_ble
     def _write(self, color):
         _oldcolor = self.state

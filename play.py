@@ -388,9 +388,7 @@ class DeviceManager(object):
     def get_group(self, group):
         """ Gets devices from a specific group for the light change """
         for _cnt, device in enumerate(self.devices):
-            debug.write("{}".format(set(group).issubset(device.group)), 0)
             if group is not None and set(group).issubset(device.group):
-                debug.write("IS SUBSET", 0)
                 continue
             debug.write("Skipping device {} as it does not belong in the {} group(s)" \
                         .format(device.device, group), 0)

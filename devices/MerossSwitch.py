@@ -10,28 +10,20 @@
 
 from devices.common import *
 from devices.Meross import Meross
+from devices.device import device
 
-class MerossSwitch(object):
+class MerossSwitch(device):
     """ Methods for driving a Decora wifi switch """
     def __init__(self, devid, config):
+        super().__init__(devid, config)
         if meross is None:
             self.meross = Meross(devid, config)
         else:
             self.meross = meross
-        self.devid = devid
         self.device = config["DEVICE"+str(devid)]["ADDRESS"]
-        self.description = config["DEVICE"+str(devid)]["DESCRIPTION"]
-        self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
         self.device_type = "MerossSwitch"
         self.state = "0"
-        self.priority = 0
-        self.success = False
         debug.write("Created device MerossSwitch with MAC {}.".format(self.device), 0)
-
-    def convert(self, color):
-        """ Conversion to a color code acceptable by the device """
-        #TODO rrggbb to ...this format...
-        return color
 
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
@@ -74,19 +66,6 @@ class MerossSwitch(object):
             self.state = "0"
             self.success = True
             return True
-
-    def reinit(self):
-        """ Prepares the device for a future request """
-        self.success = False
-
-    def get_state(self):
-        """ Getter for the actual color """
-        return self.state
-
-    def descriptions(self):
-        """ Getter for the device description """
-        desctext = "[Meross account email: " + self.meross.email + "] " + self.description
-        return desctext
 
     def disconnect(self):
         self.meross.disconnect()

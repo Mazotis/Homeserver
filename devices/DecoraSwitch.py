@@ -8,30 +8,22 @@
     The DecoraSwitch for Leviton Decora Switches handler class
 '''
 from devices.common import *
+from devices.device import device
 from devices.Decora import Decora
 
-class DecoraSwitch(object):
+class DecoraSwitch(device):
     """ Methods for driving a Decora wifi switch """
     def __init__(self, devid, config):
+        super().__init__(devid, config)
         if decora is None:
             self.decora = Decora(devid, config)
         else:
             self.decora = decora
-        self.devid = devid
         self.device = config["DEVICE"+str(devid)]["NAME"]
-        self.description = config["DEVICE"+str(devid)]["DESCRIPTION"]
-        self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
         self.intensity = config["DEVICE"+str(devid)]["DEFAULT_INTENSITY"]
         self.device_type = "DecoraSwitch"
         self.state = "0"
-        self.priority = 0
-        self.success = False
         debug.write("Created device DecoraSwitch named {}.".format(self.device), 0)
-
-    def convert(self, color):
-        """ Conversion to a color code acceptable by the device """
-        #TODO rrggbb to ...this format...
-        return color
 
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
@@ -77,19 +69,6 @@ class DecoraSwitch(object):
             self.state = color
             self.success = True
             return True
-
-    def reinit(self):
-        """ Prepares the device for a future request """
-        self.success = False
-
-    def get_state(self):
-        """ Getter for the actual color """
-        return self.state
-
-    def descriptions(self):
-        """ Getter for the device description """
-        desctext = "[Decora account email: " + self.decora.email + "] " + self.description
-        return desctext
 
     def disconnect(self):
         self.decora.disconnect()

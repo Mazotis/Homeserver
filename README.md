@@ -80,20 +80,25 @@ Decora compatible devices should use the decora variable to send requests (creat
 
 BLE bulbs can use the Bulb.py module to simplify development. Integrate this module using super().__init__(devid, config) in the __init__ block.
 ```
-class MyNewDevice(object):
+from devices.common import *
+from devices.device import device
+
+class MyNewDevice(device):
     def __init__(self, devid, config):
-        self.devid = devid # In this case, this device's index within the devicemanager device list
+        super().__init__(devid, config) # loads base functions from device.py
+        # devid is this device's index within the devicemanager device list
+        # config is the handler to the play.ini config file
         self.device = config["DEVICE"+str(devid)]["DEVICE"] # Value of the DEVICE configurable in play.ini for DEVICE# (where # is devid)
-        self.description = config["DEVICE"+str(devid)]["DESCRIPTION"] # Value of the DESCRIPTION configurable in play.ini for DEVICE# (where # is devid)
-        self.success = False # You might need a thread-safe boolean flag to avoid requests when your device is already of the good color. Turn to True  when request is satisfied. 
-        self._connection = None # You might want a variable to handle your device connection
-        self.group = config["DEVICE"+str(devid)]["GROUP"].split(',') # Value of the GROUP configurable in play.ini for DEVICE# (where # is devid)
-        self.priority = 0 # You might need a variable to handle the device actual light change priority level
-        self.color = 0 # You might want a variable to keep in memory the actual color/state of your bulb/device
+        # use the same approach for any required variable taken from the config file
+        # self._connection is provided by device.py to handle your device connection - True or False
+        # self.priority is provided by device.py to give you the actual priority level of this device
+        self.state = 0 # You might want a variable to keep in memory the actual color/state of your bulb/device, in the case the initial value is 0
+        self.device_type = "MyNewDevice" # Tells the lightserver the actual device type - inheritance safe
 ```
 Each new device class must provide the following functions to properly work. This is subject to change.
 
-First 3 functions are handled by Bulb.py for BLE bulbs, so they are not required.
+device.py provides all functions except color, but you might want to override them if required.
+Bulb.py provides the device.py functions + additional features used in BLE lightbulbs. 
 ```
     def reinit(self):
         """ Prepares the device for a future request. """
@@ -111,16 +116,11 @@ First 3 functions are handled by Bulb.py for BLE bulbs, so they are not required
         """ Conversion to a color code/state code acceptable by the device """
         """ Ideally to convert a AARRGGBB (or any value that could be sent """
         """ to this device) to a value that the device can handle """
-        if color == 0:
-            color = "00000000"
-        elif color == 1:
-            color = self.default_intensity
         return color
         
     def descriptions(self):
         """ Getter for the device description """
-        description_text = "[MyNewDevice MAC: " + self.device + "] " + self.description
-        return description_text
+        return "[{}] - {}".format(self.device_type, self.description)
         
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """

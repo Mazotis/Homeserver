@@ -8,28 +8,15 @@
     A generic bash function On/Off device handler class 
 '''
 from devices.common import *
+from devices.device import device
 
-class GenericOnOff(object):
+class GenericOnOff(device):
     def __init__(self, devid, config):
-        self.success = False
-        self.state = 0 # 0 for OFF, 1 for ON, 2 for RESTARTED
+        super().__init__(devid, config)
         self.config = config
-        self.device = config["DEVICE"+str(devid)]["NAME"]
-        self.description = config["DEVICE"+str(devid)]["DESCRIPTION"]
-        self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
-        self.priority = 0
-        self.devid = devid
+        self.device = self.config["DEVICE"+str(devid)]["NAME"]
+        self.device_type = "GenericOnOff"
         debug.write("Created generic On/Off device named: {}".format(self.device), 0)
-
-    def reinit(self):
-        self.success = False
-
-    def get_state(self):
-        return self.state
-
-    def disconnect(self):
-        """ Disconnects the device. Should not be needed for generics """
-        pass
 
     def convert(self, color):
         # TODO: Only accept int values of 1, 2 and LIGHT_SKIP?
@@ -40,11 +27,6 @@ class GenericOnOff(object):
         if color == LIGHT_SKIP:
             return LIGHT_SKIP
         return 0
-        
-    def descriptions(self):
-        """ Getter for the device description """
-        description_text = "[GenericOnOff device name: " + self.device + "] " + self.description
-        return description_text
         
     def color(self, color, priority):
         if self.success:

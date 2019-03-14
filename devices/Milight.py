@@ -62,11 +62,6 @@ class Milight(Bulb):
         """ Helper function to set default intensity """
         return self._write(self.get_query(20, 161, 5, self.id1, self.id2, 200, 4, 50), color)
 
-    def convert(self, color):
-        """ Conversion to a color code acceptable by the device """
-        #TODO rrggbb to ...this format...
-        return color
-
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
         if len(color) > 3:
@@ -112,12 +107,6 @@ class Milight(Bulb):
                                       + ", " + str(id2) + ", " + str(value5) + ", " + str(value3)
                                       + ", " + str(value4) + ", " + str(value6) + ", 0, 0, 0]")
         return packet
-
-    def descriptions(self):
-        """ Getter for the device description """
-        desctext = "[Milight MAC: {}, ID1: {}, ID2: {}] {}" \
-                    .format(self.device, self.id1, self.id2, self.description)
-        return desctext
 
     @connect_ble
     def _write(self, command, color):

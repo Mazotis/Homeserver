@@ -10,28 +10,14 @@
 
 import bluepy.btle as ble
 from devices.common import *
+from devices.device import device
 
-class Bulb(object):
+class Bulb(device):
     """ Global bulb functions and variables """
     def __init__(self, devid, config):
-        self.devid = devid
+        super().__init__(devid, config)
         self.device = config["DEVICE"+str(devid)]["ADDRESS"]
-        self.description = config["DEVICE"+str(devid)]["DESCRIPTION"]
-        self.success = False
-        self._connection = None
-        self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
-        self.priority = 0
-        self.state = None
-        self.device_type = None
         debug.write("Created device Bulb: {}.".format(self.description), 0)
-
-    def reinit(self):
-        """ Prepares the device for a future request """
-        self.success = False
-
-    def get_state(self):
-        """ Getter for the actual color """
-        return self.state
 
     def disconnect(self):
         """ Disconnects the device """
