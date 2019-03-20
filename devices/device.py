@@ -18,7 +18,7 @@ class device(object):
         self._connection = None
         self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
         self.priority = 0
-        self.state = None
+        self.state = 0
         self.device_type = None
 
     def run(self, color, priority):

@@ -8,6 +8,7 @@
     A python websocket server/client and IFTTT receiver to control various cheap IoT
     RGB BLE lightbulbs and HDMI-CEC-to-TV RPi3
 '''
+import ast
 import os
 import os.path
 import re
@@ -170,7 +171,7 @@ class HomeServer(object):
     def remove_server(self, signal, frame):
         """ Shuts down server and cleans resources """
         debug.write("Closing down server and lights.", 0)
-        lm.skip_time(0)
+        lm.set_skip_time_check()
         lm.set_colors([LIGHT_OFF] * len(lm.devices))
         lm.run()
         time.sleep(3)
@@ -237,7 +238,7 @@ class HomeServer(object):
                 debug.write("Received TOGGLE change request", 0)
                 lm.set_colors(lm.get_toggle())
         if args["notime"] or args["off"]:
-            lm.skip_time(0)
+            lm.set_skip_time_check()
         if args["group"] is not None:
             lm.get_group(args["group"])
         debug.write("Arguments are OK", 0)
@@ -270,7 +271,7 @@ class HomeServer(object):
         if "notime" not in args:
             args["notime"] = False
         if "delay" not in args:
-            args["delay"] = False
+            args["delay"] = None
         if "priority" in args and args["priority"] is None:
             args["priority"] = 1
         if "priority" not in args:
@@ -349,14 +350,10 @@ class DeviceManager(object):
             i = i + 1
 
         #TODO allow reporting of device state to the lightserver
-        if str(self.config['SERVER']['EVENT_HOUR']) != "auto":
-            self.lastupdate = None
-            self.starttime = datetime.datetime.strptime(self.config['SERVER']['EVENT_HOUR'],'%H:%M').time()
-        else:
-            self.lastupdate = datetime.date.today()
-            self.starttime = self._update_sunset_time(self.config['SERVER']['EVENT_LOCALIZATION'])
-            debug.write("Event time set as sunset time: {}".format(self.starttime), 0)
-        self.skiptime = 0
+        self.skip_time = False
+        self.serverwide_skip_time = False
+        self.lastupdate = None
+        self.get_event_time()
         self.queue = queue.Queue()
         self.colors = ["-1"] * len(self.devices)
         self.delays = [0] * len(self.devices)
@@ -372,14 +369,14 @@ class DeviceManager(object):
         self.threaded = True
         self.light_pool = ThreadPool(processes=4)
 
-    def skip_time(self, serverwide=0):
+    def set_skip_time_check(self, serverwide=False):
         """ Enables skipping time check """
         if serverwide:
             debug.write("Skipping time check for all requests", 0)
-            self.starttime = None
+            self.serverwide_skip_time = True
         else:
-            debug.write("Skipping time check", 0)
-            self.skiptime = 1
+            debug.write("Skipping time check this time", 0)
+            self.skip_time = True
 
     def set_colors(self, color):
         """ Setter function for color request. Required. """
@@ -426,7 +423,7 @@ class DeviceManager(object):
         if delay is not None:
             debug.write("Delaying request for {} seconds".format(delay), 0)
             time.sleep(delay)
-        if self._check_time():
+        if self.check_event_time():
             self.queue.put(self.colors)
             #TODO Manage locking out when the run thread hangs
             debug.write("Locked status: {}".format(self.locked), 0)
@@ -461,6 +458,30 @@ class DeviceManager(object):
         for obj in self.devices:
             typelist.append(obj.__class__.__name__)
         return typelist
+
+    def get_event_time(self):
+        if self.lastupdate != datetime.date.today():
+            self.lastupdate = datetime.date.today()
+            if str(self.config['SERVER']['EVENT_HOUR']) != "auto":
+                self.lastupdate = datetime.date.today()
+                self.starttime = datetime.datetime.strptime(self.config['SERVER']['EVENT_HOUR'],'%H:%M').time()
+            else:
+                self.lastupdate = datetime.date.today()
+                self.starttime = self._update_sunset_time(self.config['SERVER']['EVENT_LOCALIZATION'])
+                if not self.serverwide_skip_time:
+                    debug.write("Event time set as sunset time: {}".format(self.starttime), 0)
+        return self.starttime
+
+    def check_event_time(self):
+        self.get_event_time()
+        if self.skip_time or self.serverwide_skip_time:
+            self.skip_time = False
+            return True
+        if datetime.time(6, 00) < datetime.datetime.now().time() < self.starttime:
+            debug.write("Too soon, no change of light required. Light changes begins at {}"
+                        .format(self.starttime), 0)
+            return False
+        return True
 
     def set_lock(self, is_locked):
         """ Locks the light change request """
@@ -619,19 +640,6 @@ class DeviceManager(object):
         else:
             self.devices[count].run(color, priority)
 
-    def _check_time(self):
-        if self.skiptime or self.starttime is None:
-            self.skiptime = 0
-            return 1
-        if self.lastupdate != datetime.date.today():
-            self.starttime = self._update_sunset_time(self.config['SERVER']['EVENT_LOCALIZATION'])
-            debug.write("Event time set as sunset time: {}".format(self.starttime), 0)            
-        if datetime.time(6, 00) < datetime.datetime.now().time() < self.starttime:
-            debug.write("Too soon, no change of light required. Light changes begins at {}"
-                        .format(self.starttime), 0)
-            return 0
-        return 1
-
     def _get_type_index(self, atype):
         # TODO This should not depend on an ordered set of devices
         i = 0
@@ -675,7 +683,7 @@ def runDetectorServer(config, lm):
     DEVICE_STATE_LEVEL = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
     DEVICE_STATE_MAX = int(config['DETECTOR']['MAX_STATE_LEVEL'])
     DEVICE_STATUS = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
-    FIND3_SERVER = bool(config['DETECTOR']['FIND3_SERVER_ENABLE'])
+    FIND3_SERVER = ast.literal_eval(config['DETECTOR']['FIND3_SERVER_ENABLE'])
     DETECTOR_START_HOUR = datetime.datetime.strptime(config['DETECTOR']['START_HOUR'],'%H:%M').time()
     DETECTOR_END_HOUR = datetime.datetime.strptime(config['DETECTOR']['END_HOUR'],'%H:%M').time()
     STATUS = 0
@@ -683,6 +691,7 @@ def runDetectorServer(config, lm):
     debug.write("[Detector] Starting ping-based device detector", 0)
 
     if FIND3_SERVER:
+        debug.write("[Detector] Starting FIND3 localization server", 0)
         TRACKED_FIND3_DEVS = config['DETECTOR']['FIND3_TRACKED_DEVICES'].split(",")
         TRACKED_FIND3_TIMES = [0]*len(TRACKED_FIND3_DEVS)
         TRACKED_FIND3_LOCAL = [""]*len(TRACKED_FIND3_DEVS)
@@ -710,9 +719,9 @@ def runDetectorServer(config, lm):
     while True:
         if DETECTOR_START_HOUR > datetime.datetime.now().time() or \
            DETECTOR_END_HOUR < datetime.datetime.now().time():
-            time.sleep(30000)
+            time.sleep(30)
             continue 
-        EVENT_TIME = lm.starttime
+        EVENT_TIME = lm.get_event_time()
         for _cnt, device in enumerate(config['DETECTOR']['TRACKED_IPS'].split(",")):
             #TODO Maintain the two pings requirement for status change ?
             if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
@@ -840,7 +849,7 @@ if __name__ == "__main__":
 
     if args.server:
         if args.notime:
-            lm.skip_time(1)
+            lm.set_skip_time_check(True)
         if args.threaded:
             lm.start_threaded()
         if args.ifttt:

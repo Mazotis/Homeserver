@@ -8,6 +8,7 @@
     Commonly shared variables
 '''
 
+import ast
 import os
 import glob
 import configparser
@@ -40,7 +41,7 @@ class DebugLog(object):
         debugtext = "({}) - [{}] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), 
                                             self.LEVELS[level], msg)
         print(debugtext)
-        if self.config['SERVER']['JOURNALING']:
+        if ast.literal_eval(self.config['SERVER']['JOURNALING']):
             with open(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log", "a") as jfile:
                 jfile.write(debugtext + "\n")
 
