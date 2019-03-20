@@ -348,8 +348,6 @@ class DeviceManager(object):
             except KeyError:
                 break
             i = i + 1
-
-        #TODO allow reporting of device state to the lightserver
         self.skip_time = False
         self.serverwide_skip_time = False
         self.lastupdate = None
@@ -357,6 +355,8 @@ class DeviceManager(object):
         self.queue = queue.Queue()
         self.colors = ["-1"] * len(self.devices)
         self.delays = [0] * len(self.devices)
+        self.states = self.get_state()
+        debug.write("Got initial device states {}".format(self.states), 0)
         self.set_lock(0)
         self.lockcount = 0
         self.priority = 0
@@ -491,6 +491,8 @@ class DeviceManager(object):
         """ Getter for configured devices actual colors """
         states = [None] * len(self.devices)
         for _cnt, dev in enumerate(self.devices):
+            if devid is not None and devid != _cnt:
+                continue
             states[_cnt] = dev.get_state()
         if devid is not None:
             return states[devid]
@@ -555,22 +557,23 @@ class DeviceManager(object):
                         debug.write("All device requests skipped", 0)
                         return                
                     debug.write("Changing colors to {} from state {}" \
-                                .format(colors, self.get_state()), 0)
+                                .format(colors, self.states), 0)
                     self.set_lock(1)
                     i = 0
                     tries = 0
                     firstran = True
 
                     while i < len(self.devices):
-                        _state = self.get_state(i)
                         _color = self.devices[i].convert(colors[i])
 
                         if not self.devices[i].success:
                             if _color != LIGHT_SKIP:
-                                debug.write(("DEVICE: {}, REQUESTED COLOR: {} "
+                                self.states[i] = self.get_state(i)
+                                if _color != self.states[i]:
+                                    debug.write(("DEVICE: {}, REQUESTED COLOR: {} "
                                                   "FROM STATE: {}, PRIORITY: {}")
                                                   .format(self.devices[i].device,
-                                                          _color, _state,
+                                                          _color, self.states[i],
                                                           self.devices[i].priority),
                                                   0)
                             if self.threaded:
@@ -602,8 +605,8 @@ class DeviceManager(object):
                                     break
                             else:
                                 for _cnt, _dev in enumerate(self.devices):
-                                    _state = self.get_state(_cnt)
-                                    if self.devices[_cnt].convert(colors[_cnt]) != _state:
+                                    self.states[_cnt] = self.get_state(_cnt)
+                                    if self.devices[_cnt].convert(colors[_cnt]) != self.states[_cnt]:
                                         i = 0
                                 tries = tries + 1
                                 if tries == 5:
@@ -617,6 +620,7 @@ class DeviceManager(object):
                 debug.write("Clearing up light change queues.", 0)
                 if colors:
                     self.queue.task_done()
+                self.states = self.get_state()
 
         except Exception as ex:
             debug.write('Unhandled exception of type {}: {}, {}'

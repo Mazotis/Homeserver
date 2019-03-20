@@ -78,7 +78,7 @@ The __init__ function of your device will receive variables devid (device number
 
 Decora compatible devices should use the decora variable to send requests (created by the Decora.py module).
 
-BLE bulbs can use the Bulb.py module to simplify development. Integrate this module using super().__init__(devid, config) in the __init__ block.
+BLE bulbs can use the Bulb.py module to simplify development. Integrate this module by changing MyNewDevice(device) to MyNewDevice(Bulb).
 ```
 from devices.common import *
 from devices.device import device

@@ -46,15 +46,18 @@ class Milight(Bulb):
 
     def turn_off(self):
         """ Helper function to turn off device """
+        debug.write("Setting milight {} OFF".format(self.device), 0)
         return self._write(self.get_query(32, 161, 2, self.id1, self.id2), "0")
 
     def turn_on_and_set_color(self, color):
         """ Helper function to change color """
+        debug.write("Setting milight {} to COLOR {}".format(self.device, color), 0)
         if not self.turn_on(): return False
         return self._write(self.get_query(45, 161, 4, self.id1, self.id2, color, 2, 50), color)
 
     def turn_on_and_dim_on(self, color):
         """ Helper function to turn on device to default intensity """
+        debug.write("Setting milight {} ON".format(self.device), 0)
         if not self.turn_on(): return False
         return self.dim_on(color)
 
@@ -66,17 +69,17 @@ class Milight(Bulb):
         """ Checks the request and trigger a light change if needed """
         if len(color) > 3:
             debug.write("Unhandled color format {}".format(color), 1)
-            return True
         if color == LIGHT_OFF:
-            if not self.turn_off(): return False
-            return True
+            if not self.turn_off(): 
+                return False
         elif color == LIGHT_ON:
             if not self.turn_on_and_dim_on(color):
                 return False
-            return True
         else:
-            if not self.turn_on_and_set_color(color): return False
-            return True
+            if not self.turn_on_and_set_color(color): 
+                return False
+        debug.write("Milight {} color changed to {}".format(self.device, color), 0)
+        return True
 
     def get_query(self, value1, value2, value3, id1, id2, value4=0, value5=2, value6=0):
         """
@@ -95,13 +98,11 @@ class Milight(Bulb):
         try:
             if self._connection is not None:
                 self.state = color
-                debug.write("Setting milight {} color to {}".format(self.device, color), 0)
                 self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0] \
                                                     .write(bytearray.fromhex(command \
                                                                              .replace('\n', '') \
                                                                              .replace('\r', '')))
                 self.success = True
-                debug.write("Milight {} color changed to {}".format(self.device, color), 0)
                 return True
             self.state = _oldcolor
             debug.write("Connection error to device (milight)  {}. Retrying" \
