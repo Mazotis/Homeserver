@@ -23,8 +23,12 @@ class GenericOnOff(device):
 
     def get_state(self):
         if self.config["STATE"] and not self.success:
-            _stdout = subprocess.check_output(self.config["STATE"], 
-                                              shell=True).decode('UTF-8')
+            try:
+                _stdout = subprocess.check_output(self.config["STATE"], 
+                                                  shell=True).decode('UTF-8')
+            except subprocess.CalledProcessError:
+                self.state = 0
+                return 0
             if self.config["STATE_ON_EXPECT"] in _stdout:
                 self.state = 1
                 return 1
