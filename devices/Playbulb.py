@@ -52,13 +52,8 @@ class Playbulb(Bulb):
 
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
-        if len(color) not in (1, 8) and color != self.convert(LIGHT_SKIP):
+        if len(color) not in (1, 8) and color != LIGHT_SKIP:
             debug.write("Unhandled color format {}".format(color), 1)
-            return True
-        if self.state == color and color != self.convert(LIGHT_OFF):
-            self.success = True
-            debug.write("Bulb {} is already of the requested color, skipping."
-                                  .format(self.device), 0)
             return True
         debug.write("Changing playbulb {} color to {}".format(self.device, color), 0)
         if not self._write(color): return False

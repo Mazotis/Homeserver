@@ -36,7 +36,7 @@ class device(object):
             self.priority = 1
         else:
             self.priority = priority
-        if self.state == color:
+        if self.state == color and color != self.convert(LIGHT_OFF):
             self.success = True
             debug.write("Device ({}) {} is already of the requested state, skipping."
                         .format(self.device_type, self.device), 0)
