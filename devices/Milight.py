@@ -69,6 +69,7 @@ class Milight(Bulb):
         """ Checks the request and trigger a light change if needed """
         if len(color) > 3:
             debug.write("Unhandled color format {}".format(color), 1)
+            return True
         if color == LIGHT_OFF:
             if not self.turn_off(): 
                 return False

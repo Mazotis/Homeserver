@@ -564,9 +564,9 @@ class DeviceManager(object):
                     firstran = True
 
                     while i < len(self.devices):
-                        _color = self.devices[i].convert(colors[i])
-
                         if not self.devices[i].success:
+                            _color = self.devices[i].convert(colors[i])
+
                             if _color != LIGHT_SKIP:
                                 self.states[i] = self.get_state(i)
                                 if _color != self.states[i]:
@@ -636,13 +636,14 @@ class DeviceManager(object):
     def _set_device(self, count, color, priority, delay):
         #TODO Find a way to make the delays non blocking
         if delay is not 0:
+            #TODO return result of device.run to the server or rewrite this differently
             debug.write("Delaying for {} seconds request for device: {}"
                         .format(delay, self.devices[count].description), 0) 
             s = sched.scheduler(time.time, time.sleep)
             s.enter(delay, 1, self.devices[count].run, (color, priority,))
             s.run()
         else:
-            self.devices[count].run(color, priority)
+            return self.devices[count].run(color, priority)
 
     def _get_type_index(self, atype):
         # TODO This should not depend on an ordered set of devices
