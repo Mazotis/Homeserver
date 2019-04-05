@@ -84,8 +84,22 @@ class HomeServer(object):
                         ls_status["state"] = lm.get_state()
                         ls_status["type"] = lm.get_types()
                         ls_status["description"] = lm.get_descriptions(True)
+                        ls_status["starttime"] = "{}".format(lm.starttime)
                         debug.write('Sending lightserver status', 0)
                         client.send(json.dumps(ls_status).encode('UTF-8'))
+                        break
+                    if data.decode('utf-8') == "setstate":
+                        debug.write('Running a single device state change', 0)
+                        iddata = int(client.recv(3).decode("UTF-8"))
+                        valdata = int(client.recv(8).decode("UTF-8"))
+                        skiptime = int(client.recv(1).decode("UTF-8"))
+                        _col = ["-1"] * len(lm.devices)
+                        _col[iddata] = str(valdata)
+                        lm.set_colors(_col)
+                        if skiptime == 1:
+                            lm.set_skip_time_check()
+                        lm.run()
+                        client.send("1".encode("UTF-8"))
                         break
                     if data.decode('utf-8') == "stream":
                         debug.write('Starting streaming mode', 0)
@@ -375,7 +389,8 @@ class DeviceManager(object):
             self.serverwide_skip_time = True
         else:
             debug.write("Skipping time check this time", 0)
-            self.skip_time = True
+            for _dev in self.devices:
+                _dev.skip_time = True
 
     def set_colors(self, color):
         """ Setter function for color request. Required. """
@@ -694,6 +709,11 @@ def runIFTTTServer():
     httpd.server_close()
     debug.write('[IFTTTServer] Stopping.', 0)
 
+def runWebServer(port, config):
+    # A separate process is required as we change the working directory to web
+    subprocess.call("python3 ./web/web.py {} {} {}".format(port, config['SERVER']['HOST'], 
+                                                           config['SERVER'].getint('PORT')), shell=True)
+
 def runDetectorServer(config, lm):
     DEVICE_STATE_LEVEL = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
     DEVICE_STATE_MAX = config['DETECTOR'].getint('MAX_STATE_LEVEL')
@@ -837,6 +857,8 @@ if __name__ == "__main__":
     parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all lights on/off')
     parser.add_argument('--server', action='store_true', default=False,
                         help='Start as a socket server daemon')
+    parser.add_argument('--webserver', metavar='prio', type=int, nargs="?", default=0,
+                        help='Starts a webserver at the given PORT')
     parser.add_argument('--ifttt', action='store_true', default=False,
                         help='Start a ifttt websocket receiver along with server')
     parser.add_argument('--detector', action='store_true', default=False,
@@ -863,6 +885,9 @@ if __name__ == "__main__":
         sys.exit()
 
     if args.server:
+        if args.webserver is None:
+            debug.write("You need to define a port for the webserver, using --webserver PORT. Quitting.", 2)
+            sys.exit()
         if args.notime:
             lm.set_skip_time_check(True)
         if args.threaded:
@@ -871,6 +896,9 @@ if __name__ == "__main__":
             Thread(target = runIFTTTServer).start()
         if args.detector:
             Thread(target = runDetectorServer, args = (PLAYCONFIG,lm,)).start()
+        if args.webserver != 0:
+            debug.write("Starting control webserver on port {}".format(args.webserver), 0)
+            Thread(target = runWebServer, args = (args.webserver,PLAYCONFIG,)).start()
         Thread(target = runServer).start()
 
     elif args.stream_dev or args.stream_group:

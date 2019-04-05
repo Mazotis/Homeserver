@@ -35,7 +35,6 @@ class device(object):
             self.success = True
             debug.write("Device ({}) {} skipped due to actual time."
                         .format(self.device_type, self.device), 0)
-            self.skip_time = self.default_skip_time
             return True
         if color == LIGHT_SKIP:
             self.success = True
@@ -68,6 +67,7 @@ class device(object):
     def reinit(self):
         """ Prepares the device for a future request """
         self.success = False
+        self.skip_time = self.default_skip_time
         return
 
     def get_state(self):

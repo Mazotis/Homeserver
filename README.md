@@ -3,7 +3,7 @@ New - [Read the WIKI](https://github.com/Mazotis/Lightserver/wiki)
 
 A python websocket server/client to control various cheap IoT RGB BLE lightbulbs, DIY devices and programmable ON/OFF devices (TVs via HDMI-CEC, sound systems using LIRC, HTPCs using shutdown/wake-on-lan functions...)
 
-The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and waits for requests, either from IFTTT (using a webhook Then That), from a device on-connection event (detected by pinging a static local IP, ie. for a mobile phone) or by a direct command-line call using playclient.py (for example, when called on a specific event/via a menu button on Kodi - or other HTPC softwares). 
+The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and waits for requests, either from IFTTT (using a webhook Then That), from a device on-connection event (detected by pinging a static local IP, ie. for a mobile phone), from the included webserver or by a direct command-line call using playclient.py (for example, when called on a specific event/via a menu button on Kodi - or other HTPC softwares). 
 
 ## Why Lightserver ?
 * It allows to control multiple devices that uses different protocols at the same time.
@@ -14,6 +14,7 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 * Compatible with IFTTT (can be interfaced with Google Assistant/Google home and other voice devices) to add vocal commands to any non-smart device.
 * Allows indoor localization with [FIND3](https://github.com/schollz/find3) to turn on/off devices depending on where you are located inside your home.
 * Can receive commands from any IoT device/detectors that can connect via TCP wifi socket (see [WIKI](https://github.com/Mazotis/Lightserver/wiki/Connecting-a-Arduino-ESP8266-other-devices-via-TCP-socket) page on this) 
+* Can receive commands from a mobile-friendly web interface (for a rpi3, default address is raspberrypi:8080 if the server is started with the "--webserver 8080" commandline option)
 
 ## Supported devices
 - Milight BLE light bulbs
@@ -47,6 +48,7 @@ Optional command-line options:
 --detector (to run a ip-pinging server to run events on device presence on wifi - for example mobile phones).
 --threaded (runs light changes on different threads - faster but might be less stable)
 --notime (ignores the EVENT_HOUR parameter. Run events anytime)
+--webserver PORT (runs a small webserver at given PORT that allows you to control the Lightserver)
 ```
 4) To use HDMI-CEC, connect HDMI cable to a free TV port.
 
