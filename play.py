@@ -8,7 +8,6 @@
     A python websocket server/client and IFTTT receiver to control various cheap IoT
     RGB BLE lightbulbs and HDMI-CEC-to-TV RPi3
 '''
-import ast
 import os
 import os.path
 import re
@@ -43,7 +42,7 @@ class HomeServer(object):
         self.config = configparser.ConfigParser()
         self.config.read('play.ini')
         self.host = self.config['SERVER']['HOST']
-        self.port = int(self.config['SERVER']['PORT'])
+        self.port = int(self.config['SERVER'].getint('PORT'))
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.host, self.port))
@@ -474,13 +473,22 @@ class DeviceManager(object):
 
     def check_event_time(self):
         self.get_event_time()
-        if self.skip_time or self.serverwide_skip_time:
-            self.skip_time = False
+        if self.serverwide_skip_time:
+            for _dev in self.devices:
+                _dev.set_skip_time()
             return True
         if datetime.time(6, 00) < datetime.datetime.now().time() < self.starttime:
-            debug.write("Too soon, no change of light required. Light changes begins at {}"
+            for _dev in self.devices:
+                if _dev.skip_time:
+                    debug.write("Not all devices will be changed. Light changes begins at {}"
+                                .format(self.starttime), 0)
+                    return True
+            debug.write("Too soon to change devices. Light changes begins at {}"
                         .format(self.starttime), 0)
             return False
+        else:
+            for _dev in self.devices:
+                _dev.set_skip_time()
         return True
 
     def set_lock(self, is_locked):
@@ -605,6 +613,8 @@ class DeviceManager(object):
                                     break
                             else:
                                 for _cnt, _dev in enumerate(self.devices):
+                                    if not self.queue.empty():
+                                        continue
                                     self.states[_cnt] = self.get_state(_cnt)
                                     if self.devices[_cnt].convert(colors[_cnt]) != self.states[_cnt]:
                                         i = 0
@@ -686,9 +696,9 @@ def runIFTTTServer():
 
 def runDetectorServer(config, lm):
     DEVICE_STATE_LEVEL = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
-    DEVICE_STATE_MAX = int(config['DETECTOR']['MAX_STATE_LEVEL'])
+    DEVICE_STATE_MAX = config['DETECTOR'].getint('MAX_STATE_LEVEL')
     DEVICE_STATUS = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
-    FIND3_SERVER = ast.literal_eval(config['DETECTOR']['FIND3_SERVER_ENABLE'])
+    FIND3_SERVER = config['DETECTOR'].getboolean(['FIND3_SERVER_ENABLE'])
     DETECTOR_START_HOUR = datetime.datetime.strptime(config['DETECTOR']['START_HOUR'],'%H:%M').time()
     DETECTOR_END_HOUR = datetime.datetime.strptime(config['DETECTOR']['END_HOUR'],'%H:%M').time()
     STATUS = 0
@@ -866,7 +876,7 @@ if __name__ == "__main__":
     elif args.stream_dev or args.stream_group:
         colorval = ""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT'])))
+        s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER'].getint('PORT'))))
         if args.stream_dev:
             s.sendall("0006".encode('utf-8'))
             s.sendall("stream".encode('utf-8'))
@@ -895,7 +905,7 @@ if __name__ == "__main__":
                 if colorval != "quit":
                     s.close()
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT'])))
+                    s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER'].getint('PORT'))))
                     if args.stream_dev:
                         s.sendall("0006".encode('utf-8'))
                         s.sendall("stream".encode('utf-8'))
@@ -913,7 +923,7 @@ if __name__ == "__main__":
 
     else:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT'])))
+        s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER'].getint('PORT'))))
         #TODO report connection errors or allow feedback response
         debug.write('Connecting with lightmanager daemon', 0)
         debug.write('Sending request: ' + json.dumps(vars(args)), 0)

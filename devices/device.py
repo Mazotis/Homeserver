@@ -20,9 +20,22 @@ class device(object):
         self.priority = 0
         self.state = 0
         self.device_type = None
+        self.default_skip_time = False
+        if config.has_option("DEVICE"+str(devid),"SKIPTIME"):
+            self.default_skip_time = config["DEVICE"+str(devid)].getboolean("SKIPTIME")
+        self.skip_time = self.default_skip_time
+        self.forceoff = True
+        if config.has_option("DEVICE"+str(devid),"FORCEOFF"):
+            self.forceoff = config["DEVICE"+str(devid)].getboolean("FORCEOFF")
 
     def run(self, color, priority):
         if self.success:
+            return True
+        if not self.skip_time:
+            self.success = True
+            debug.write("Device ({}) {} skipped due to actual time."
+                        .format(self.device_type, self.device), 0)
+            self.skip_time = self.default_skip_time
             return True
         if color == LIGHT_SKIP:
             self.success = True
@@ -41,6 +54,11 @@ class device(object):
             debug.write("Device ({}) {} is already of the requested state, skipping."
                         .format(self.device_type, self.device), 0)
             return True
+        if self.state == color and color == self.convert(LIGHT_OFF) and not self.forceoff:
+            self.success = True
+            debug.write("Device ({}) {} is already off and forcing-off disabled, skipping."
+                        .format(self.device_type, self.device), 0)
+            return True
         return self.color(color, priority)
 
     def convert(self, color):
@@ -50,10 +68,15 @@ class device(object):
     def reinit(self):
         """ Prepares the device for a future request """
         self.success = False
+        return
 
     def get_state(self):
         """ Getter for the actual color """
         return self.state
+
+    def set_skip_time(self):
+        self.skip_time = True
+        return
 
     def descriptions(self):
         """ Getter for the device description """
