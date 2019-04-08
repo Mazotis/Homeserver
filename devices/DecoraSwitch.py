@@ -27,29 +27,34 @@ class DecoraSwitch(device):
 
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
-        if len(color) > 3:
-            debug.write("Unhandled color format {}".format(color), 1)
-            return True
-        _att = {}
-        if color == LIGHT_OFF:
-            _att['power'] = 'OFF'
-            self.decora.request(self.device, _att)
-            self.state = "0"
-            self.success = True
-            return True
-        elif color == LIGHT_ON:
-            _att['power'] = 'ON'
-            _att['brightness'] = int(self.intensity)
-            self.decora.request(self.device, _att)
-            self.state = "1"
-            self.success = True
-            return True
+        if not (self.decora.disabled):
+            if len(color) > 3:
+                debug.write("Unhandled color format {}".format(color), 1)
+                return True
+            _att = {}
+            if color == LIGHT_OFF:
+                _att['power'] = 'OFF'
+                self.decora.request(self.device, _att)
+                self.state = "0"
+                self.success = True
+                return True
+            elif color == LIGHT_ON:
+                _att['power'] = 'ON'
+                _att['brightness'] = int(self.intensity)
+                self.decora.request(self.device, _att)
+                self.state = "1"
+                self.success = True
+                return True
+            else:
+                _att['brightness'] = int(color)
+                self.decora.request(self.device, _att)
+                self.state = color
+                self.success = True
+                return True
         else:
-            _att['brightness'] = int(color)
-            self.decora.request(self.device, _att)
-            self.state = color
-            self.success = True
+            debug.write("Skipping device {} - handler connection failed.".format(self.device), 0)
             return True
 
     def disconnect(self):
-        self.decora.disconnect()
+        if not (self.decora.disabled):
+            self.decora.disconnect()

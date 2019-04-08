@@ -690,7 +690,12 @@ class DeviceManager(object):
                               shell=True)
         (output,_) = p1.communicate()
         p1.wait()
-        return datetime.datetime.strptime(output.rstrip().decode('UTF-8'),'%H:%M').time()
+        try:
+            _time = datetime.datetime.strptime(output.rstrip().decode('UTF-8'),'%H:%M').time()
+        except ValueError:
+            debug.write("Connection error to the sunset time server. Falling back to 18:00.", 1)             
+            _time = datetime.datetime.strptime("18:00",'%H:%M').time()
+        return _time
 
 
 def runServer():
@@ -718,7 +723,7 @@ def runDetectorServer(config, lm):
     DEVICE_STATE_LEVEL = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
     DEVICE_STATE_MAX = config['DETECTOR'].getint('MAX_STATE_LEVEL')
     DEVICE_STATUS = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
-    FIND3_SERVER = config['DETECTOR'].getboolean(['FIND3_SERVER_ENABLE'])
+    FIND3_SERVER = config['DETECTOR'].getboolean('FIND3_SERVER_ENABLE')
     DETECTOR_START_HOUR = datetime.datetime.strptime(config['DETECTOR']['START_HOUR'],'%H:%M').time()
     DETECTOR_END_HOUR = datetime.datetime.strptime(config['DETECTOR']['END_HOUR'],'%H:%M').time()
     STATUS = 0

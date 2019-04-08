@@ -21,6 +21,7 @@ class Decora(object):
         self.password = config["DEVICE"+str(devid)]["PASSWORD"]
         self.residences = None
         self._connected = False
+        self.disabled = False
         self.connect()
         decora = self
         debug.write("Created device Decora with account {}.".format(self.email), 0)
@@ -43,8 +44,15 @@ class Decora(object):
         self.get_switch(name).update_attributes(attribs)
 
     def connect(self):
-        self.session = DecoraWiFiSession()
-        self.get_switch()
+        try:
+            self.session = DecoraWiFiSession()
+            self.get_switch()
+            self.disabled = False
+        except:
+            #TODO catch all exceptions ?
+            debug.write("Cannot login to decora account {}, disabling devices.".format(self.email), 1)
+            self.disabled = True
+            return
         self._connected = True
 
     def disconnect(self):
