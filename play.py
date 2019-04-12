@@ -2,8 +2,8 @@
 '''
     File name: play.py
     Author: Maxime Bergeron
-    Date last modified: 05/03/2019
-    Python Version: 3.7
+    Date last modified: 12/04/2019
+    Python Version: 3.5
 
     A python websocket server/client and IFTTT receiver to control various cheap IoT
     RGB BLE lightbulbs and HDMI-CEC-to-TV RPi3
@@ -21,9 +21,9 @@ import socket
 import threading
 import configparser
 import requests
+import socketserver
 import traceback
 import json
-import signal
 import queue
 import urllib.parse
 import hashlib
@@ -32,7 +32,9 @@ from devices import *
 from argparse import RawTextHelpFormatter, Namespace
 from multiprocessing.pool import ThreadPool
 from threading import Thread
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import SimpleHTTPRequestHandler, BaseHTTPRequestHandler, HTTPServer
+from io import BytesIO
+from functools import partial
 from __main__ import *
 
 
@@ -50,20 +52,21 @@ class HomeServer(object):
         self.scheduled_disconnect = None
         self.tcp_start_hour = datetime.datetime.strptime(self.config['SERVER']['TCP_START_HOUR'],'%H:%M').time()
         self.tcp_end_hour = datetime.datetime.strptime(self.config['SERVER']['TCP_END_HOUR'],'%H:%M').time()
-        #TODO Fix signaling
-        #signal.signal(signal.SIGTERM, self.remove_server)
 
     def listen(self):
         """ Starts the server """
         debug.write('Server started', 0)
         # Cleanup connection to allow new sock.accepts faster as sched is blocking
         self.disconnect_devices()
-        self.sock.listen(5)
-        while True:
-            client, address = self.sock.accept()
-            debug.write("Connected with {}:{}".format(address[0], address[1]), 0)
-            client.settimeout(30)
-            threading.Thread(target=self.listen_client, args=(client, address)).start()
+        try:
+            self.sock.listen(5)
+            while True:
+                client, address = self.sock.accept()
+                debug.write("Connected with {}:{}".format(address[0], address[1]), 0)
+                client.settimeout(30)
+                threading.Thread(target=self.listen_client, args=(client, address)).start()
+        except (KeyboardInterrupt, SystemExit):
+            self.remove_server()
 
     def listen_client(self, client, address):
         """ Listens for new requests and handle them properly """
@@ -181,14 +184,16 @@ class HomeServer(object):
         for _dev in lm.devices:
             _dev.disconnect()
 
-    def remove_server(self, signal, frame):
+    def remove_server(self):
         """ Shuts down server and cleans resources """
         debug.write("Closing down server and lights.", 0)
         lm.set_skip_time_check()
         lm.set_colors([LIGHT_OFF] * len(lm.devices))
         lm.run()
-        time.sleep(3)
         self.sock.close()
+        if not self.sched_disconnect.empty():
+            self.sched_disconnect.cancel(self.scheduled_disconnect)
+        self.disconnect_devices()
 
     def _validate_and_execute_req(self, args):
         debug.write("Validating arguments", 0)
@@ -313,6 +318,9 @@ class IFTTTServer(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'x-www-form-urlencoded')
         self.end_headers()
+
+    def do_GET(self):
+        self._set_response()
 
     def do_POST(self):
         config = configparser.ConfigParser()
@@ -698,139 +706,248 @@ class DeviceManager(object):
         return _time
 
 
-def runServer():
-    HomeServer(lm).listen()
+class runIFTTTServer(threading.Thread):
+    def __init__(self, port):
+        threading.Thread.__init__(self)
+        self.port = port
+        self.running = True
 
-def runIFTTTServer():
-    port = 1234
-    server_address = ('', port)
-    httpd = HTTPServer(server_address, IFTTTServer)
-    debug.write('[IFTTTServer] Getting lightserver POST requests on port {}' \
-                          .format(port), 0)
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        pass
-    httpd.server_close()
-    debug.write('[IFTTTServer] Stopping.', 0)
+    def run(self):
+        debug.write('[IFTTTServer] Getting lightserver POST requests on port {}' \
+                    .format(self.port), 0)
+        httpd = HTTPServer(('', self.port), IFTTTServer)
+        try:
+            while self.running:
+                httpd.handle_request()
+        finally:
+            httpd.server_close()
+            debug.write('[IFTTTServer] Stopped.', 0)
+            return
 
-def runWebServer(port, config):
-    # A separate process is required as we change the working directory to web
-    subprocess.call("python3 ./web/web.py {} {} {}".format(port, config['SERVER']['HOST'], 
-                                                           config['SERVER'].getint('PORT')), shell=True)
+    def stop(self):
+        debug.write('[IFTTTServer] Stopping.', 0)
+        self.running = False
+        # Needs a last call to shut down properly
+        _r = requests.get("http://localhost:{}/".format(self.port))
 
-def runDetectorServer(config, lm):
-    DEVICE_STATE_LEVEL = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
-    DEVICE_STATE_MAX = config['DETECTOR'].getint('MAX_STATE_LEVEL')
-    DEVICE_STATUS = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
-    FIND3_SERVER = config['DETECTOR'].getboolean('FIND3_SERVER_ENABLE')
-    DETECTOR_START_HOUR = datetime.datetime.strptime(config['DETECTOR']['START_HOUR'],'%H:%M').time()
-    DETECTOR_END_HOUR = datetime.datetime.strptime(config['DETECTOR']['END_HOUR'],'%H:%M').time()
-    STATUS = 0
-    DELAYED_START = 0
-    debug.write("[Detector] Starting ping-based device detector", 0)
 
-    if FIND3_SERVER:
-        debug.write("[Detector] Starting FIND3 localization server", 0)
-        TRACKED_FIND3_DEVS = config['DETECTOR']['FIND3_TRACKED_DEVICES'].split(",")
-        TRACKED_FIND3_TIMES = [0]*len(TRACKED_FIND3_DEVS)
-        TRACKED_FIND3_LOCAL = [""]*len(TRACKED_FIND3_DEVS)
-        for _cnt, _dev in enumerate(TRACKED_FIND3_DEVS):
-            # Get last update times
-            if _dev != "_":
-                _r = requests.get("http://{}/api/v1/location/{}/{}".format(config['DETECTOR']['FIND3_SERVER_URL'],
-                                                                           config['DETECTOR']['FIND3_FAMILY_NAME'],
-                                                                           _dev))
-                TRACKED_FIND3_TIMES[_cnt] = _r.json()['sensors']['t']
 
-    for _cnt, device in enumerate(config['DETECTOR']['TRACKED_IPS'].split(",")):
-        if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
-            DEVICE_STATE_LEVEL[_cnt] = DEVICE_STATE_MAX
-            DEVICE_STATUS[_cnt] = 1
-        else:
-            DEVICE_STATE_LEVEL[_cnt] = 0
-            DEVICE_STATUS[_cnt] = 0
-    debug.write("[Detector] Got initial states {} and status {}".format(DEVICE_STATE_LEVEL, STATUS), 0)
+class runDetectorServer(threading.Thread):
+    def __init__ (self, config):
+        threading.Thread.__init__(self)
+        self.config = config
+        self.stopevent = threading.Event()
+        self.DEVICE_STATE_LEVEL = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
+        self.DEVICE_STATE_MAX = self.config['DETECTOR'].getint('MAX_STATE_LEVEL')
+        self.DEVICE_STATUS = [0]*len(self.config['DETECTOR']['TRACKED_IPS'].split(","))
+        self.FIND3_SERVER= self.config['DETECTOR'].getboolean('FIND3_SERVER_ENABLE')
+        self.DETECTOR_START_HOUR = datetime.datetime.strptime(self.config['DETECTOR']['START_HOUR'],'%H:%M').time()
+        self.DETECTOR_END_HOUR = datetime.datetime.strptime(self.config['DETECTOR']['END_HOUR'],'%H:%M').time()
+        self.status = 0
+        self.delayed_start = 0
 
-    if DETECTOR_START_HOUR > datetime.datetime.now().time() or \
-       DETECTOR_END_HOUR < datetime.datetime.now().time():
-           debug.write("[Detector] Standby. Running between {} and {}".format(DETECTOR_START_HOUR, 
-                                                                              DETECTOR_END_HOUR), 0)     
-    while True:
-        if DETECTOR_START_HOUR > datetime.datetime.now().time() or \
-           DETECTOR_END_HOUR < datetime.datetime.now().time():
+    def run(self):
+        self.first_detect()
+        while not self.stopevent.is_set():
+            self.detect_devices()
+            self.stopevent.wait(int(self.config['DETECTOR']['PING_FREQ_SEC']))
+        return
+
+    def stop(self):
+        self.stopevent.set()
+
+    def first_detect(self):
+        debug.write("[Detector] Starting ping-based device detector", 0)
+
+        if self.FIND3_SERVER:
+            debug.write("[Detector] Starting FIND3 localization server", 0)
+            TRACKED_FIND3_DEVS = self.config['DETECTOR']['FIND3_TRACKED_DEVICES'].split(",")
+            TRACKED_FIND3_TIMES = [0]*len(TRACKED_FIND3_DEVS)
+            TRACKED_FIND3_LOCAL = [""]*len(TRACKED_FIND3_DEVS)
+            for _cnt, _dev in enumerate(TRACKED_FIND3_DEVS):
+                # Get last update times
+                if _dev != "_":
+                    _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.config['DETECTOR']['FIND3_SERVER_URL'],
+                                                                               self.config['DETECTOR']['FIND3_FAMILY_NAME'],
+                                                                               _dev))
+                    TRACKED_FIND3_TIMES[_cnt] = _r.json()['sensors']['t']
+
+        for _cnt, device in enumerate(self.config['DETECTOR']['TRACKED_IPS'].split(",")):
+            if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
+                self.DEVICE_STATE_LEVEL[_cnt] = self.DEVICE_STATE_MAX
+                self.DEVICE_STATUS[_cnt] = 1
+            else:
+                self.DEVICE_STATE_LEVEL[_cnt] = 0
+                self.DEVICE_STATUS[_cnt] = 0
+        debug.write("[Detector] Got initial states {} and status {}".format(self.DEVICE_STATE_LEVEL, self.status), 0)
+
+        if self.DETECTOR_START_HOUR > datetime.datetime.now().time() or \
+           self.DETECTOR_END_HOUR < datetime.datetime.now().time():
+               debug.write("[Detector] Standby. Running between {} and {}".format(self.DETECTOR_START_HOUR, 
+                                                                                  self.DETECTOR_END_HOUR), 0)
+
+    def detect_devices(self):
+        if self.DETECTOR_START_HOUR > datetime.datetime.now().time() or \
+           self.DETECTOR_END_HOUR < datetime.datetime.now().time():
             time.sleep(30)
-            continue 
+            return 
         EVENT_TIME = lm.get_event_time()
-        for _cnt, device in enumerate(config['DETECTOR']['TRACKED_IPS'].split(",")):
+        for _cnt, device in enumerate(self.config['DETECTOR']['TRACKED_IPS'].split(",")):
             #TODO Maintain the two pings requirement for status change ?
             if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
-                if DEVICE_STATE_LEVEL[_cnt] == DEVICE_STATE_MAX and DEVICE_STATUS[_cnt] == 0:
+                if self.DEVICE_STATE_LEVEL[_cnt] == self.DEVICE_STATE_MAX and self.DEVICE_STATUS[_cnt] == 0:
                     debug.write("[Detector] DEVICE {} CONnected".format(device), 0)
-                    DEVICE_STATUS[_cnt] = 1
-                elif DEVICE_STATE_LEVEL[_cnt] != DEVICE_STATE_MAX:
-                    DEVICE_STATE_LEVEL[_cnt] = DEVICE_STATE_LEVEL[_cnt] + 1
-                if FIND3_SERVER and TRACKED_FIND3_DEVS[_cnt] != "_":
-                    _r = requests.get("http://{}/api/v1/location/{}/{}".format(config['DETECTOR']['FIND3_SERVER_URL'],
-                                                                               config['DETECTOR']['FIND3_FAMILY_NAME'],
+                    self.DEVICE_STATUS[_cnt] = 1
+                elif self.DEVICE_STATE_LEVEL[_cnt] != self.DEVICE_STATE_MAX:
+                    self.DEVICE_STATE_LEVEL[_cnt] = self.DEVICE_STATE_LEVEL[_cnt] + 1
+                if self.FIND3_SERVER and TRACKED_FIND3_DEVS[_cnt] != "_":
+                    _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.config['DETECTOR']['FIND3_SERVER_URL'],
+                                                                               self.config['DETECTOR']['FIND3_FAMILY_NAME'],
                                                                                TRACKED_FIND3_DEVS[_cnt]))
                     if TRACKED_FIND3_TIMES[_cnt] != _r.json()['sensors']['t'] and \
                        TRACKED_FIND3_LOCAL[_cnt] != _r.json()['analysis']['guesses'][0]['location']:
-                        if _r.json()['analysis']['guesses'][0]['location'] in config['FIND3-PRESETS']:
-                            os.system(config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
+                        if _r.json()['analysis']['guesses'][0]['location'] in self.config['FIND3-PRESETS']:
+                            os.system(self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
                             debug.write("[Detector-FIND3] Device {} found in '{}'. Running change of lights."
                                         .format(TRACKED_FIND3_DEVS[_cnt], 
                                                 _r.json()['analysis']['guesses'][0]['location']), 0)
 
                         else:
-                            debug.write("[Detector-FIND3] Device {} found in '{}' but preset is not configured."
+                            debug.write("[Detector-FIND3] Device {} found in '{}' but preset is not self.configured."
                                         .format(TRACKED_FIND3_DEVS[_cnt], 
                                                 _r.json()['analysis']['guesses'][0]['location']), 0)
-                        if TRACKED_FIND3_LOCAL[_cnt]+"-off" in config['FIND3-PRESETS']:
-                            os.system(config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
+                        if TRACKED_FIND3_LOCAL[_cnt]+"-off" in self.config['FIND3-PRESETS']:
+                            os.system(self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
                             debug.write("[Detector-FIND3] Device {} left '{}'. Running change of lights."
                                         .format(TRACKED_FIND3_DEVS[_cnt], 
                                                 TRACKED_FIND3_LOCAL[_cnt]), 0)
                         TRACKED_FIND3_TIMES[_cnt] = _r.json()['sensors']['t']
                         TRACKED_FIND3_LOCAL[_cnt] = _r.json()['analysis']['guesses'][0]['location']
             else:
-                if DEVICE_STATE_LEVEL[_cnt] == 0 and DEVICE_STATUS[_cnt] == 1:
+                if self.DEVICE_STATE_LEVEL[_cnt] == 0 and self.DEVICE_STATUS[_cnt] == 1:
                     debug.write("[Detector] DEVICE {} DISconnected".format(device), 0)
-                    DEVICE_STATUS[_cnt] = 0
-                elif DEVICE_STATE_LEVEL[_cnt] != 0:
+                    self.DEVICE_STATUS[_cnt] = 0
+                elif self.DEVICE_STATE_LEVEL[_cnt] != 0:
                     # Decrease state level down to zero (OFF)
-                    DEVICE_STATE_LEVEL[_cnt] = DEVICE_STATE_LEVEL[_cnt] - 1
+                    self.DEVICE_STATE_LEVEL[_cnt] = self.DEVICE_STATE_LEVEL[_cnt] - 1
 
-        if STATUS == 1 and all(s == 0 for s in DEVICE_STATE_LEVEL):
+        if self.status == 1 and all(s == 0 for s in self.DEVICE_STATE_LEVEL):
             debug.write("[Detector] STATE changed to {} and DELAYED_START {}, turned off" \
-                                  .format(DEVICE_STATE_LEVEL, DELAYED_START), 0)
+                                  .format(self.DEVICE_STATE_LEVEL, self.delayed_start), 0)
             os.system('./playclient.py --off --notime --priority 3')
-            STATUS = 0
-            DELAYED_START = 0
-        if datetime.datetime.now().time() == EVENT_TIME and DELAYED_START == 1:
-            debug.write("[Detector] DELAYED STATE with actual state {}, turned on".format(DEVICE_STATE_LEVEL), 
+            self.status = 0
+            self.delayed_start = 0
+        if datetime.datetime.now().time() == EVENT_TIME and self.delayed_start == 1:
+            debug.write("[Detector] DELAYED STATE with actual state {}, turned on".format(self.DEVICE_STATE_LEVEL), 
                                                                                           0)
             os.system('./playclient.py --on --group passage')
-            DELAYED_START = 0
-            STATUS = 1  
-        if DEVICE_STATE_MAX in DEVICE_STATE_LEVEL and DELAYED_START == 0:
+            self.delayed_start = 0
+            self.status = 1  
+        if self.DEVICE_STATE_MAX in self.DEVICE_STATE_LEVEL and self.delayed_start == 0:
             if datetime.datetime.now().time() < EVENT_TIME:
                 debug.write("[Detector] Scheduling state change, with actual state {}" \
-                                      .format(DEVICE_STATE_LEVEL), 0)
-                DELAYED_START = 1
-                STATUS = 0
-        if DEVICE_STATE_MAX in DEVICE_STATE_LEVEL and STATUS == 0 and datetime.datetime.now().time() \
+                                      .format(self.DEVICE_STATE_LEVEL), 0)
+                self.delayed_start = 1
+                self.status = 0
+        if self.DEVICE_STATE_MAX in self.DEVICE_STATE_LEVEL and self.status == 0 and datetime.datetime.now().time() \
            >= EVENT_TIME:
-            debug.write("[Detector] STATE changed to {}, turned on".format(DEVICE_STATE_LEVEL), 0)
+            debug.write("[Detector] STATE changed to {}, turned on".format(self.DEVICE_STATE_LEVEL), 0)
             os.system('./playclient.py --on --group passage')
-            STATUS = 1
-            DELAYED_START = 0
-        if all(s == 0 for s in DEVICE_STATE_LEVEL) and STATUS == 0 and DELAYED_START == 1:
+            self.status = 1
+            self.delayed_start = 0
+        if all(s == 0 for s in self.DEVICE_STATE_LEVEL) and self.status == 0 and self.delayed_start == 1:
             debug.write("[Detector] Aborting light change, with actual state {}" \
-                                      .format(DEVICE_STATE_LEVEL), 0)
-            DELAYED_START = 0
-        time.sleep(int(config['DETECTOR']['PING_FREQ_SEC']))
+                                      .format(self.DEVICE_STATE_LEVEL), 0)
+            self.delayed_start = 0
 
+
+class WebServerHandler(SimpleHTTPRequestHandler):
+    def __init__(self, lmhost, lmport, *args, **kwargs):
+        self.lmhost = lmhost
+        self.lmport = lmport
+        super().__init__(*args, **kwargs)
+
+    def translate_path(self, path):
+        return SimpleHTTPRequestHandler.translate_path(self, './web' + path)
+
+    def _set_response(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'x-www-form-urlencoded')
+        self.end_headers()
+
+    def do_POST(self):
+        content_length = int(self.headers['Content-Length'])
+        postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
+        request = bool(postvars[b'request'][0].decode('utf-8'))
+        reqtype = int(postvars[b'reqtype'][0].decode('utf-8'))
+        self._set_response()
+        response = BytesIO()
+        if request:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((self.lmhost, self.lmport))
+            if reqtype == 1:
+                try:
+                    s.sendall("0008".encode('utf-8'))
+                    s.sendall("getstate".encode('utf-8'))
+                    data = s.recv(1024)
+                    if data:
+                        response.write(data)
+                finally:
+                    s.close()
+            if reqtype == 2:
+                devid = str(postvars[b'devid'][0].decode('utf-8'))
+                value = str(postvars[b'value'][0].decode('utf-8'))
+                skiptime = postvars[b'skiptime'][0].decode('utf-8') in ['true', True]
+                print(skiptime)
+                try:
+                    s.sendall("0008".encode('utf-8'))
+                    s.sendall("setstate".encode('utf-8'))
+                    s.sendall(devid.zfill(3).encode('utf-8'))
+                    s.sendall(value.zfill(8).encode('utf-8'))
+                    if skiptime:
+                        s.sendall("1".encode('utf-8'))
+                    else:
+                        s.sendall("0".encode('utf-8'))
+                    data = s.recv(1)
+                    if data:
+                        response.write(data)
+                finally:
+                    s.close()
+        else:
+            response.write("No request".encode("UTF-8"))
+        self.wfile.write(response.getvalue())
+
+
+class runWebServer(threading.Thread):
+    def __init__(self, port, config):
+        threading.Thread.__init__(self)
+        self.port = port
+        self.config = config
+        self.running = True
+
+    def run(self):
+        debug.write("[WEBSERVER] Starting control webserver on port {}".format(self.port), 0)
+        socketserver.TCPServer.allow_reuse_address = True
+        _handler = partial(WebServerHandler, self.config['SERVER']['HOST'], int(self.config['SERVER'].getint('PORT')))
+        httpd = socketserver.TCPServer(("", self.port), _handler)
+
+        try:
+            while self.running:
+                httpd.handle_request()
+        finally:
+            httpd.server_close()
+            debug.write("[WEBSERVER] Stopped.", 0)
+            return
+
+    def stop(self):
+        debug.write("[WEBSERVER] Stopping.", 0)
+        self.running = False
+        # Needs a last call to shut down properly
+        _r = requests.get("http://localhost:{}/".format(self.port))
+
+
+def runServer():
+    HomeServer(lm).listen()
 
 """ Script executed directly """
 if __name__ == "__main__":
@@ -898,13 +1015,24 @@ if __name__ == "__main__":
         if args.threaded:
             lm.start_threaded()
         if args.ifttt:
-            Thread(target = runIFTTTServer).start()
+            ti = runIFTTTServer(1234)
+            ti.start()
         if args.detector:
-            Thread(target = runDetectorServer, args = (PLAYCONFIG,lm,)).start()
+            td = runDetectorServer(PLAYCONFIG)
+            td.start()
         if args.webserver != 0:
-            debug.write("Starting control webserver on port {}".format(args.webserver), 0)
-            Thread(target = runWebServer, args = (args.webserver,PLAYCONFIG,)).start()
-        Thread(target = runServer).start()
+            tw = runWebServer(args.webserver,PLAYCONFIG)
+            tw.start()
+        runServer()
+        if args.ifttt:
+            ti.stop()
+            ti.join()
+        if args.webserver != 0:
+            tw.stop()
+            tw.join()
+        if args.detector:
+            td.stop()
+            td.join()
 
     elif args.stream_dev or args.stream_group:
         colorval = ""
