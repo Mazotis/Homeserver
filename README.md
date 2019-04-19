@@ -94,6 +94,7 @@ class MyNewDevice(device):
         # use the same approach for any required variable taken from the config file
         # self._connection is provided by device.py to handle your device connection - True or False
         # self.priority is provided by device.py to give you the actual priority level of this device
+        # self.auto_mode is provided by device.py to give you the AUTO mode status (True or False)
         self.state = 0 # You might want a variable to keep in memory the actual color/state of your bulb/device, in this case the initial value is 0
         self.device_type = "MyNewDevice" # Tells the lightserver the actual device type - inheritance safe
 ```

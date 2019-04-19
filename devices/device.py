@@ -20,6 +20,9 @@ class device(object):
         self.priority = 0
         self.state = 0
         self.device_type = None
+        self.request_auto_mode = True
+        self.auto_mode = True
+        self.reset_mode = False
         self.default_skip_time = False
         if config.has_option("DEVICE"+str(devid),"SKIPTIME"):
             self.default_skip_time = config["DEVICE"+str(devid)].getboolean("SKIPTIME")
@@ -27,6 +30,9 @@ class device(object):
         self.forceoff = True
         if config.has_option("DEVICE"+str(devid),"FORCEOFF"):
             self.forceoff = config["DEVICE"+str(devid)].getboolean("FORCEOFF")
+        self.ignoremode = False
+        if config.has_option("DEVICE"+str(devid),"IGNOREMODE"):
+            self.ignoremode = config["DEVICE"+str(devid)].getboolean("IGNOREMODE")
 
     def run(self, color, priority):
         if self.success:
@@ -39,6 +45,26 @@ class device(object):
         if color == LIGHT_SKIP:
             self.success = True
             return True
+        if not self.ignoremode:
+            if not self.auto_mode and self.request_auto_mode and not self.reset_mode:
+                # AUTO mode request on MANUAL device
+                debug.write("{} device {} is set in MANUAL mode, skipping."
+                            .format(self.device_type, self.device), 0)
+                self.success = True
+                return True
+            if self.auto_mode and not self.request_auto_mode and not self.reset_mode:
+                debug.write("{} device {} set to MANUAL mode."
+                            .format(self.device_type, self.device), 0)
+                self.auto_mode = False
+            if self.reset_mode:
+                if not self.auto_mode:
+                    debug.write("{} device {} set back to AUTO mode."
+                                .format(self.device_type, self.device), 0)
+                self.auto_mode = True
+                self.reset_mode = False
+        else:
+            debug.write("Skipping mode evaluation for {} device {}."
+                        .format(self.device_type, self.device), 0)
         if self.priority > priority:
             debug.write("{} device {} is set with higher priority ({}), skipping."
                                   .format(self.device_type, self.device, self.priority), 0)

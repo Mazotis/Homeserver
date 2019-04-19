@@ -101,6 +101,7 @@ class HomeServer(object):
                         lm.set_colors(_col)
                         if skiptime == 1:
                             lm.set_skip_time_check()
+                        lm.set_mode(False,False)
                         lm.run()
                         client.send("1".encode("UTF-8"))
                         break
@@ -126,7 +127,10 @@ class HomeServer(object):
                            break
                         if data.decode('utf-8')[3:] in self.config["TCP-PRESETS"]:
                             debug.write("Running TCP preset {}".format(data.decode('utf-8')[3:]), 0)
-                            os.system(self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
+                            if self.config["TCP-PRESETS"].getboolean('AUTOMATIC_MODE'):
+                                os.system("./playclient.py --auto-mode " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
+                            else:
+                                os.system("./playclient.py " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
                         else:
                             debug.write("TCP preset {} is not configured".format(data.decode('utf-8')[3:]), 1)
                         break
@@ -189,6 +193,7 @@ class HomeServer(object):
         debug.write("Closing down server and lights.", 0)
         lm.set_skip_time_check()
         lm.set_colors([LIGHT_OFF] * len(lm.devices))
+        lm.set_mode(False,True)
         lm.run()
         self.sock.close()
         if not self.sched_disconnect.empty():
@@ -239,6 +244,7 @@ class HomeServer(object):
                 debug.write("Received change to preset [{}] request".format(args["preset"]), 0)
                 try:
                     lm.set_colors(self.config["PRESETS"][args["preset"]].split(','))
+                    args["auto_mode"] = self.config["PRESETS"].getboolean("AUTOMATIC_MODE")
                 except:
                     debug.write("Preset {} not found in play.ini. Quitting.".format(args["preset"]), 3)
                     return                       
@@ -260,6 +266,7 @@ class HomeServer(object):
         if args["group"] is not None:
             lm.get_group(args["group"])
         debug.write("Arguments are OK", 0)
+        lm.set_mode(args["auto_mode"], args["reset_mode"])
         lm.run(args["delay"])
         return
 
@@ -282,10 +289,6 @@ class HomeServer(object):
             args["decora"] = None
         if "meross" not in args:
             args["meross"] = None
-        if "server" not in args:
-            args["server"] = False
-        if "ifttt" not in args:
-            args["ifttt"] = False
         if "notime" not in args:
             args["notime"] = False
         if "delay" not in args:
@@ -298,6 +301,10 @@ class HomeServer(object):
             args["preset"] = None
         if "group" not in args:
             args["group"] = None
+        if "manual_mode" not in args:
+            args["manual_mode"] = False
+        if "reset_mode" not in args:
+            args["reset_mode"] = False
         if type(args["playbulb"]).__name__ == "str":
             debug.write('Converting values to lists for playbulb', 0)
             args["playbulb"] = args["playbulb"].replace("'", "").split(',')
@@ -330,19 +337,37 @@ class IFTTTServer(BaseHTTPRequestHandler):
         debug.write('[IFTTTServer] Getting request', 0)
         content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
         postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
-        action = postvars[b'action'][0].decode('utf-8')
+        has_delayed_action = False
+        try: 
+            #TODO rewrite this more elegantly
+            action = postvars[b'preaction'][0].decode('utf-8')
+            post_action = postvars[b'postaction'][0].decode('utf-8')
+            delay = int(postvars[b'delay'][0].decode('utf-8'))*60-5
+            has_delayed_action = True
+        except KeyError as ex:
+            action = postvars[b'action'][0].decode('utf-8')
         _hash = postvars[b'hash'][0].decode('utf-8')
 
         if _hash == hashlib.sha512(bytes(SALT.encode('utf-8') + action.encode('utf-8'))).hexdigest():
             debug.write('IFTTTServer running action : {}'.format(action), 0)
             if action in config["IFTTT"]:
                 debug.write('[IFTTTServer] Running action : {}'.format(config["IFTTT"][action]), 0)
-                os.system(config["IFTTT"][action])
+                os.system("./playclient.py " + config["IFTTT"][action])
             else:
                 #
                 # Complex actions should be hardcoded here if needed
                 #
                 debug.write('[IFTTTServer] Unknown action : {}'.format(action), 1)
+            time.sleep(5)
+            if has_delayed_action:
+                debug.write('IFTTTServer will run action {} in {} seconds'.format(post_action, delay+5), 0)
+                if post_action in config["IFTTT"]:
+                    os.system("./playclient.py --delay {} {}".format(delay, config["IFTTT"][post_action]))
+                else:
+                    #
+                    # Complex delayed actions should be hardcoded here if needed
+                    #
+                    debug.write('[IFTTTServer] Unknown action : {}'.format(post_action), 1)
         else:
             debug.write('[IFTTTServer] Got unwanted request with action : {}'.format(action), 1)
 
@@ -403,6 +428,12 @@ class DeviceManager(object):
     def set_colors(self, color):
         """ Setter function for color request. Required. """
         self.colors = color
+
+    def set_mode(self, auto_mode, reset_mode):
+        for _cnt, device in enumerate(self.devices):
+            if self.colors[_cnt] != LIGHT_SKIP:
+                self.devices[_cnt].request_auto_mode = auto_mode
+                self.devices[_cnt].reset_mode = reset_mode
 
     def get_group(self, group):
         """ Gets devices from a specific group for the light change """
@@ -602,10 +633,11 @@ class DeviceManager(object):
                                 self.states[i] = self.get_state(i)
                                 if _color != self.states[i]:
                                     debug.write(("DEVICE: {}, REQUESTED COLOR: {} "
-                                                  "FROM STATE: {}, PRIORITY: {}")
+                                                  "FROM STATE: {}, PRIORITY: {}, AUTO: {}")
                                                   .format(self.devices[i].device,
                                                           _color, self.states[i],
-                                                          self.devices[i].priority),
+                                                          self.devices[i].priority,
+                                                          self.devices[i].auto_mode),
                                                   0)
                             if self.threaded:
                                 if not self.queue.empty():
@@ -807,7 +839,10 @@ class runDetectorServer(threading.Thread):
                     if TRACKED_FIND3_TIMES[_cnt] != _r.json()['sensors']['t'] and \
                        TRACKED_FIND3_LOCAL[_cnt] != _r.json()['analysis']['guesses'][0]['location']:
                         if _r.json()['analysis']['guesses'][0]['location'] in self.config['FIND3-PRESETS']:
-                            os.system(self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
+                            if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
+                                os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
+                            else:
+                                os.system("./playclient.py " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
                             debug.write("[Detector-FIND3] Device {} found in '{}'. Running change of lights."
                                         .format(TRACKED_FIND3_DEVS[_cnt], 
                                                 _r.json()['analysis']['guesses'][0]['location']), 0)
@@ -817,7 +852,10 @@ class runDetectorServer(threading.Thread):
                                         .format(TRACKED_FIND3_DEVS[_cnt], 
                                                 _r.json()['analysis']['guesses'][0]['location']), 0)
                         if TRACKED_FIND3_LOCAL[_cnt]+"-off" in self.config['FIND3-PRESETS']:
-                            os.system(self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
+                            if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
+                                os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
+                            else:
+                                os.system("./playclient.py " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
                             debug.write("[Detector-FIND3] Device {} left '{}'. Running change of lights."
                                         .format(TRACKED_FIND3_DEVS[_cnt], 
                                                 TRACKED_FIND3_LOCAL[_cnt]), 0)
@@ -991,6 +1029,10 @@ if __name__ == "__main__":
                         help='Stream colors directly to device id')
     parser.add_argument('--stream-group', metavar='str-grp', type=str, nargs="?", default=None,
                         help='Stream colors directly to device group')
+    parser.add_argument('--reset-mode', action='store_true', default=False,
+                        help='Force light change (whatever the actual mode) and set back devices to AUTO mode')
+    parser.add_argument('--auto-mode', action='store_true', default=False,
+                        help='(internal) Run requests for non-LIGHT_SKIP devices as AUTO mode (default: false)')
 
     args = parser.parse_args()
 
@@ -1004,6 +1046,10 @@ if __name__ == "__main__":
 
     if args.stream_dev and args.stream_group:
         debug.write("You cannot stream data to both devices and groups. Quitting.", 2)
+        sys.exit()
+
+    if args.reset_mode and args.auto_mode:
+        DeviceManager.debugger("You should not set the mode to AUTO then reset it back to AUTO. Quitting.", 2)
         sys.exit()
 
     if args.server:

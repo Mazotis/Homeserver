@@ -69,23 +69,23 @@ if __name__ == "__main__":
     parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')
     parser.add_argument('--restart', action='store_true', default=False, help='Restart generics')
     parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all lights on/off')
-    parser.add_argument('--server', action='store_true', default=False,
-                        help='Start as a socket server daemon')
-    parser.add_argument('--ifttt', action='store_true', default=False,
-                        help='Start a ifttt websocket receiver along with server')
-    parser.add_argument('--detector', action='store_true', default=False,
-                        help='Start a ping-based device detector (usually for mobiles)')
-    parser.add_argument('--threaded', action='store_true', default=False,
-                        help='Starts the server daemon with threaded light change requests')
     parser.add_argument('--stream-dev', metavar='str-dev', type=int, nargs="?", default=None,
                         help='Stream colors directly to device id')
     parser.add_argument('--stream-group', metavar='str-grp', type=str, nargs="?", default=None,
                         help='Stream colors directly to device group')
+    parser.add_argument('--reset-mode', action='store_true', default=False,
+                        help='Force light change (whatever the actual mode) and set back devices to AUTO mode')
+    parser.add_argument('--auto-mode', action='store_true', default=False,
+                        help='(internal) Run requests for non-LIGHT_SKIP devices as AUTO mode (default: false)')
 
     args = parser.parse_args()
 
     if args.stream_dev and args.stream_group:
         DeviceManager.debugger("You cannot stream data to both devices and groups. Quitting.", 2)
+        sys.exit()
+
+    if args.reset_mode and args.auto_mode:
+        DeviceManager.debugger("You should not set the mode to AUTO then reset it back to AUTO. Quitting.", 2)
         sys.exit()
 
     elif args.stream_dev or args.stream_group:
