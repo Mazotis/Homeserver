@@ -75,8 +75,12 @@ if __name__ == "__main__":
                         help='Stream colors directly to device group')
     parser.add_argument('--reset-mode', action='store_true', default=False,
                         help='Force light change (whatever the actual mode) and set back devices to AUTO mode')
+    parser.add_argument('--reset-location-data', action='store_true', default=False,
+                        help='Purge all RTT, locations and location training data (default: false)')
     parser.add_argument('--auto-mode', action='store_true', default=False,
                         help='(internal) Run requests for non-LIGHT_SKIP devices as AUTO mode (default: false)')
+    parser.add_argument('--set-mode-for-devid', metavar='devid', type=int, nargs="?", default=None,
+                        help='(internal) Force device# to change mode (as set by auto-mode)')
 
     args = parser.parse_args()
 

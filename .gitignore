@@ -1,4 +1,5 @@
 *.log
+/dnn/tf
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

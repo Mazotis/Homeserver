@@ -29,6 +29,7 @@ import urllib.parse
 import hashlib
 from devices.common import *
 from devices import *
+from dnn.dnn import run_tensorflow
 from argparse import RawTextHelpFormatter, Namespace
 from multiprocessing.pool import ThreadPool
 from threading import Thread
@@ -85,6 +86,7 @@ class HomeServer(object):
                     if data.decode('utf-8') == "getstate":
                         ls_status = {}
                         ls_status["state"] = lm.get_state()
+                        ls_status["mode"] = lm.get_modes()
                         ls_status["type"] = lm.get_types()
                         ls_status["description"] = lm.get_descriptions(True)
                         ls_status["starttime"] = "{}".format(lm.starttime)
@@ -103,6 +105,17 @@ class HomeServer(object):
                             lm.set_skip_time_check()
                         lm.set_mode(False,False)
                         lm.run()
+                        client.send("1".encode("UTF-8"))
+                        break
+                    if data.decode('utf-8') == "setmode":
+                        debug.write('Running a single device mode change', 0)
+                        iddata = int(client.recv(3).decode("UTF-8"))
+                        cmode = int(client.recv(1).decode("UTF-8"))
+                        if cmode == 1:
+                            lm.set_mode_for_device(True, iddata)
+                        else:
+                            lm.set_mode_for_device(False, iddata)
+                        debug.write('Device modes: {}'.format(lm.get_modes()), 0)
                         client.send("1".encode("UTF-8"))
                         break
                     if data.decode('utf-8') == "stream":
@@ -133,6 +146,24 @@ class HomeServer(object):
                                 os.system("./playclient.py " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
                         else:
                             debug.write("TCP preset {} is not configured".format(data.decode('utf-8')[3:]), 1)
+                        break
+
+                    if data.decode('utf-8') == "sendloc":
+                        locationData = json.loads(client.recv(1024).decode("UTF-8"))
+                        debug.write('Recording a training location for room: {}'.format(locationData["room"]), 0)
+                        with open(self.config['SERVER']['JOURNAL_DIR'] + "/dnn/train.log", "a") as jfile:
+                            jfile.write("{},{},{},{},{},{},{}\n".format(locationData["room"], locationData["r1_mean"], \
+                                locationData["r1_rssi"],locationData["r2_mean"],locationData["r2_rssi"],locationData["r3_mean"] \
+                                ,locationData["r3_rssi"]))
+                        break
+                    if data.decode('utf-8') == "getloc":
+                        ld = json.loads(client.recv(1024).decode("UTF-8"))
+                        debug.write('[WIFI-RTT] Evaluating location from:', 0)
+                        tf_str = '{},{},{},{},{},{}'.format(ld["r1_mean"], ld["r1_rssi"], ld["r2_mean"], ld["r2_rssi"], ld["r3_mean"], ld["r3_rssi"])
+                        debug.write('[WIFI-RTT] {}'.format(tf_str), 0)
+                        res = run_tensorflow(TfPredict=True, PredictList=tf_str)
+                        debug.write("[WIFI-RTT] Device found to be in room: {}".format(res), 0)
+                        client.send(res.encode("UTF-8"))
                         break
                     if streamingdev:
                         if streaming_id is None:
@@ -194,7 +225,7 @@ class HomeServer(object):
         lm.set_skip_time_check()
         lm.set_colors([LIGHT_OFF] * len(lm.devices))
         lm.set_mode(False,True)
-        lm.run()
+        #lm.run()
         self.sock.close()
         if not self.sched_disconnect.empty():
             self.sched_disconnect.cancel(self.scheduled_disconnect)
@@ -202,6 +233,10 @@ class HomeServer(object):
 
     def _validate_and_execute_req(self, args):
         debug.write("Validating arguments", 0)
+        if args["reset_location_data"]:
+            #TODO eventually add training data cleanup
+            os.remove("./dnn/train.log")
+            debug.write("Purged location and RTT data", 0)
         if args["hexvalues"] and (args["playbulb"] or args["milight"] or args["decora"]
                                   or args["meross"]):
             debug.write("Got color hexvalues for milights and/or playbulbs \
@@ -224,6 +259,13 @@ class HomeServer(object):
                                   .format(len(args["hexvalues"]), len(lm.devices)), 0)
             lm.set_colors(args["hexvalues"])
         else:
+            if args["set_mode_for_devid"] is not None:
+                try:
+                    debug.write("Received mode change request for devid {}".format(args["set_mode_for_devid"]), 0)
+                    lm.set_mode_for_device(args["auto_mode"], args["set_mode_for_devid"])
+                except KeyError:
+                    debug.write("Devid {} does not exist".format(args["set_mode_for_devid"]), 1)
+                return
             if args["playbulb"] is not None:
                 debug.write("Received playbulb change request", 0)
                 if not lm.set_typed_colors(args["playbulb"], Playbulb.Playbulb):
@@ -305,6 +347,10 @@ class HomeServer(object):
             args["manual_mode"] = False
         if "reset_mode" not in args:
             args["reset_mode"] = False
+        if "set_mode_for_devid" not in args:
+            args["set_mode_for_devid"] = None
+        if "reset_location_data" not in args:
+            args["reset_location_data"] = False
         if type(args["playbulb"]).__name__ == "str":
             debug.write('Converting values to lists for playbulb', 0)
             args["playbulb"] = args["playbulb"].replace("'", "").split(',')
@@ -337,6 +383,11 @@ class IFTTTServer(BaseHTTPRequestHandler):
         debug.write('[IFTTTServer] Getting request', 0)
         content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
         postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
+
+
+        print(postvars)
+        return
+
         has_delayed_action = False
         try: 
             #TODO rewrite this more elegantly
@@ -435,6 +486,10 @@ class DeviceManager(object):
                 self.devices[_cnt].request_auto_mode = auto_mode
                 self.devices[_cnt].reset_mode = reset_mode
 
+    def set_mode_for_device(self, auto_mode, devid):
+        """ Used by the webserver to switch device modes one by one """
+        self.devices[devid].auto_mode = auto_mode
+
     def get_group(self, group):
         """ Gets devices from a specific group for the light change """
         for _cnt, device in enumerate(self.devices):
@@ -511,6 +566,12 @@ class DeviceManager(object):
         for obj in self.devices:
             typelist.append(obj.__class__.__name__)
         return typelist
+
+    def get_modes(self):
+        modelist = []
+        for obj in self.devices:
+            modelist.append(obj.auto_mode)
+        return modelist
 
     def get_event_time(self):
         if self.lastupdate != datetime.date.today():
@@ -842,7 +903,7 @@ class runDetectorServer(threading.Thread):
                             if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
                                 os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
                             else:
-                                os.system("./playclient.py " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
+                                os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
                             debug.write("[Detector-FIND3] Device {} found in '{}'. Running change of lights."
                                         .format(TRACKED_FIND3_DEVS[_cnt], 
                                                 _r.json()['analysis']['guesses'][0]['location']), 0)
@@ -855,7 +916,7 @@ class runDetectorServer(threading.Thread):
                             if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
                                 os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
                             else:
-                                os.system("./playclient.py " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
+                                os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
                             debug.write("[Detector-FIND3] Device {} left '{}'. Running change of lights."
                                         .format(TRACKED_FIND3_DEVS[_cnt], 
                                                 TRACKED_FIND3_LOCAL[_cnt]), 0)
@@ -872,13 +933,13 @@ class runDetectorServer(threading.Thread):
         if self.status == 1 and all(s == 0 for s in self.DEVICE_STATE_LEVEL):
             debug.write("[Detector] STATE changed to {} and DELAYED_START {}, turned off" \
                                   .format(self.DEVICE_STATE_LEVEL, self.delayed_start), 0)
-            os.system('./playclient.py --off --notime --priority 3')
+            os.system('./playclient.py --auto-mode --off --notime --priority 3')
             self.status = 0
             self.delayed_start = 0
         if datetime.datetime.now().time() == EVENT_TIME and self.delayed_start == 1:
             debug.write("[Detector] DELAYED STATE with actual state {}, turned on".format(self.DEVICE_STATE_LEVEL), 
                                                                                           0)
-            os.system('./playclient.py --on --group passage')
+            os.system('./playclient.py --auto-mode --on --group passage')
             self.delayed_start = 0
             self.status = 1  
         if self.DEVICE_STATE_MAX in self.DEVICE_STATE_LEVEL and self.delayed_start == 0:
@@ -890,7 +951,7 @@ class runDetectorServer(threading.Thread):
         if self.DEVICE_STATE_MAX in self.DEVICE_STATE_LEVEL and self.status == 0 and datetime.datetime.now().time() \
            >= EVENT_TIME:
             debug.write("[Detector] STATE changed to {}, turned on".format(self.DEVICE_STATE_LEVEL), 0)
-            os.system('./playclient.py --on --group passage')
+            os.system('./playclient.py --auto-mode --on --group passage')
             self.status = 1
             self.delayed_start = 0
         if all(s == 0 for s in self.DEVICE_STATE_LEVEL) and self.status == 0 and self.delayed_start == 1:
@@ -936,7 +997,6 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 devid = str(postvars[b'devid'][0].decode('utf-8'))
                 value = str(postvars[b'value'][0].decode('utf-8'))
                 skiptime = postvars[b'skiptime'][0].decode('utf-8') in ['true', True]
-                print(skiptime)
                 try:
                     s.sendall("0008".encode('utf-8'))
                     s.sendall("setstate".encode('utf-8'))
@@ -951,6 +1011,23 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         response.write(data)
                 finally:
                     s.close()
+            if reqtype == 3:
+                cmode = postvars[b'mode'][0].decode('utf-8') in ['true', True]
+                devid = str(postvars[b'devid'][0].decode('utf-8'))
+                try:
+                    s.sendall("0007".encode('utf-8'))
+                    s.sendall("setmode".encode('utf-8'))
+                    s.sendall(devid.zfill(3).encode('utf-8'))
+                    if cmode:
+                        s.sendall("1".encode('utf-8'))
+                    else:
+                        s.sendall("0".encode('utf-8'))
+                    data = s.recv(1)
+                    if data:
+                        response.write(data)
+                finally:
+                    s.close()
+
         else:
             response.write("No request".encode("UTF-8"))
         self.wfile.write(response.getvalue())
@@ -1031,8 +1108,12 @@ if __name__ == "__main__":
                         help='Stream colors directly to device group')
     parser.add_argument('--reset-mode', action='store_true', default=False,
                         help='Force light change (whatever the actual mode) and set back devices to AUTO mode')
+    parser.add_argument('--reset-location-data', action='store_true', default=False,
+                        help='Purge all RTT, locations and location training data (default: false)')
     parser.add_argument('--auto-mode', action='store_true', default=False,
                         help='(internal) Run requests for non-LIGHT_SKIP devices as AUTO mode (default: false)')
+    parser.add_argument('--set-mode-for-devid', metavar='devid', type=int, nargs="?", default=None,
+                        help='(internal) Force device# to change mode (as set by auto-mode)')
 
     args = parser.parse_args()
 

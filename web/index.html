@@ -4,138 +4,205 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
- 	<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
     <title>Lightserver control panel</title>
   </head>
   <body style="background-color:#eee !important">
-  	<style>
-  	.disabledbutton {
-    	pointer-events: none;
-    	opacity: 0.4;
-	}
-  	</style>
-  	<script>
-  	$(document).ready(function() {
-  		getResult();
-  	})
-  	function getResult() {
-  		$("#preloader").show()
-  		$.ajax({
-			type: "POST",
-			url: "web.py",
-			dataType: "text",
-			data: {
-					request: "True",
-				    reqtype: "1"
-				},
-			success: function(data){
-				$("#preloader").hide()
-				var thedata = JSON.parse(decodeURIComponent(data))
-				var cnt = 0
-				var html = '<div class="row"><div class="col-sm-12"><div class="card text-white bg-dark mb-3"><div class="card-body"><h5 class="card-title">Options</h5><p class="card-text">Time check feature (sunset time). Today\'s start time: ' + thedata.starttime + '</p><p class="card-text"><div class="btn-group btn-group-toggle" data-toggle="buttons"><label class="btn btn-secondary active"><input type="radio" name="skiptime1" autocomplete="off" checked> Check time of day before executing changes</label><label class="btn btn-secondary"><input type="radio" name="skiptime2" autocomplete="off"> Execute changes anytime</label></div></p></div></div></div></div>'
+    <style>
+    .disabledbutton {
+        pointer-events: none;
+        opacity: 0.4;
+    }
+    </style>
+    <script>
+    $(document).ready(function() {
+        getResult();
+    })
+    function getResult() {
+        $("#preloader").show()
+        $.ajax({
+            type: "POST",
+            url: ".",
+            dataType: "text",
+            data: {
+                    request: "True",
+                    reqtype: "1"
+                },
+            success: function(data){
+                $("#preloader").hide()
+                var thedata = JSON.parse(decodeURIComponent(data))
+                var cnt = 0
+                $('#suntime').html(thedata.starttime)
 
+                var html = '<div class="row"><div class="col-sm-4">'
+                for (_ in thedata.state) {
+                    if (cnt % 3 === 0 && cnt != 0) {
+                        html += '</div><div class="col-sm-4">'
+                    }
+                    html += '<div id="card' + cnt + '">' + generateCard(cnt, thedata) + '</div>'
+                    cnt = cnt + 1
+                }
 
-				var html = html + '</p><div class="row"><div class="col-sm-4">'
-				for (_ in thedata.state) {
-					if (cnt % 3 === 0 && cnt != 0) {
-						var html = html + '</div><div class="col-sm-4">'
-					}
-					if (parseInt(thedata.state[cnt]) == 0) {
-						var html = html + '<div id="card' + cnt + '" class="card border-danger mb-3"><div class="card-body"><h5 class="card-title text-danger">' + thedata.type[cnt] + '</h5><p class="card-text">' + thedata.description[cnt] + '</p>'
-						var html = html + '<button type="button" onclick="sendRequest(' + cnt + ',0)" class="btn btn-danger" disabled>OFF</button>'
-						var html = html + '&nbsp;<button type="button" onclick="sendRequest(' + cnt + ',1)" class="btn btn-success">ON</button>'
-					} else {
-						var html = html + '<div id="card' + cnt + '" class="card border-success mb-3"><div class="card-body"><h5 class="card-title text-success">' + thedata.type[cnt] + '</h5><p class="card-text">' + thedata.description[cnt] + '</p>'
-						var html = html + '<button type="button" onclick="sendRequest(' + cnt + ',0)" class="btn btn-danger">OFF</button>'
-						var html = html + '&nbsp;<button type="button" onclick="sendRequest(' + cnt + ',1)" class="btn btn-success" disabled>ON</button>'					
-					}
+                html += '</div></div></div>'
+                $("#resultid").html(html)
+                computeCards()
+            }
+        })
+    }
 
-      				var html = html + '</div></div>'
-					cnt = cnt + 1
-				}
+    function getOneResult(devid, last_state) {
+        $.ajax({
+            type: "POST",
+            url: ".",
+            dataType: "text",
+            data: {
+                    request: "True",
+                    reqtype: "1"
+                },
+            success: function(data){
+                var thedata = JSON.parse(decodeURIComponent(data))
+                $("#card" + devid).html(generateCard(devid, thedata, last_state))
+                computeCards()
+                $("#card" + devid).removeClass("disabledbutton")
+            }
+        })
+    }
 
-				var html = html + '</div></div>'
-				$("#resultid").html(html)
-			}
-		})
-  	}
+    function generateCard(devid, data, last_state = null) {
+        var mode
+        data.mode[devid] ? mode = 1 : mode = 0
 
-  	function getOneResult(devid, oldvalue) {
-   		$.ajax({
-			type: "POST",
-			url: "web.py",
-			dataType: "text",
-			data: {
-					request: "True",
-				    reqtype: "1"
-				},
-			success: function(data){
-				var thedata = JSON.parse(decodeURIComponent(data))
-				if (parseInt(thedata.state[devid]) == 0) {
-					var html = '<div class="card-body"><h5 class="card-title text-danger">' + thedata.type[devid] + '</h5><p class="card-text">' + thedata.description[devid] + '</p>'
-					var html = html + '<button type="button" onclick="sendRequest(' + devid + ',0)" class="btn btn-danger" disabled>OFF</button>'
-					var html = html + '&nbsp;<button type="button" onclick="sendRequest(' + devid + ',1)" class="btn btn-success">ON</button>'
-				} else {
-					var html = '<div class="card-body"><h5 class="card-title text-success">' + thedata.type[devid] + '</h5><p class="card-text">' + thedata.description[devid] + '</p>'
-					var html = html + '<button type="button" onclick="sendRequest(' + devid + ',0)" class="btn btn-danger">OFF</button>'
-					var html = html + '&nbsp;<button type="button" onclick="sendRequest(' + devid + ',1)" class="btn btn-success" disabled>ON</button>'
-				}
+        var html = '<div class="card mb-3 text-white" cstate="' + data.state[devid] + '" cid="' + devid + '" cmode="' + mode + '"><div class="card-header">' + data.type[devid] + '</div><div class="card-body"><p class="card-text">' + data.description[devid] + '</p>'
+        html += '<button type="button" class="btn btn-danger offbuttons">OFF</button>'
+        html += '&nbsp;<button type="button" class="btn btn-success onbuttons">ON</button>'
+        html += '<div class="btn-group btn-group-toggle radiomode" data-toggle="buttons" style="float:right"><label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> Auto</label><label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> Manual</label></div>'
 
-				if (oldvalue != parseInt(thedata.state[devid]) &&  !(oldvalue != 0 && parseInt(thedata.state[devid]) != 0))  {
-					var html = html + '<p class="card-text">No changes occured, maybe you should set the Time check option</p>'
-				}
-				var html = html + '</div></div>'
+        if (last_state != parseInt(data.state[devid]) &&  !(last_state != 0 && parseInt(data.state[devid]) != 0) && last_state != null)  {
+            html += '<p class="card-text">No changes occured, maybe you should set the Time check option</p>'
+        }
+        
+        html += '</div></div>'
 
-				$("#card" + devid).html(html)
-				$("#card" + devid).removeClass("disabledbutton")
-				if (parseInt(thedata.state[devid]) == 0) {
-					$("#card" + devid).removeClass("border-success")
-					$("#card" + devid).addClass("border-danger")
-				} else {
-					$("#card" + devid).removeClass("border-danger")
-					$("#card" + devid).addClass("border-success")
-				}
-			}
-		})
-  	}
+        return html
+    }
 
-  	function sendRequest(devid, value) {
-  		console.log($('input[name=skiptime2]').is(":checked"))
-  		$("#card" + devid).addClass("disabledbutton")
-  		$.ajax({
-			type: "POST",
-			url: "web.py",
-			dataType: "text",
-			data: {
-					request: "True",
-				    reqtype: "2",
-				    devid: devid,
-				    value: value,
-				    skiptime: $('input[name=skiptime2]').is(":checked")
-				},
-			success: function(data){
-				getOneResult(devid, value)
-			}
-		})
-  	}
-  	</script>
+    function computeCards() {
+        $(".card").each(function() {
+            var cstate, cid, cmode
+            cstate = $(this).attr("cstate")
+            cid = $(this).attr("cid")
+            cmode = $(this).attr("cmode")
+            if (cstate == "0" || (!isNaN(cstate) && parseInt(cstate) == 0)) {
+                $(this).find(".offbuttons").attr('disabled', true)
+                $(this).find(".onbuttons").attr('disabled', false)
+                $(this).addClass("bg-danger")
+                $(this).removeClass("bg-success")
+            } else {
+                $(this).find(".offbuttons").attr('disabled', false)
+                $(this).find(".onbuttons").attr('disabled', true)
+                $(this).addClass("bg-success")
+                $(this).removeClass("bg-danger")
+            }
+            if (cmode == "0") {
+                $(this).find(".autobtn").removeClass('active')
+                $(this).find(".manbtn").addClass('active')
+            } else {
+                $(this).find(".autobtn").addClass('active')
+                $(this).find(".manbtn").removeClass('active')
+            }
+
+            $(this).find(".radiomode :input").on('change', function() {
+                sendModeRequest(cid, cstate, $(this).val())
+            })
+            $(this).find(".offbuttons").on('click', function() {
+                sendPowerRequest(cid, 0)
+            })
+            $(this).find(".onbuttons").on('click', function() {
+                sendPowerRequest(cid, 1)
+            })
+        })
+    }
+
+    function sendPowerRequest(devid, value) {
+        $("#card" + devid).addClass("disabledbutton")
+        $.ajax({
+            type: "POST",
+            url: ".",
+            dataType: "text",
+            data: {
+                    request: "True",
+                    reqtype: "2",
+                    devid: devid,
+                    value: value,
+                    skiptime: $('input[name=skiptime2]').is(":checked")
+                },
+            success: function(data){
+                getOneResult(devid, value)
+            }
+        })
+    }
+
+    function sendModeRequest(devid, value, auto) {
+        console.log("running sendmode to value " + value + " and auto " + auto + " for devid " + devid);
+        $("#card" + devid).addClass("disabledbutton")
+        $.ajax({
+            type: "POST",
+            url: ".",
+            dataType: "text",
+            data: {
+                    request: "True",
+                    reqtype: "3",
+                    mode: auto,
+                    devid: devid
+                },
+            success: function(data){
+                getOneResult(devid, value)
+            }
+        })
+    }
+    </script>
+    <div class="navbar bg-info">
+        <div class="navbar-inner" style="width:100%;">
+            <center><h1 class="display-2" style="font-size:4vw;color:white;width:100%;">Lightserver controls</h1></center>
+               <!-- nav bar items here -->
+        </div>
+    </div>
     <div class="container">
-		<div class="row">
-			<div class="col-md-12" style="background-color:white !important">
-				<center><h1 class="display-2">Lightserver controls</h1></center>
-				<hr>
-				<center>
-					<div id="preloader" style="display:none">
-						<div class="spinner-border" style="width: 200px; height: 200px; margin-bottom:20px" role="status">
-  							<span class="sr-only">Loading...</span>
-						</div>
-					</div>
-				</center>
-				<div id="resultid"></div>
-			</div>
-		</div>
-	</div>
+        <div class="row">
+            <div class="col-md-12" style="background-color:white !important">
+                <hr>
+                <div class="row">
+                    <div class="col-sm-12">
+                        <div class="card text-white bg-dark mb-3">
+                            <div class="card-body">
+                                <h4 class="card-title">Options</h4>
+                                <p class="card-text">Time check feature (sunset time). Today's start time: <span id="suntime">N/A</span></p>
+                                <p class="card-text">
+                                    <div class="btn-group btn-group-toggle" data-toggle="buttons">
+                                        <label class="btn btn-secondary active">
+                                            <input type="radio" name="skiptime1" autocomplete="off" checked> Check time of day before executing changes
+                                        </label>
+                                        <label class="btn btn-secondary">
+                                            <input type="radio" name="skiptime2" autocomplete="off"> Execute changes anytime
+                                        </label>
+                                    </div>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <center>
+                    <div id="preloader" style="display:none">
+                        <div class="spinner-border" style="width: 200px; height: 200px; margin-bottom:20px" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                    </div>
+                </center>
+                <div id="resultid"></div>
+            </div>
+        </div>
+    </div>
   </body>
 </html>
