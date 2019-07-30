@@ -27,6 +27,7 @@ import json
 import queue
 import urllib.parse
 import hashlib
+import ssl
 from devices.common import *
 from devices import *
 from dnn.dnn import run_tensorflow
@@ -383,12 +384,8 @@ class IFTTTServer(BaseHTTPRequestHandler):
         debug.write('[IFTTTServer] Getting request', 0)
         content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
         postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
-
-
-        print(postvars)
-        return
-
         has_delayed_action = False
+        self._set_response()
         try: 
             #TODO rewrite this more elegantly
             action = postvars[b'preaction'][0].decode('utf-8')
@@ -422,7 +419,34 @@ class IFTTTServer(BaseHTTPRequestHandler):
         else:
             debug.write('[IFTTTServer] Got unwanted request with action : {}'.format(action), 1)
 
+
+
+class DFServer(BaseHTTPRequestHandler):
+    def _set_response(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'x-www-form-urlencoded')
+        self.end_headers()
+
+    def do_GET(self):
         self._set_response()
+
+    def do_POST(self):
+        config = configparser.ConfigParser()
+        config.read('play.ini')
+        """ Receives and handles POST request """
+        debug.write('[DialogFlowServer] Getting request', 0)
+        data_string = self.rfile.read(int(self.headers['Content-Length']))
+        request = json.loads(data_string.decode('UTF-8'))
+        self._set_response()
+        action = request['queryResult']['parameters']['LightserverAction']
+        groups = request['queryResult']['parameters']['LightserverGroups']
+        if config['DIALOGFLOW'].getboolean('AUTOMATIC_MODE'):
+            request = "./playclient.py --{} --auto-mode --notime --group {}".format(action, ' '.join(groups))
+        else:
+            request = "./playclient.py --{} --notime --group {}".format(action, ' '.join(groups))
+
+        debug.write('[DialogFlowServer] Running detected request: {}'.format(request), 0)
+        os.system(request)
 
 
 class DeviceManager(object):
@@ -824,6 +848,35 @@ class runIFTTTServer(threading.Thread):
         _r = requests.get("http://localhost:{}/".format(self.port))
 
 
+class runDFServer(threading.Thread):
+    def __init__(self, config):
+        threading.Thread.__init__(self)
+        self.port = config['SERVER'].getint('VOICE_SERVER_PORT')
+        self.key = config['DIALOGFLOW']['DIALOGFLOW_HTTPS_CERTS_KEY']
+        self.cert = config['DIALOGFLOW']['DIALOGFLOW_HTTPS_CERTS_CERT']
+        self.running = True
+
+    def run(self):
+        debug.write('[DialogFlowServer] Getting lightserver POST requests on port {}' \
+                    .format(self.port), 0)
+        httpd = HTTPServer(('', self.port), DFServer)
+        httpd.socket = ssl.wrap_socket(httpd.socket, 
+                keyfile=self.key, 
+                certfile=self.cert, server_side=True)
+        try:
+            while self.running:
+                httpd.handle_request()
+        finally:
+            httpd.server_close()
+            debug.write('[DialogFlowServer] Stopped.', 0)
+            return
+
+    def stop(self):
+        debug.write('[DialogFlowServer] Stopping.', 0)
+        self.running = False
+        # Needs a last call to shut down properly
+        _r = requests.get("http://localhost:{}/".format(self.port))
+
 
 class runDetectorServer(threading.Thread):
     def __init__ (self, config):
@@ -903,7 +956,7 @@ class runDetectorServer(threading.Thread):
                             if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
                                 os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
                             else:
-                                os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
+                                os.system("./playclient.py " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
                             debug.write("[Detector-FIND3] Device {} found in '{}'. Running change of lights."
                                         .format(TRACKED_FIND3_DEVS[_cnt], 
                                                 _r.json()['analysis']['guesses'][0]['location']), 0)
@@ -916,7 +969,7 @@ class runDetectorServer(threading.Thread):
                             if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
                                 os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
                             else:
-                                os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
+                                os.system("./playclient.py " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
                             debug.write("[Detector-FIND3] Device {} left '{}'. Running change of lights."
                                         .format(TRACKED_FIND3_DEVS[_cnt], 
                                                 TRACKED_FIND3_LOCAL[_cnt]), 0)
@@ -1041,7 +1094,7 @@ class runWebServer(threading.Thread):
         self.running = True
 
     def run(self):
-        debug.write("[WEBSERVER] Starting control webserver on port {}".format(self.port), 0)
+        debug.write("[Webserver] Starting control webserver on port {}".format(self.port), 0)
         socketserver.TCPServer.allow_reuse_address = True
         _handler = partial(WebServerHandler, self.config['SERVER']['HOST'], int(self.config['SERVER'].getint('PORT')))
         httpd = socketserver.TCPServer(("", self.port), _handler)
@@ -1051,11 +1104,11 @@ class runWebServer(threading.Thread):
                 httpd.handle_request()
         finally:
             httpd.server_close()
-            debug.write("[WEBSERVER] Stopped.", 0)
+            debug.write("[Webserver] Stopped.", 0)
             return
 
     def stop(self):
-        debug.write("[WEBSERVER] Stopping.", 0)
+        debug.write("[Webserver] Stopping.", 0)
         self.running = False
         # Needs a last call to shut down properly
         _r = requests.get("http://localhost:{}/".format(self.port))
@@ -1096,8 +1149,8 @@ if __name__ == "__main__":
                         help='Start as a socket server daemon')
     parser.add_argument('--webserver', metavar='prio', type=int, nargs="?", default=0,
                         help='Starts a webserver at the given PORT')
-    parser.add_argument('--ifttt', action='store_true', default=False,
-                        help='Start a ifttt websocket receiver along with server')
+    parser.add_argument('--voice', action='store_true', default=False,
+                        help='Start a voice-assistant websocket receiver along with server')
     parser.add_argument('--detector', action='store_true', default=False,
                         help='Start a ping-based device detector (usually for mobiles)')
     parser.add_argument('--threaded', action='store_true', default=False,
@@ -1125,6 +1178,15 @@ if __name__ == "__main__":
                               Quitting.", 2)
         sys.exit()
 
+    voice_server = None
+    if args.voice:
+        voice_server = PLAYCONFIG['SERVER']['VOICE_SERVER_TYPE']
+        if voice_server not in ['none', 'dialogflow', 'ifttt']:
+            debug.write("Invalid voice assistant server type. Choose between none, dialogflow or ifttt. Quitting.", 2)
+            sys.exit()
+        if voice_server == 'none':
+            voice_server = None
+
     if args.stream_dev and args.stream_group:
         debug.write("You cannot stream data to both devices and groups. Quitting.", 2)
         sys.exit()
@@ -1141,9 +1203,13 @@ if __name__ == "__main__":
             lm.set_skip_time_check(True)
         if args.threaded:
             lm.start_threaded()
-        if args.ifttt:
-            ti = runIFTTTServer(1234)
-            ti.start()
+        if voice_server is not None:
+            if voice_server == 'ifttt':
+                ti = runIFTTTServer(PLAYCONFIG['SERVER'].getint('VOICE_SERVER_PORT'))
+                ti.start()
+            elif voice_server == 'dialogflow':
+                ti = runDFServer(PLAYCONFIG)
+                ti.start()
         if args.detector:
             td = runDetectorServer(PLAYCONFIG)
             td.start()
@@ -1151,7 +1217,7 @@ if __name__ == "__main__":
             tw = runWebServer(args.webserver,PLAYCONFIG)
             tw.start()
         runServer()
-        if args.ifttt:
+        if voice_server is not None:
             ti.stop()
             ti.join()
         if args.webserver != 0:
