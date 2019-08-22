@@ -239,7 +239,7 @@ class HomeServer(object):
             os.remove("./dnn/train.log")
             debug.write("Purged location and RTT data", 0)
         if args["hexvalues"] and (args["playbulb"] or args["milight"] or args["decora"]
-                                  or args["meross"]):
+                                  or args["meross"] or args["tplinkswitch"]):
             debug.write("Got color hexvalues for milights and/or playbulbs \
                                    and/or other devices in the same request, which is not \
                                    supported. Use '{} -h' for help. Quitting".format(sys.argv[0]),
@@ -249,7 +249,7 @@ class HomeServer(object):
                                                                   args["playbulb"], args["milight"], 
                                                                   args["toggle"], args["decora"], 
                                                                   args["preset"], args["restart"],
-                                                                  args["meross"]]):
+                                                                  args["meross"], args["tplinkswitch"]]):
             debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting" \
                                   .format(len(args["hexvalues"]), len(lm.devices), sys.argv[0]), 2)
             return
@@ -282,6 +282,10 @@ class HomeServer(object):
             if args["meross"] is not None:
                 debug.write("Received meross change request", 0)
                 if not lm.set_typed_colors(args["meross"], MerossSwitch.MerossSwitch):
+                    return
+            if args["tplinkswitch"] is not None:
+                debug.write("Received tplinkswitch change request", 0)
+                if not lm.set_typed_colors(args["tplinkswitch"], TPLinkSwitch.TPLinkSwitch):
                     return
             if args["preset"] is not None:
                 debug.write("Received change to preset [{}] request".format(args["preset"]), 0)
@@ -332,6 +336,8 @@ class HomeServer(object):
             args["decora"] = None
         if "meross" not in args:
             args["meross"] = None
+        if "tplinkswitch" not in args:
+            args["tplinkswitch"] = None
         if "notime" not in args:
             args["notime"] = False
         if "delay" not in args:
@@ -467,6 +473,7 @@ class DeviceManager(object):
                     debug.write('Unsupported device type {}' \
                                           .format(self.config["DEVICE"+str(i)]["TYPE"]), 1)
             except KeyError:
+                debug.write('Loaded {} devices'.format(i-1), 0)
                 break
             i = i + 1
         self.skip_time = False
@@ -572,7 +579,8 @@ class DeviceManager(object):
         for obj in self.devices:
             #TODO make this dynamic
             if isinstance(obj, (Playbulb.Playbulb, Milight.Milight, DecoraSwitch.DecoraSwitch, 
-                                GenericOnOff.GenericOnOff, MerossSwitch.MerossSwitch)):
+                                GenericOnOff.GenericOnOff, MerossSwitch.MerossSwitch, 
+                                TPLinkSwitch.TPLinkSwitch)):
                 desctext += str(i) + " - " + obj.descriptions() + "\n"
                 if as_list:
                     desclist.append(obj.descriptions())
@@ -1129,8 +1137,9 @@ if __name__ == "__main__":
                         help='color hex values for the lightbulbs (see list below)')
     parser.add_argument('--playbulb', metavar='P', type=str, nargs="*", help='Change playbulbs colors only')
     parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights colors only')
-    parser.add_argument('--decora', metavar='M', type=str, nargs="*", help='Change decora colors only')
+    parser.add_argument('--decora', metavar='D', type=str, nargs="*", help='Change decora colors only')
     parser.add_argument('--meross', metavar='M', type=str, nargs="*", help='Change meross states only')
+    parser.add_argument('--tplinkswitch', metavar='T', type=str, nargs="*", help='Change tplinkswitch states only')
     parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1,
                         help='Request priority from 1 to 3')
     parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
@@ -1173,7 +1182,7 @@ if __name__ == "__main__":
     if args.server and (args.playbulb or args.milight or args.decora or args.on
                         or args.off or args.toggle or args.stream_dev
                         or args.stream_group or args.preset or args.restart 
-                        or args.meross):
+                        or args.meross or args.tplinkswitch):
         debug.write("You cannot start the daemon and send arguments at the same time. \
                               Quitting.", 2)
         sys.exit()

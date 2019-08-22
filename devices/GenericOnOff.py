@@ -2,7 +2,7 @@
 '''
     File name: Milight.py
     Author: Maxime Bergeron
-    Date last modified: 14/03/2019
+    Date last modified: 30/07/2019
     Python Version: 3.7
 
     A generic bash function On/Off device handler class 
@@ -18,7 +18,6 @@ class GenericOnOff(device):
         self.config = config["DEVICE"+str(devid)]
         self.device = self.config["NAME"]
         self.device_type = "GenericOnOff"
-        self.state = 0 # Gets updated from the DeviceManager
         debug.write("Created generic On/Off device named: {}".format(self.device), 0)
 
     def get_state(self):

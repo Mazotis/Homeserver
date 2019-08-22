@@ -55,6 +55,7 @@ if __name__ == "__main__":
     parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights colors only')
     parser.add_argument('--decora', metavar='M', type=str, nargs="*", help='Change decora colors only')
     parser.add_argument('--meross', metavar='M', type=str, nargs="*", help='Change meross states only')
+    parser.add_argument('--tplinkswitch', metavar='T', type=str, nargs="*", help='Change tplinkswitch states only')
     parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1,
                         help='Request priority from 1 to 3')
     parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
