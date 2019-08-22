@@ -20,20 +20,12 @@ import datetime
 import socket
 import threading
 import configparser
-import requests
-import socketserver
 import traceback
 import json
 import queue
-import urllib.parse
-import hashlib
-import ssl
 from devices.common import *
 from argparse import RawTextHelpFormatter, Namespace
 from multiprocessing.pool import ThreadPool
-from threading import Thread
-from http.server import SimpleHTTPRequestHandler, BaseHTTPRequestHandler, HTTPServer
-from io import BytesIO
 from functools import partial
 from __main__ import *
 
@@ -369,88 +361,6 @@ class HomeServer(object):
             debug.write('Converting values to lists for meross', 0)
             args["meross"] = args["meross"].replace("'", "").split(',')
         return args
-
-
-class IFTTTServer(BaseHTTPRequestHandler):
-    def _set_response(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'x-www-form-urlencoded')
-        self.end_headers()
-
-    def do_GET(self):
-        self._set_response()
-
-    def do_POST(self):
-        config = configparser.ConfigParser()
-        config.read('play.ini')
-        """ Receives and handles POST request """
-        SALT = config["IFTTT"]["SALT"]
-        debug.write('[IFTTTServer] Getting request', 0)
-        content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
-        postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
-        has_delayed_action = False
-        self._set_response()
-        try: 
-            #TODO rewrite this more elegantly
-            action = postvars[b'preaction'][0].decode('utf-8')
-            post_action = postvars[b'postaction'][0].decode('utf-8')
-            delay = int(postvars[b'delay'][0].decode('utf-8'))*60-5
-            has_delayed_action = True
-        except KeyError as ex:
-            action = postvars[b'action'][0].decode('utf-8')
-        _hash = postvars[b'hash'][0].decode('utf-8')
-
-        if _hash == hashlib.sha512(bytes(SALT.encode('utf-8') + action.encode('utf-8'))).hexdigest():
-            debug.write('IFTTTServer running action : {}'.format(action), 0)
-            if action in config["IFTTT"]:
-                debug.write('[IFTTTServer] Running action : {}'.format(config["IFTTT"][action]), 0)
-                os.system("./playclient.py " + config["IFTTT"][action])
-            else:
-                #
-                # Complex actions should be hardcoded here if needed
-                #
-                debug.write('[IFTTTServer] Unknown action : {}'.format(action), 1)
-            time.sleep(5)
-            if has_delayed_action:
-                debug.write('IFTTTServer will run action {} in {} seconds'.format(post_action, delay+5), 0)
-                if post_action in config["IFTTT"]:
-                    os.system("./playclient.py --delay {} {}".format(delay, config["IFTTT"][post_action]))
-                else:
-                    #
-                    # Complex delayed actions should be hardcoded here if needed
-                    #
-                    debug.write('[IFTTTServer] Unknown action : {}'.format(post_action), 1)
-        else:
-            debug.write('[IFTTTServer] Got unwanted request with action : {}'.format(action), 1)
-
-
-
-class DFServer(BaseHTTPRequestHandler):
-    def _set_response(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'x-www-form-urlencoded')
-        self.end_headers()
-
-    def do_GET(self):
-        self._set_response()
-
-    def do_POST(self):
-        config = configparser.ConfigParser()
-        config.read('play.ini')
-        """ Receives and handles POST request """
-        debug.write('[DialogFlowServer] Getting request', 0)
-        data_string = self.rfile.read(int(self.headers['Content-Length']))
-        request = json.loads(data_string.decode('UTF-8'))
-        self._set_response()
-        action = request['queryResult']['parameters']['LightserverAction']
-        groups = request['queryResult']['parameters']['LightserverGroups']
-        if config['DIALOGFLOW'].getboolean('AUTOMATIC_MODE'):
-            request = "./playclient.py --{} --auto-mode --notime --group {}".format(action, ' '.join(groups))
-        else:
-            request = "./playclient.py --{} --notime --group {}".format(action, ' '.join(groups))
-
-        debug.write('[DialogFlowServer] Running detected request: {}'.format(request), 0)
-        os.system(request)
 
 
 class DeviceManager(object):
@@ -821,297 +731,6 @@ class DeviceManager(object):
         return _time
 
 
-class runIFTTTServer(threading.Thread):
-    def __init__(self, port):
-        threading.Thread.__init__(self)
-        self.port = port
-        self.running = True
-
-    def run(self):
-        debug.write('[IFTTTServer] Getting lightserver POST requests on port {}' \
-                    .format(self.port), 0)
-        httpd = HTTPServer(('', self.port), IFTTTServer)
-        try:
-            while self.running:
-                httpd.handle_request()
-        finally:
-            httpd.server_close()
-            debug.write('[IFTTTServer] Stopped.', 0)
-            return
-
-    def stop(self):
-        debug.write('[IFTTTServer] Stopping.', 0)
-        self.running = False
-        # Needs a last call to shut down properly
-        _r = requests.get("http://localhost:{}/".format(self.port))
-
-
-class runDFServer(threading.Thread):
-    def __init__(self, config):
-        threading.Thread.__init__(self)
-        self.port = config['SERVER'].getint('VOICE_SERVER_PORT')
-        self.key = config['DIALOGFLOW']['DIALOGFLOW_HTTPS_CERTS_KEY']
-        self.cert = config['DIALOGFLOW']['DIALOGFLOW_HTTPS_CERTS_CERT']
-        self.running = True
-
-    def run(self):
-        debug.write('[DialogFlowServer] Getting lightserver POST requests on port {}' \
-                    .format(self.port), 0)
-        httpd = HTTPServer(('', self.port), DFServer)
-        httpd.socket = ssl.wrap_socket(httpd.socket, 
-                keyfile=self.key, 
-                certfile=self.cert, server_side=True)
-        try:
-            while self.running:
-                httpd.handle_request()
-        finally:
-            httpd.server_close()
-            debug.write('[DialogFlowServer] Stopped.', 0)
-            return
-
-    def stop(self):
-        debug.write('[DialogFlowServer] Stopping.', 0)
-        self.running = False
-        # Needs a last call to shut down properly
-        _r = requests.get("http://localhost:{}/".format(self.port))
-
-
-class runDetectorServer(threading.Thread):
-    def __init__ (self, config):
-        threading.Thread.__init__(self)
-        self.config = config
-        self.stopevent = threading.Event()
-        self.DEVICE_STATE_LEVEL = [0]*len(config['DETECTOR']['TRACKED_IPS'].split(","))
-        self.DEVICE_STATE_MAX = self.config['DETECTOR'].getint('MAX_STATE_LEVEL')
-        self.DEVICE_STATUS = [0]*len(self.config['DETECTOR']['TRACKED_IPS'].split(","))
-        self.FIND3_SERVER= self.config['DETECTOR'].getboolean('FIND3_SERVER_ENABLE')
-        self.DETECTOR_START_HOUR = datetime.datetime.strptime(self.config['DETECTOR']['START_HOUR'],'%H:%M').time()
-        self.DETECTOR_END_HOUR = datetime.datetime.strptime(self.config['DETECTOR']['END_HOUR'],'%H:%M').time()
-        self.status = 0
-        self.delayed_start = 0
-
-    def run(self):
-        self.first_detect()
-        while not self.stopevent.is_set():
-            self.detect_devices()
-            self.stopevent.wait(int(self.config['DETECTOR']['PING_FREQ_SEC']))
-        return
-
-    def stop(self):
-        self.stopevent.set()
-
-    def first_detect(self):
-        debug.write("[Detector] Starting ping-based device detector", 0)
-
-        if self.FIND3_SERVER:
-            debug.write("[Detector] Starting FIND3 localization server", 0)
-            TRACKED_FIND3_DEVS = self.config['DETECTOR']['FIND3_TRACKED_DEVICES'].split(",")
-            TRACKED_FIND3_TIMES = [0]*len(TRACKED_FIND3_DEVS)
-            TRACKED_FIND3_LOCAL = [""]*len(TRACKED_FIND3_DEVS)
-            for _cnt, _dev in enumerate(TRACKED_FIND3_DEVS):
-                # Get last update times
-                if _dev != "_":
-                    _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.config['DETECTOR']['FIND3_SERVER_URL'],
-                                                                               self.config['DETECTOR']['FIND3_FAMILY_NAME'],
-                                                                               _dev))
-                    TRACKED_FIND3_TIMES[_cnt] = _r.json()['sensors']['t']
-
-        for _cnt, device in enumerate(self.config['DETECTOR']['TRACKED_IPS'].split(",")):
-            if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
-                self.DEVICE_STATE_LEVEL[_cnt] = self.DEVICE_STATE_MAX
-                self.DEVICE_STATUS[_cnt] = 1
-            else:
-                self.DEVICE_STATE_LEVEL[_cnt] = 0
-                self.DEVICE_STATUS[_cnt] = 0
-        debug.write("[Detector] Got initial states {} and status {}".format(self.DEVICE_STATE_LEVEL, self.status), 0)
-
-        if self.DETECTOR_START_HOUR > datetime.datetime.now().time() or \
-           self.DETECTOR_END_HOUR < datetime.datetime.now().time():
-               debug.write("[Detector] Standby. Running between {} and {}".format(self.DETECTOR_START_HOUR, 
-                                                                                  self.DETECTOR_END_HOUR), 0)
-
-    def detect_devices(self):
-        if self.DETECTOR_START_HOUR > datetime.datetime.now().time() or \
-           self.DETECTOR_END_HOUR < datetime.datetime.now().time():
-            time.sleep(30)
-            return 
-        EVENT_TIME = lm.get_event_time()
-        for _cnt, device in enumerate(self.config['DETECTOR']['TRACKED_IPS'].split(",")):
-            #TODO Maintain the two pings requirement for status change ?
-            if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
-                if self.DEVICE_STATE_LEVEL[_cnt] == self.DEVICE_STATE_MAX and self.DEVICE_STATUS[_cnt] == 0:
-                    debug.write("[Detector] DEVICE {} CONnected".format(device), 0)
-                    self.DEVICE_STATUS[_cnt] = 1
-                elif self.DEVICE_STATE_LEVEL[_cnt] != self.DEVICE_STATE_MAX:
-                    self.DEVICE_STATE_LEVEL[_cnt] = self.DEVICE_STATE_LEVEL[_cnt] + 1
-                if self.FIND3_SERVER and TRACKED_FIND3_DEVS[_cnt] != "_":
-                    _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.config['DETECTOR']['FIND3_SERVER_URL'],
-                                                                               self.config['DETECTOR']['FIND3_FAMILY_NAME'],
-                                                                               TRACKED_FIND3_DEVS[_cnt]))
-                    if TRACKED_FIND3_TIMES[_cnt] != _r.json()['sensors']['t'] and \
-                       TRACKED_FIND3_LOCAL[_cnt] != _r.json()['analysis']['guesses'][0]['location']:
-                        if _r.json()['analysis']['guesses'][0]['location'] in self.config['FIND3-PRESETS']:
-                            if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
-                                os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
-                            else:
-                                os.system("./playclient.py " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
-                            debug.write("[Detector-FIND3] Device {} found in '{}'. Running change of lights."
-                                        .format(TRACKED_FIND3_DEVS[_cnt], 
-                                                _r.json()['analysis']['guesses'][0]['location']), 0)
-
-                        else:
-                            debug.write("[Detector-FIND3] Device {} found in '{}' but preset is not self.configured."
-                                        .format(TRACKED_FIND3_DEVS[_cnt], 
-                                                _r.json()['analysis']['guesses'][0]['location']), 0)
-                        if TRACKED_FIND3_LOCAL[_cnt]+"-off" in self.config['FIND3-PRESETS']:
-                            if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
-                                os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
-                            else:
-                                os.system("./playclient.py " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
-                            debug.write("[Detector-FIND3] Device {} left '{}'. Running change of lights."
-                                        .format(TRACKED_FIND3_DEVS[_cnt], 
-                                                TRACKED_FIND3_LOCAL[_cnt]), 0)
-                        TRACKED_FIND3_TIMES[_cnt] = _r.json()['sensors']['t']
-                        TRACKED_FIND3_LOCAL[_cnt] = _r.json()['analysis']['guesses'][0]['location']
-            else:
-                if self.DEVICE_STATE_LEVEL[_cnt] == 0 and self.DEVICE_STATUS[_cnt] == 1:
-                    debug.write("[Detector] DEVICE {} DISconnected".format(device), 0)
-                    self.DEVICE_STATUS[_cnt] = 0
-                elif self.DEVICE_STATE_LEVEL[_cnt] != 0:
-                    # Decrease state level down to zero (OFF)
-                    self.DEVICE_STATE_LEVEL[_cnt] = self.DEVICE_STATE_LEVEL[_cnt] - 1
-
-        if self.status == 1 and all(s == 0 for s in self.DEVICE_STATE_LEVEL):
-            debug.write("[Detector] STATE changed to {} and DELAYED_START {}, turned off" \
-                                  .format(self.DEVICE_STATE_LEVEL, self.delayed_start), 0)
-            os.system('./playclient.py --auto-mode --off --notime --priority 3')
-            self.status = 0
-            self.delayed_start = 0
-        if datetime.datetime.now().time() == EVENT_TIME and self.delayed_start == 1:
-            debug.write("[Detector] DELAYED STATE with actual state {}, turned on".format(self.DEVICE_STATE_LEVEL), 
-                                                                                          0)
-            os.system('./playclient.py --auto-mode --on --group passage')
-            self.delayed_start = 0
-            self.status = 1  
-        if self.DEVICE_STATE_MAX in self.DEVICE_STATE_LEVEL and self.delayed_start == 0:
-            if datetime.datetime.now().time() < EVENT_TIME:
-                debug.write("[Detector] Scheduling state change, with actual state {}" \
-                                      .format(self.DEVICE_STATE_LEVEL), 0)
-                self.delayed_start = 1
-                self.status = 0
-        if self.DEVICE_STATE_MAX in self.DEVICE_STATE_LEVEL and self.status == 0 and datetime.datetime.now().time() \
-           >= EVENT_TIME:
-            debug.write("[Detector] STATE changed to {}, turned on".format(self.DEVICE_STATE_LEVEL), 0)
-            os.system('./playclient.py --auto-mode --on --group passage')
-            self.status = 1
-            self.delayed_start = 0
-        if all(s == 0 for s in self.DEVICE_STATE_LEVEL) and self.status == 0 and self.delayed_start == 1:
-            debug.write("[Detector] Aborting light change, with actual state {}" \
-                                      .format(self.DEVICE_STATE_LEVEL), 0)
-            self.delayed_start = 0
-
-
-class WebServerHandler(SimpleHTTPRequestHandler):
-    def __init__(self, lmhost, lmport, *args, **kwargs):
-        self.lmhost = lmhost
-        self.lmport = lmport
-        super().__init__(*args, **kwargs)
-
-    def translate_path(self, path):
-        return SimpleHTTPRequestHandler.translate_path(self, './web' + path)
-
-    def _set_response(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'x-www-form-urlencoded')
-        self.end_headers()
-
-    def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
-        request = bool(postvars[b'request'][0].decode('utf-8'))
-        reqtype = int(postvars[b'reqtype'][0].decode('utf-8'))
-        self._set_response()
-        response = BytesIO()
-        if request:
-            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((self.lmhost, self.lmport))
-            if reqtype == 1:
-                try:
-                    s.sendall("0008".encode('utf-8'))
-                    s.sendall("getstate".encode('utf-8'))
-                    data = s.recv(1024)
-                    if data:
-                        response.write(data)
-                finally:
-                    s.close()
-            if reqtype == 2:
-                devid = str(postvars[b'devid'][0].decode('utf-8'))
-                value = str(postvars[b'value'][0].decode('utf-8'))
-                skiptime = postvars[b'skiptime'][0].decode('utf-8') in ['true', True]
-                try:
-                    s.sendall("0008".encode('utf-8'))
-                    s.sendall("setstate".encode('utf-8'))
-                    s.sendall(devid.zfill(3).encode('utf-8'))
-                    s.sendall(value.zfill(8).encode('utf-8'))
-                    if skiptime:
-                        s.sendall("1".encode('utf-8'))
-                    else:
-                        s.sendall("0".encode('utf-8'))
-                    data = s.recv(1)
-                    if data:
-                        response.write(data)
-                finally:
-                    s.close()
-            if reqtype == 3:
-                cmode = postvars[b'mode'][0].decode('utf-8') in ['true', True]
-                devid = str(postvars[b'devid'][0].decode('utf-8'))
-                try:
-                    s.sendall("0007".encode('utf-8'))
-                    s.sendall("setmode".encode('utf-8'))
-                    s.sendall(devid.zfill(3).encode('utf-8'))
-                    if cmode:
-                        s.sendall("1".encode('utf-8'))
-                    else:
-                        s.sendall("0".encode('utf-8'))
-                    data = s.recv(1)
-                    if data:
-                        response.write(data)
-                finally:
-                    s.close()
-
-        else:
-            response.write("No request".encode("UTF-8"))
-        self.wfile.write(response.getvalue())
-
-
-class runWebServer(threading.Thread):
-    def __init__(self, port, config):
-        threading.Thread.__init__(self)
-        self.port = port
-        self.config = config
-        self.running = True
-
-    def run(self):
-        debug.write("[Webserver] Starting control webserver on port {}".format(self.port), 0)
-        socketserver.TCPServer.allow_reuse_address = True
-        _handler = partial(WebServerHandler, self.config['SERVER']['HOST'], int(self.config['SERVER'].getint('PORT')))
-        httpd = socketserver.TCPServer(("", self.port), _handler)
-
-        try:
-            while self.running:
-                httpd.handle_request()
-        finally:
-            httpd.server_close()
-            debug.write("[Webserver] Stopped.", 0)
-            return
-
-    def stop(self):
-        debug.write("[Webserver] Stopping.", 0)
-        self.running = False
-        # Needs a last call to shut down properly
-        _r = requests.get("http://localhost:{}/".format(self.port))
-
-
 def runServer():
     HomeServer(lm).listen()
 
@@ -1206,15 +825,19 @@ if __name__ == "__main__":
             lm.start_threaded()
         if voice_server is not None:
             if voice_server == 'ifttt':
+                from modules.ifttt import runIFTTTServer
                 ti = runIFTTTServer(PLAYCONFIG['SERVER'].getint('VOICE_SERVER_PORT'))
                 ti.start()
             elif voice_server == 'dialogflow':
+                from modules.dialogflow import runDFServer
                 ti = runDFServer(PLAYCONFIG)
                 ti.start()
         if args.detector:
-            td = runDetectorServer(PLAYCONFIG)
+            from modules.detector import runDetectorServer
+            td = runDetectorServer(PLAYCONFIG, lm)
             td.start()
         if args.webserver != 0:
+            from modules.webserver import runWebServer
             tw = runWebServer(args.webserver,PLAYCONFIG)
             tw.start()
         runServer()
