@@ -29,8 +29,6 @@ import urllib.parse
 import hashlib
 import ssl
 from devices.common import *
-from devices import *
-from dnn.dnn import run_tensorflow
 from argparse import RawTextHelpFormatter, Namespace
 from multiprocessing.pool import ThreadPool
 from threading import Thread
@@ -577,17 +575,9 @@ class DeviceManager(object):
         desctext = ""
         i = 1
         for obj in self.devices:
-            #TODO make this dynamic
-            if isinstance(obj, (Playbulb.Playbulb, Milight.Milight, DecoraSwitch.DecoraSwitch, 
-                                GenericOnOff.GenericOnOff, MerossSwitch.MerossSwitch, 
-                                TPLinkSwitch.TPLinkSwitch)):
-                desctext += str(i) + " - " + obj.descriptions() + "\n"
-                if as_list:
-                    desclist.append(obj.descriptions())
-            else:
-                desctext += str(i) + " - " + "Unknown device type\n"
-                if as_list:
-                    desclist.append("Unknown device type")
+            desctext += str(i) + " - " + obj.descriptions() + "\n"
+            if as_list:
+                desclist.append(obj.descriptions())
             i += 1
         if as_list:
             return desclist
@@ -1205,6 +1195,8 @@ if __name__ == "__main__":
         sys.exit()
 
     if args.server:
+        if PLAYCONFIG['SERVER'].getboolean('ENABLE_WIFI_RTT'):
+            from dnn.dnn import run_tensorflow
         if args.webserver is None:
             debug.write("You need to define a port for the webserver, using --webserver PORT. Quitting.", 2)
             sys.exit()
