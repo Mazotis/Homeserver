@@ -23,6 +23,7 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 - Generic ON/OFF devices (devices that can be turned ON, OFF or restarted using a sh/bash command. Includes TVs with cec-client commands, HTPCs with wakeonlan commands, IR Devices with LIRC irsend commands and everything else. TIP - Group or subgroup them together with a similar name (for example SUBGROUP = livingroom) and call "./playclient.py --on --subgroup livingroom" to turn them all ON simultaneously)
 - Meross smart switches MSS110, MSS210, MSS310 and MSS425E (ON/OFF functions - via the Meross cloud app)
 - Input devices (arduinos, esp8266 and other wifi-enable boards) to link various sensors to the Lightserver setup
+- TPLink smart switches (HS200, HS210, HS220)
 
 
 ## Requirements
@@ -149,3 +150,4 @@ Bulb.py provides the device.py functions + additional features used in BLE light
 * moosd for the [Milight BLE protocol](https://github.com/moosd/ReverseEngineeredMiLightBluetooth)
 * tlyakhov for the [Decora WIFI API](https://github.com/tlyakhov/python-decora_wifi)
 * schollz for the [FIND3](https://github.com/schollz/find3) protocol
+* GadgetReactor for the [TPLink switches](https://github.com/GadgetReactor/pyHS100) support
