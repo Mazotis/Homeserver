@@ -23,13 +23,13 @@ class DecoraSwitch(device):
         self.intensity = config["DEVICE"+str(devid)]["DEFAULT_INTENSITY"]
         self.device_type = "DecoraSwitch"
         self.state = "0"
-        debug.write("Created device DecoraSwitch named {}.".format(self.device), 0)
+        debug.write("Created device DecoraSwitch named {}.".format(self.device), 0, self.device_type)
 
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
         if not (self.decora.disabled):
             if len(color) > 3:
-                debug.write("Unhandled color format {}".format(color), 1)
+                debug.write("Unhandled color format {}".format(color), 1, self.device_type)
                 return True
             _att = {}
             if color == LIGHT_OFF:
@@ -52,7 +52,7 @@ class DecoraSwitch(device):
                 self.success = True
                 return True
         else:
-            debug.write("Skipping device {} - handler connection failed.".format(self.device), 0)
+            debug.write("Skipping device {} - handler connection failed.".format(self.device), 0, self.device_type)
             return True
 
     def disconnect(self):

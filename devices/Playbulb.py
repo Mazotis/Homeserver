@@ -20,13 +20,11 @@ def connect_ble(_f):
     def _conn_wrap(self, *args):
         if self._connection is None:
             try:
-                debug.write("CONnecting to device ({}) {}".format(self.device_type,
-                                                                            self.device), 0)
-                connection = ble.Peripheral(self.device)
-                self._connection = connection.withDelegate(self)
+                debug.write("CONnecting to device ({})...".format(self.description), 0, self.device_type)
+                self._connection = ble.Peripheral(self.device)
             except Exception as ex:
-                debug.write("Device ({}) {} connection failed. Exception: {}" \
-                                      .format(self.device_type, self.device, ex), 1)
+                debug.write("Device ({}) connection failed. Exception: {}" \
+                                      .format(self.description, ex), 1, self.device_type)
                 self._connection = None
         return _f(self, *args)
     return _conn_wrap
@@ -40,7 +38,6 @@ class Playbulb(Bulb):
         #TODO get actual color at instanciation
         self.state = "00000000"
         self.intensity = config["DEVICE"+str(devid)]["DEFAULT_INTENSITY"]
-        debug.write("Bulb device set as Playbulb", 0)
 
     def convert(self, color):
         """ Conversion to a color code acceptable by the device """
@@ -53,9 +50,9 @@ class Playbulb(Bulb):
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
         if len(color) not in (1, 8) and color != LIGHT_SKIP:
-            debug.write("Unhandled color format {}".format(color), 1)
+            debug.write("Unhandled color format {}".format(color), 1, self.device_type)
             return True
-        debug.write("Changing playbulb {} color to {}".format(self.device, color), 0)
+        debug.write("Changing ({}) color to {}".format(self.description, color), 0, self.device_type)
         if not self._write(color): return False
         return True
 
@@ -90,17 +87,18 @@ class Playbulb(Bulb):
                 #Prebuilt animations: blink=00, pulse=01, hard rainbow=02, smooth rainbow=03, candle=04
                 #self._connection.getCharacteristics(uuid="0000fffb-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color+"02ffffff"))
                 self.success = True
-                debug.write("Playbulb {} color changed to {}".format(self.device, color), 0)
+                debug.write("({}) color changed to {}".format(self.description, color), 0, self.device_type)
                 return True
+
             self.state = _oldcolor
-            debug.write("Connection error to device (playbulb) {}. Retrying" \
-                                  .format(self.device), 1)
+            debug.write("Connection error to device ({}). Retrying" \
+                                  .format(self.description), 1, self.device_type)
             time.sleep(0.2)
             return False
 
         except Exception as ex:
             #TODO manage "overwritten" thread by queued requests
             self.state = _oldcolor
-            debug.write("Unhandled response. Thread died?\n{}".format(ex), 0)
+            debug.write("Unhandled response. Thread died?\n{}".format(ex), 0, self.device_type)
             self.disconnect()
             return False

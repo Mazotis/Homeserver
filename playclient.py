@@ -5,47 +5,21 @@
     Date last modified: 20/02/2019
     Python Version: 3.7
 
-    The stripped-down version of play.py
+    The stripped-down version of play.py.
 '''
 import argparse
 import sys
 import socket
-import datetime
 import json
 import os
 import configparser
 from argparse import RawTextHelpFormatter
+from devices.common import *
 from __main__ import *
 
-DEBUG = False
-
-class DeviceManager(object):
-    """ Methods for instanciating and managing BLE lightbulbs """
-    #TODO: keep a separate debug function ?
-    @staticmethod
-    def debugger(msg, level):
-        """ Handles debug logging """
-        levels = {0: "DEBUG", 1: "ERROR", 2: "FATAL"}
-        debugtext = "({}) - [{}] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), 
-                                            levels[level], msg)
-        print(debugtext)
-        if DEBUG:
-            with open("./play.0.log", "a") as jfile:
-                jfile.write(debugtext + "\n")
-
-""" Script executed directly """
 if __name__ == "__main__":
-    if DEBUG:
-        if os.path.isfile("./play.0.log"):
-            if os.path.isfile("./play.1.log"):
-                if os.path.isfile("./play.2.log"):
-                    os.remove("./play.2.log")
-                os.rename("./play.1.log", "./play.2.log")
-            os.rename("./play.0.log", "./play.1.log")
-
     PLAYCONFIG = configparser.ConfigParser()
     PLAYCONFIG.readfp(open(os.path.dirname(os.path.realpath(__file__)) + '/play.ini'))
-    lm = DeviceManager()
 
     parser = argparse.ArgumentParser(description='BLE light bulbs manager script',
                                      formatter_class=RawTextHelpFormatter)
@@ -86,11 +60,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.stream_dev and args.stream_group:
-        DeviceManager.debugger("You cannot stream data to both devices and groups. Quitting.", 2)
+        debug.write("You cannot stream data to both devices and groups. Quitting.", 2, "CLIENT")
         sys.exit()
 
     if args.reset_mode and args.auto_mode:
-        DeviceManager.debugger("You should not set the mode to AUTO then reset it back to AUTO. Quitting.", 2)
+        debug.write("You should not set the mode to AUTO then reset it back to AUTO. Quitting.", 2, "CLIENT")
         sys.exit()
 
     elif args.stream_dev or args.stream_group:
@@ -145,8 +119,8 @@ if __name__ == "__main__":
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT'])))
         #todo report connection errors or allow feedback response
-        DeviceManager.debugger('Connecting with lightmanager daemon', 0)
-        DeviceManager.debugger('Sending request: ' + json.dumps(vars(args)), 0)
+        debug.write('Connecting with lightmanager daemon', 0, "CLIENT")
+        debug.write('Sending request: ' + json.dumps(vars(args)), 0, "CLIENT")
         s.sendall("1024".encode('utf-8'))
         s.sendall(json.dumps(vars(args)).encode('utf-8'))
         s.close()

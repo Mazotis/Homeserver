@@ -18,13 +18,11 @@ def connect_ble(_f):
     def _conn_wrap(self, *args):
         if self._connection is None:
             try:
-                debug.write("CONnecting to device ({}) {}".format(self.device_type,
-                                                                            self.device), 0)
-                connection = ble.Peripheral(self.device)
-                self._connection = connection.withDelegate(self)
+                debug.write("CONnecting to device ({})...".format(self.description), 0, self.device_type)
+                self._connection = ble.Peripheral(self.device)
             except Exception as ex:
-                debug.write("Device ({}) {} connection failed. Exception: {}" \
-                                      .format(self.device_type, self.device, ex), 1)
+                debug.write("Device ({}) connection failed. Exception: {}" \
+                                      .format(self.description, ex), 1, self.device_type)
                 self._connection = None
         return _f(self, *args)
     return _conn_wrap
@@ -38,7 +36,6 @@ class Milight(Bulb):
         self.id1 = config["DEVICE"+str(devid)]["ID1"]
         self.id2 = config["DEVICE"+str(devid)]["ID2"]
         self.state = "0"
-        debug.write("Bulb device set as Milight", 0)
 
     def turn_on(self):
         """ Helper function to turn on device """
@@ -46,18 +43,18 @@ class Milight(Bulb):
 
     def turn_off(self):
         """ Helper function to turn off device """
-        debug.write("Setting milight {} OFF".format(self.device), 0)
+        debug.write("Setting ({}) OFF".format(self.description), 0, self.device_type)
         return self._write(self.get_query(32, 161, 2, self.id1, self.id2), "0")
 
     def turn_on_and_set_color(self, color):
         """ Helper function to change color """
-        debug.write("Setting milight {} to COLOR {}".format(self.device, color), 0)
+        debug.write("Setting ({}) to COLOR {}".format(self.description, color), 0, self.device_type)
         if not self.turn_on(): return False
         return self._write(self.get_query(45, 161, 4, self.id1, self.id2, color, 2, 50), color)
 
     def turn_on_and_dim_on(self, color):
         """ Helper function to turn on device to default intensity """
-        debug.write("Setting milight {} ON".format(self.device), 0)
+        debug.write("Setting ({}) ON".format(self.description), 0, self.device_type)
         if not self.turn_on(): return False
         return self.dim_on(color)
 
@@ -68,7 +65,7 @@ class Milight(Bulb):
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
         if len(color) > 3:
-            debug.write("Unhandled color format {}".format(color), 1)
+            debug.write("Unhandled color format {}".format(color), 1, self.device_type)
             return True
         if color == LIGHT_OFF:
             if not self.turn_off(): 
@@ -79,7 +76,7 @@ class Milight(Bulb):
         else:
             if not self.turn_on_and_set_color(color): 
                 return False
-        debug.write("Milight {} color changed to {}".format(self.device, color), 0)
+        debug.write("({}) color changed to {}".format(self.description, color), 0, self.device_type)
         return True
 
     def get_query(self, value1, value2, value3, id1, id2, value4=0, value5=2, value6=0):
@@ -106,13 +103,13 @@ class Milight(Bulb):
                 self.success = True
                 return True
             self.state = _oldcolor
-            debug.write("Connection error to device (milight)  {}. Retrying" \
-                                  .format(self.device), 1)
+            debug.write("Connection error to device ({}). Retrying" \
+                                  .format(self.description), 1, self.device_type)
             return False
         except:
             self.state = _oldcolor
-            debug.write("Error sending data to device (milight) {}. Retrying" \
-                                   .format(self.device), 1)
+            debug.write("Error sending data to device ({}). Retrying" \
+                                   .format(self.description), 1, self.device_type)
             self._connection = None
             return False
 

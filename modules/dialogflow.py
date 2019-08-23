@@ -28,7 +28,7 @@ class DFServer(BaseHTTPRequestHandler):
         config = configparser.ConfigParser()
         config.read('play.ini')
         """ Receives and handles POST request """
-        debug.write('[DialogFlowServer] Getting request', 0)
+        debug.write('Getting request', 0, "DIALOGFLOW")
         data_string = self.rfile.read(int(self.headers['Content-Length']))
         request = json.loads(data_string.decode('UTF-8'))
         self._set_response()
@@ -39,7 +39,7 @@ class DFServer(BaseHTTPRequestHandler):
         else:
             request = "./playclient.py --{} --notime --group {}".format(action, ' '.join(groups))
 
-        debug.write('[DialogFlowServer] Running detected request: {}'.format(request), 0)
+        debug.write('Running detected request: {}'.format(request), 0, "DIALOGFLOW")
         os.system(request)
 
 
@@ -52,8 +52,8 @@ class runDFServer(Thread):
         self.running = True
 
     def run(self):
-        debug.write('[DialogFlowServer] Getting lightserver POST requests on port {}' \
-                    .format(self.port), 0)
+        debug.write('Getting lightserver POST requests on port {}' \
+                    .format(self.port), 0, "DIALOGFLOW")
         httpd = HTTPServer(('', self.port), DFServer)
         httpd.socket = ssl.wrap_socket(httpd.socket, 
                 keyfile=self.key, 
@@ -63,11 +63,11 @@ class runDFServer(Thread):
                 httpd.handle_request()
         finally:
             httpd.server_close()
-            debug.write('[DialogFlowServer] Stopped.', 0)
+            debug.write('Stopped.', 0, "DIALOGFLOW")
             return
 
     def stop(self):
-        debug.write('[DialogFlowServer] Stopping.', 0)
+        debug.write('Stopping.', 0, "DIALOGFLOW")
         self.running = False
         # Needs a last call to shut down properly
         _r = requests.get("http://localhost:{}/".format(self.port))

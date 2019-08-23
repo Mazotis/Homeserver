@@ -99,7 +99,7 @@ class runWebServer(Thread):
         self.running = True
 
     def run(self):
-        debug.write("[Webserver] Starting control webserver on port {}".format(self.port), 0)
+        debug.write("Starting control webserver on port {}".format(self.port), 0, "WEBSERVER")
         socketserver.TCPServer.allow_reuse_address = True
         _handler = partial(WebServerHandler, self.config['SERVER']['HOST'], int(self.config['SERVER'].getint('PORT')))
         httpd = socketserver.TCPServer(("", self.port), _handler)
@@ -109,11 +109,11 @@ class runWebServer(Thread):
                 httpd.handle_request()
         finally:
             httpd.server_close()
-            debug.write("[Webserver] Stopped.", 0)
+            debug.write("Stopped.", 0, "WEBSERVER")
             return
 
     def stop(self):
-        debug.write("[Webserver] Stopping.", 0)
+        debug.write("Stopping.", 0, "WEBSERVER")
         self.running = False
         # Needs a last call to shut down properly
         _r = requests.get("http://localhost:{}/".format(self.port))

@@ -18,7 +18,7 @@ class GenericOnOff(device):
         self.config = config["DEVICE"+str(devid)]
         self.device = self.config["NAME"]
         self.device_type = "GenericOnOff"
-        debug.write("Created generic On/Off device named: {}".format(self.device), 0)
+        debug.write("Created generic On/Off device named: {}".format(self.device), 0, self.device_type)
 
     def get_state(self):
         if self.config["STATE"] and not self.success:
@@ -47,23 +47,23 @@ class GenericOnOff(device):
         
     def color(self, color, priority):
         if color == 0 and self.config["OFF"]:
-            debug.write("Turning device {} OFF".format(self.device), 0)
+            debug.write("Turning device {} OFF".format(self.device), 0, self.device_type)
             os.system(self.config["OFF"])
             self.success = True
             self.state = 0
             return True
         elif color == 1 and self.config["ON"]:
-            debug.write("Turning device {} ON".format(self.device), 0)
+            debug.write("Turning device {} ON".format(self.device), 0, self.device_type)
             os.system(self.config["ON"])
             self.success = True
             self.state = 1
             return True
         elif color == 2 and self.config["RESTART"]:
-            debug.write("Restarting device {}".format(self.device), 0)
+            debug.write("Restarting device {}".format(self.device), 0, self.device_type)
             os.system(self.config["RESTART"])
             self.success = True
             self.state = 1
             return True
-        debug.write("Request for state {} cannot be handled for device {}".format(color, self.device), 1)
+        debug.write("Request for state {} cannot be handled for device {}".format(color, self.device), 1, self.device_type)
         self.success = True
         return True        

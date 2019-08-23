@@ -40,10 +40,10 @@ class HomeServer(object):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.host, self.port))
-        self.sched_disconnect = sched.scheduler(time.time, time.sleep)
         self.scheduled_disconnect = None
         self.tcp_start_hour = datetime.datetime.strptime(self.config['SERVER']['TCP_START_HOUR'],'%H:%M').time()
         self.tcp_end_hour = datetime.datetime.strptime(self.config['SERVER']['TCP_END_HOUR'],'%H:%M').time()
+        self.conn_sockets = []
 
     def listen(self):
         """ Starts the server """
@@ -55,8 +55,8 @@ class HomeServer(object):
             while True:
                 client, address = self.sock.accept()
                 debug.write("Connected with {}:{}".format(address[0], address[1]), 0)
-                client.settimeout(30)
-                threading.Thread(target=self.listen_client, args=(client, address)).start()
+                client.settimeout(10)
+                self.conn_sockets.append(threading.Thread(target=self.listen_client, args=(client, address)).start())
         except (KeyboardInterrupt, SystemExit):
             self.remove_server()
 
@@ -69,7 +69,7 @@ class HomeServer(object):
             while True:
                 msize = int(client.recv(4).decode('utf-8'))
                 if self.scheduled_disconnect is not None:
-                    self.sched_disconnect.cancel(self.scheduled_disconnect)
+                    self.scheduled_disconnect.cancel()
                     self.scheduled_disconnect = None
                 #debug.write("Set message size {}".format(msize), 0)
                 data = client.recv(msize)
@@ -199,9 +199,8 @@ class HomeServer(object):
             lm.set_lock(0)
             lm.reinit()
             client.close()
-            self.scheduled_disconnect = self.sched_disconnect.enter(60, 1, 
-                                                                    self.disconnect_devices, ())
-            self.sched_disconnect.run()
+            self.scheduled_disconnect = threading.Timer(60, self.disconnect_devices, ())
+            self.scheduled_disconnect.start()
 
     def disconnect_devices(self):
         """ Disconnects all configured devices """
@@ -218,9 +217,17 @@ class HomeServer(object):
         lm.set_mode(False,True)
         #lm.run()
         self.sock.close()
-        if not self.sched_disconnect.empty():
-            self.sched_disconnect.cancel(self.scheduled_disconnect)
+        debug.write("Closing remaining connections", 0)
+        for _thr in self.conn_sockets:
+            if _thr is not None:
+                _thr.stop()
+                _thr.join()
+        if self.scheduled_disconnect is not None:
+            debug.write("Purging scheduled light changes", 0)
+            self.scheduled_disconnect.cancel()
+        debug.write("Disconnecting devices", 0)
         self.disconnect_devices()
+        debug.write("Shutdown completed properly", 0)
 
     def _validate_and_execute_req(self, args):
         debug.write("Validating arguments", 0)
@@ -259,23 +266,23 @@ class HomeServer(object):
                 return
             if args["playbulb"] is not None:
                 debug.write("Received playbulb change request", 0)
-                if not lm.set_typed_colors(args["playbulb"], Playbulb.Playbulb):
+                if not lm.set_typed_colors(args["playbulb"], "Playbulb"):
                     return
             if args["milight"] is not None:
                 debug.write("Received milight change request", 0)
-                if not lm.set_typed_colors(args["milight"], Milight.Milight):
+                if not lm.set_typed_colors(args["milight"], "Milight"):
                     return
             if args["decora"] is not None:
                 debug.write("Received decora change request", 0)
-                if not lm.set_typed_colors(args["decora"], DecoraSwitch.DecoraSwitch):
+                if not lm.set_typed_colors(args["decora"], "DecoraSwitch"):
                     return
             if args["meross"] is not None:
                 debug.write("Received meross change request", 0)
-                if not lm.set_typed_colors(args["meross"], MerossSwitch.MerossSwitch):
+                if not lm.set_typed_colors(args["meross"], "MerossSwitch"):
                     return
             if args["tplinkswitch"] is not None:
                 debug.write("Received tplinkswitch change request", 0)
-                if not lm.set_typed_colors(args["tplinkswitch"], TPLinkSwitch.TPLinkSwitch):
+                if not lm.set_typed_colors(args["tplinkswitch"], "TP-LinkSwitch"):
                     return
             if args["preset"] is not None:
                 debug.write("Received change to preset [{}] request".format(args["preset"]), 0)
@@ -293,7 +300,7 @@ class HomeServer(object):
                 lm.set_colors([LIGHT_ON] * len(lm.devices))
             if args["restart"]:
                 debug.write("Received RESTART change request", 0)
-                if not lm.set_typed_colors(2, GenericOnOff.GenericOnOff):
+                if not lm.set_typed_colors(2, "GenericOnOff"):
                     return
             if args["toggle"]:
                 debug.write("Received TOGGLE change request", 0)
@@ -709,13 +716,13 @@ class DeviceManager(object):
         count = 0
         firstindex = 0
         for obj in self.devices:
-            if isinstance(obj, atype):
+            if obj.device_type == atype:
                 if count == 0: 
                     firstindex = i
                 count += 1
             i += 1
         if count == 0:
-            raise Exception('Invalid bulb type given. Quitting')
+            raise Exception('Invalid device type given. Quitting')
         return [count, firstindex]
 
     def _update_sunset_time(self, localization):
@@ -810,7 +817,7 @@ if __name__ == "__main__":
         sys.exit()
 
     if args.reset_mode and args.auto_mode:
-        DeviceManager.debugger("You should not set the mode to AUTO then reset it back to AUTO. Quitting.", 2)
+        debug.write("You should not set the mode to AUTO then reset it back to AUTO. Quitting.", 2)
         sys.exit()
 
     if args.server:
@@ -850,6 +857,8 @@ if __name__ == "__main__":
         if args.detector:
             td.stop()
             td.join()
+        debug.write("Threaded modules stopped.", 0)
+
 
     elif args.stream_dev or args.stream_group:
         colorval = ""
@@ -909,4 +918,4 @@ if __name__ == "__main__":
         s.sendall(json.dumps(vars(args)).encode('utf-8'))
         s.close()
 
-    sys.exit()
+    quit()
