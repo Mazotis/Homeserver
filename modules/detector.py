@@ -35,7 +35,7 @@ class runDetectorServer(Thread):
             if self.DETECTOR_START_HOUR > datetime.datetime.now().time() or \
                 self.DETECTOR_END_HOUR < datetime.datetime.now().time():
                 self.stopevent.wait(30)
-                return 
+                continue 
             self.detect_devices()
             self.stopevent.wait(int(self.config['DETECTOR']['PING_FREQ_SEC']))
         debug.write("Stopped.", 0, "DETECTOR")

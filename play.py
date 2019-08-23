@@ -2,7 +2,7 @@
 '''
     File name: play.py
     Author: Maxime Bergeron
-    Date last modified: 12/04/2019
+    Date last modified: 23/08/2019
     Python Version: 3.5
 
     A python websocket server/client and IFTTT receiver to control various cheap IoT
@@ -212,6 +212,7 @@ class HomeServer(object):
     def remove_server(self):
         """ Shuts down server and cleans resources """
         debug.write("Closing down server and lights.", 0)
+        lm.stop_delayed_changes()
         lm.set_skip_time_check()
         lm.set_colors([LIGHT_OFF] * len(lm.devices))
         lm.set_mode(False,True)
@@ -398,6 +399,7 @@ class DeviceManager(object):
         self.queue = queue.Queue()
         self.colors = ["-1"] * len(self.devices)
         self.delays = [0] * len(self.devices)
+        self.scheduled_changes = []
         self.states = self.get_state()
         debug.write("Got initial device states {}".format(self.states), 0)
         self.set_lock(0)
@@ -419,6 +421,7 @@ class DeviceManager(object):
             self.serverwide_skip_time = True
         else:
             debug.write("Skipping time check this time", 0)
+            self.skip_time = True
             for _dev in self.devices:
                 _dev.skip_time = True
 
@@ -472,12 +475,21 @@ class DeviceManager(object):
 
         return True
 
-    def run(self, delay=None):
+    def run(self, delay=None, colors=None, skiptime=None):
         """ Validates the request and runs the light change """
+        self.clean_delayed_changes()
         if delay is not None:
             debug.write("Delaying request for {} seconds".format(delay), 0)
-            time.sleep(delay)
-        if self.check_event_time():
+            _sched = threading.Timer(int(delay), self.run, (None,self.colors,self.skip_time,))
+            _sched.start()
+            self.scheduled_changes.append(_sched)
+            self.skip_time = False
+            return
+        if self.check_event_time() or skiptime:
+            if colors is not None:
+                self.colors = colors
+            if skiptime:
+                self.set_skip_time_check()
             self.queue.put(self.colors)
             #TODO Manage locking out when the run thread hangs
             debug.write("Locked status: {}".format(self.locked), 0)
@@ -586,6 +598,17 @@ class DeviceManager(object):
                 cnt = cnt + 1
         self.reinit()
 
+    def clean_delayed_changes(self):
+        for _sched in self.scheduled_changes:
+            if _sched is not None and not _sched.isAlive():
+                self.scheduled_changes.remove(_sched)
+
+    def stop_delayed_changes(self):
+        self.clean_delayed_changes()
+        for _sched in self.scheduled_changes:
+            if _sched is not None:
+                _sched.cancel()
+
     def reinit(self):
         """ Resets the Success bool to False """
         i = 0
@@ -594,12 +617,30 @@ class DeviceManager(object):
             i += 1
 
     def _decode_colors(self, colors):
+        _has_delays = False
         self.delays = [0] * len(self.devices)
         for _cnt, _col in enumerate(colors):
             if re.match("[0-9a-fA-F]+d[0-9]+", _col) is not None:
                 _vals = _col.split("d")
                 colors[_cnt] = _vals[0]
                 self.delays[_cnt] = int(_vals[1])
+                _has_delays = True
+        if _has_delays:
+            _delay_list = []
+            for _delay in self.delays:
+                if _delay != 0 and _delay not in _delay_list:
+                    _delay_list.append(_delay)
+                    _delay_colors = [LIGHT_SKIP] * len(self.devices)
+                    for _acnt,_adelay in enumerate(self.delays):
+                        if _adelay == _delay:
+                            #debug.write("COLORS: {} DELAY COLOR: {}".format(colors, _delay_colors), 0)
+                            _delay_colors[_acnt] = colors[_acnt]
+                            colors[_acnt] = LIGHT_SKIP
+                            self.delays[_acnt] = 0
+                    debug.write("Scheduling light change ({}) after {} seconds".format(_delay_colors, _delay), 0)
+                    _sched = threading.Timer(int(_delay), self.run, (None, _delay_colors, self.skip_time,))
+                    _sched.start()
+                    self.scheduled_changes.append(_sched)
         return colors
 
     def _set_lights(self):
@@ -645,10 +686,9 @@ class DeviceManager(object):
 
                                 self.light_threads[i] = self.light_pool.apply_async(self._set_device,
                                                                                     args=(i, _color, 
-                                                                                          self.priority,
-                                                                                          self.delays[i]))
+                                                                                          self.priority))
                             else:
-                                self._set_device(i, _color, self.priority, self.delays[i])
+                                self._set_device(i, _color, self.priority)
                         i += 1
 
                         if i == len(self.devices):
@@ -659,7 +699,7 @@ class DeviceManager(object):
                                         continue
                                     if _thread is not None:
                                         try:
-                                            if _thread.get(self.delays[_cnt] + 5) is not None:
+                                            if _thread.get(5) is not None:
                                                 i = 0
                                         except:
                                             i = 0
@@ -695,20 +735,12 @@ class DeviceManager(object):
         finally:
             self.reinit()
             self.set_lock(0)
+            self.skip_time = False
 
         debug.write("Change of lights completed.", 0)
 
-    def _set_device(self, count, color, priority, delay):
-        #TODO Find a way to make the delays non blocking
-        if delay is not 0:
-            #TODO return result of device.run to the server or rewrite this differently
-            debug.write("Delaying for {} seconds request for device: {}"
-                        .format(delay, self.devices[count].description), 0) 
-            s = sched.scheduler(time.time, time.sleep)
-            s.enter(delay, 1, self.devices[count].run, (color, priority,))
-            s.run()
-        else:
-            return self.devices[count].run(color, priority)
+    def _set_device(self, count, color, priority):
+        return self.devices[count].run(color, priority)
 
     def _get_type_index(self, atype):
         # TODO This should not depend on an ordered set of devices
