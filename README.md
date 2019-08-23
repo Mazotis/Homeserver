@@ -11,6 +11,7 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 * It can be integrated with any project that can run python, for example Kodi HTPCs.
 * It allows to change device states (turn lights on/off for example) depending on someone's presence at home or depending on the sunset time at your actual location.
 * It is portable - the server can be executed on any python3 compatible machine. You may also have multiple servers if, for example, your bluetooth devices are too far away.
+* It supports delayed changes (open x device for n seconds, or change y device state after n seconds).
 * Compatible with IFTTT (can be interfaced with Google Assistant/Google home and other voice devices) to add vocal commands to any non-smart device.
 * Allows indoor localization with [FIND3](https://github.com/schollz/find3) to turn on/off devices depending on where you are located inside your home.
 * Can receive commands from any IoT device/detectors that can connect via TCP wifi socket (see [WIKI](https://github.com/Mazotis/Lightserver/wiki/Connecting-a-Arduino-ESP8266-other-devices-via-TCP-socket) page on this) 
@@ -36,9 +37,23 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 - RPI-GPIO + LIRC setup (to create a small, sub-20$ IR remote controller for IR devices, such as a sound device)
 - Edited sudoers file to allow shutdown/reboot requests via ssh (UNIX systems)
 
-
 ## Installation and configuration
-### On a RPi3 or a linux-based bluetooth-enabled processor board
+### Using the systemd script
+1) Setup python3 + required pip imports.
+2) Configure your server and devices in the play.ini file. Read the file itself or the wiki for all the tweakable parameters.
+3) Git clone the repository in your RPi home folder (or wherever you want but don't forget to change the service script)
+```
+cd /home/pi
+git clone https://github.com/Mazotis/Lightserver
+```
+4) Copy and start the systemd script
+```
+sudo cp ./playserver.service /etc/systemd/system
+sudo systemctl enable playserver
+sudo systemctl start playserver
+```
+
+### On a RPi3 or a linux-based bluetooth-enabled processor board (manual use)
 1) Setup python3 + required pip imports.
 2) Configure your server and devices in the play.ini file. Read the file itself or the wiki for all the tweakable parameters.
 3) Run 

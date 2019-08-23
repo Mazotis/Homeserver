@@ -620,10 +620,17 @@ class DeviceManager(object):
         _has_delays = False
         self.delays = [0] * len(self.devices)
         for _cnt, _col in enumerate(colors):
-            if re.match("[0-9a-fA-F]+d[0-9]+", _col) is not None:
-                _vals = _col.split("d")
+            if re.match("[0-9a-fA-F]+del[0-9]+", _col) is not None:
+                """ This is a delayed change (delay then action) """
+                _vals = _col.split("del")
                 colors[_cnt] = _vals[0]
                 self.delays[_cnt] = int(_vals[1])
+                _has_delays = True
+            if re.match("[0-9a-fA-F]+for[0-9]+", _col) is not None:
+                """ This is a for-delay change (action, delay then off)"""
+                _vals = _col.split("for")
+                colors[_cnt] = _vals[0]
+                self.delays[_cnt] = -int(_vals[1])
                 _has_delays = True
         if _has_delays:
             _delay_list = []
@@ -634,8 +641,12 @@ class DeviceManager(object):
                     for _acnt,_adelay in enumerate(self.delays):
                         if _adelay == _delay:
                             #debug.write("COLORS: {} DELAY COLOR: {}".format(colors, _delay_colors), 0)
-                            _delay_colors[_acnt] = colors[_acnt]
-                            colors[_acnt] = LIGHT_SKIP
+                            if _adelay < 0:
+                                _delay_colors[_acnt] = LIGHT_OFF
+                                _delay = -_delay
+                            else:
+                                _delay_colors[_acnt] = colors[_acnt]
+                                colors[_acnt] = LIGHT_SKIP
                             self.delays[_acnt] = 0
                     debug.write("Scheduling light change ({}) after {} seconds".format(_delay_colors, _delay), 0)
                     _sched = threading.Timer(int(_delay), self.run, (None, _delay_colors, self.skip_time,))
