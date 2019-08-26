@@ -374,6 +374,8 @@ class HomeServer(object):
 class DeviceManager(object):
     """ Methods for instanciating and managing devices """
     def __init__(self, config=None):
+        debug.get_set_lock()
+        debug.enable_debug()
         self.config = config
         self.devices = []
         i = 0

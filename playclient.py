@@ -18,6 +18,7 @@ from devices.common import *
 from __main__ import *
 
 if __name__ == "__main__":
+    debug.enable_debug()
     PLAYCONFIG = configparser.ConfigParser()
     PLAYCONFIG.readfp(open(os.path.dirname(os.path.realpath(__file__)) + '/play.ini'))
 
