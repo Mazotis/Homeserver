@@ -81,8 +81,6 @@ class DebugLog(object):
                 with open(self.config['SERVER']['JOURNAL_DIR'] + "/play.0.log", "a") as jfile:
                     jfile.write(_debugtext + "\n")
 
-global decora
-global meross
 decora = None
 meross = None
 debug = DebugLog()

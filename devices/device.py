@@ -106,7 +106,7 @@ class device(object):
 
     def descriptions(self):
         """ Getter for the device description """
-        return "[{}] - {}".format(self.device_type, self.description)
+        return self.description
 
     def disconnect(self):
         """ Disconnects the device """

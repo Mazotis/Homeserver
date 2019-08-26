@@ -20,6 +20,7 @@
     $(document).ready(function() {
         getResult();
     })
+
     function getResult() {
         $("#preloader").show()
         $.ajax({
@@ -36,12 +37,26 @@
                 var cnt = 0
                 $('#suntime').html(thedata.starttime)
 
+                var ghtml = '<div class="row"><div class="col-sm-3">'
+                for (group in thedata.groups) {
+                    $("#groups").html("")
+                    if (cnt % Math.round(thedata.groups.length/4) === 0 && cnt != 0) {
+                        ghtml += '</div><div class="col-sm-3">'
+                    }
+                    $("#groupcardmodel").find(".card-header").text(thedata.groups[group].charAt(0).toUpperCase() + thedata.groups[group].substr(1).toLowerCase())
+                    ghtml += '<div class="gcard" id="gcard' + cnt + '">' + $("#groupcardmodel").html() + '</div>'
+                    cnt = cnt + 1
+                }
+                ghtml += '</div></div>'
+                $("#groups").html(ghtml)
+
+                cnt = 0
                 var html = '<div class="row"><div class="col-sm-4">'
                 for (_ in thedata.state) {
-                    if (cnt % 3 === 0 && cnt != 0) {
+                    if (cnt % Math.round(thedata.state.length/3) === 0 && cnt != 0) {
                         html += '</div><div class="col-sm-4">'
                     }
-                    html += '<div id="card' + cnt + '">' + generateCard(cnt, thedata) + '</div>'
+                    html += '<div class="dcard" id="card' + cnt + '">' + generateCard(cnt, thedata) + '</div>'
                     cnt = cnt + 1
                 }
 
@@ -73,23 +88,25 @@
     function generateCard(devid, data, last_state = null) {
         var mode
         data.mode[devid] ? mode = 1 : mode = 0
+        $("#cardmodel").find("div.mb-3").attr("cstate", data.state[devid])
+        $("#cardmodel").find("div.mb-3").attr("cid", devid)
+        $("#cardmodel").find("div.mb-3").attr("cmode", mode)
+        $("#cardmodel").find("div.card-header").text(data.type[devid])
+        $("#cardmodel").find("p.c-desc").text(data.description[devid])
 
-        var html = '<div class="card mb-3 text-white" cstate="' + data.state[devid] + '" cid="' + devid + '" cmode="' + mode + '"><div class="card-header">' + data.type[devid] + '</div><div class="card-body"><p class="card-text">' + data.description[devid] + '</p>'
-        html += '<button type="button" class="btn btn-danger offbuttons">OFF</button>'
-        html += '&nbsp;<button type="button" class="btn btn-success onbuttons">ON</button>'
-        html += '<div class="btn-group btn-group-toggle radiomode" data-toggle="buttons" style="float:right"><label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> Auto</label><label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> Manual</label></div>'
-
-        if (last_state != parseInt(data.state[devid]) &&  !(last_state != 0 && parseInt(data.state[devid]) != 0) && last_state != null)  {
-            html += '<p class="card-text">No changes occured, maybe you should set the Time check option</p>'
+        if (last_state != parseInt(data.state[devid]) &&  !(last_state != 0 && parseInt(data.state[devid]) != 0) && last_state != null) {
+            $("#cardmodel").find("p.errortext").show()
+        } else {
+            $("#cardmodel").find("p.errortext").hide()
         }
-        
-        html += '</div></div>'
+
+        html = $("#cardmodel").html()
 
         return html
     }
 
     function computeCards() {
-        $(".card").each(function() {
+        $(".dcard .card").each(function() {
             var cstate, cid, cmode
             cstate = $(this).attr("cstate")
             cid = $(this).attr("cid")
@@ -97,13 +114,17 @@
             if (cstate == "0" || (!isNaN(cstate) && parseInt(cstate) == 0)) {
                 $(this).find(".offbuttons").attr('disabled', true)
                 $(this).find(".onbuttons").attr('disabled', false)
-                $(this).addClass("bg-danger")
-                $(this).removeClass("bg-success")
+                $(this).find(".card-header").addClass("bg-danger")
+                $(this).find(".card-header").removeClass("bg-success")
+                $(this).addClass("border-danger")
+                $(this).removeClass("border-success")
             } else {
                 $(this).find(".offbuttons").attr('disabled', false)
                 $(this).find(".onbuttons").attr('disabled', true)
-                $(this).addClass("bg-success")
-                $(this).removeClass("bg-danger")
+                $(this).find(".card-header").addClass("bg-success")
+                $(this).find(".card-header").removeClass("bg-danger")
+                $(this).addClass("border-success")
+                $(this).removeClass("border-danger")
             }
             if (cmode == "0") {
                 $(this).find(".autobtn").removeClass('active')
@@ -121,6 +142,18 @@
             })
             $(this).find(".onbuttons").on('click', function() {
                 sendPowerRequest(cid, 1)
+            })
+        })
+
+        $(".gcard").each(function() {
+            var group, cid
+            group = $(this).find("div.card-header").text()
+            cid = $(this).attr("id")
+            $(this).find(".goffbuttons").on('click', function() {
+                sendGroupPowerRequest(group, 0, cid)
+            })
+            $(this).find(".gonbuttons").on('click', function() {
+                sendGroupPowerRequest(group, 1, cid)
             })
         })
     }
@@ -144,8 +177,26 @@
         })
     }
 
+    function sendGroupPowerRequest(group, value, devid) {
+        $("#"+devid).addClass("disabledbutton")
+        $.ajax({
+            type: "POST",
+            url: ".",
+            dataType: "text",
+            data: {
+                    request: "True",
+                    reqtype: "4",
+                    group: group,
+                    value: value,
+                    skiptime: $('input[name=skiptime2]').is(":checked")
+                },
+            success: function(data){
+                $("#"+devid).removeClass("disabledbutton")
+            }
+        })
+    }
+
     function sendModeRequest(devid, value, auto) {
-        console.log("running sendmode to value " + value + " and auto " + auto + " for devid " + devid);
         $("#card" + devid).addClass("disabledbutton")
         $.ajax({
             type: "POST",
@@ -191,6 +242,14 @@
                                 </p>
                             </div>
                         </div>
+                        <div class="card bg-info mb-3">
+                            <div class="card-body">
+                                <h4 class="card-title text-white">Groups</h4>
+                                <div id="groups" class="card-text">
+                                    <p class="text-white">No available device groups</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <center>
@@ -201,6 +260,36 @@
                     </div>
                 </center>
                 <div id="resultid"></div>
+            </div>
+        </div>
+    </div>
+    <div id="cardmodel" style="display:none;">
+        <div class="card text-center mb-3" cstate="" cid="" cmode="">
+            <div class="card-header text-white" style="font-weight:bold;"></div>
+            <div class="card-body">
+                <p class="card-text c-desc"></p>
+                <div class="btn-group btn-group-lg" role="group">
+                    <button type="button" class="btn btn-danger offbuttons">OFF</button>
+                    <button type="button" class="btn btn-success onbuttons">ON</button>
+                </div>
+                <div class="btn-group btn-group-lg btn-group-toggle radiomode" data-toggle="buttons" style="float:right;margin-top:10px;">
+                    <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> Auto</label>
+                    <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> Manual</label>
+                </div>
+            <p class=" errortext card-text" style="display:none;">No changes occured, maybe you should set the Time check option</p>
+            </div>
+        </div>
+    </div>
+    <div id="groupcardmodel" style="display:none;">
+        <div class="card text-center bg-light mb-3">
+            <div class="card-header" style="font-weight:bold;"></div>
+            <div class="card-body">
+                <center>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-danger goffbuttons">OFF</button>
+                        <button type="button" class="btn btn-success gonbuttons">ON</button>
+                    </div>
+                </center>
             </div>
         </div>
     </div>

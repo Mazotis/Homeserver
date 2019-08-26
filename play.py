@@ -81,6 +81,7 @@ class HomeServer(object):
                         ls_status["type"] = lm.get_types()
                         ls_status["description"] = lm.get_descriptions(True)
                         ls_status["starttime"] = "{}".format(lm.starttime)
+                        ls_status["groups"] = lm.get_all_groups()
                         debug.write('Sending lightserver status', 0)
                         client.send(json.dumps(ls_status).encode('UTF-8'))
                         break
@@ -107,6 +108,22 @@ class HomeServer(object):
                         else:
                             lm.set_mode_for_device(False, iddata)
                         debug.write('Device modes: {}'.format(lm.get_modes()), 0)
+                        client.send("1".encode("UTF-8"))
+                        break
+                    if data.decode('utf-8') == "setgroup":
+                        debug.write('Running a group change of state', 0)
+                        group = str(client.recv(64).decode("UTF-8")).strip()
+                        valdata = int(client.recv(2).decode("UTF-8"))
+                        skiptime = int(client.recv(1).decode("UTF-8"))
+                        _col = ["0"] * len(lm.devices)
+                        if skiptime == 1:
+                            lm.set_skip_time_check()
+                        if valdata == 1:
+                            _col = ["1"] * len(lm.devices)
+                        lm.set_colors(_col)
+                        lm.set_mode(False,False)
+                        lm.get_group([group.replace("0", "").lower()])
+                        lm.run()
                         client.send("1".encode("UTF-8"))
                         break
                     if data.decode('utf-8') == "stream":
@@ -410,6 +427,7 @@ class DeviceManager(object):
         self.threaded = False
         self.light_threads = [None] * len(self.devices)
         self.light_pool = None
+        self.all_groups = None
 
     def start_threaded(self):
         """ Enables multithreaded light change requests """
@@ -499,6 +517,16 @@ class DeviceManager(object):
                 self._set_lights()
             else:
                 self.lockcount = self.lockcount + 1
+
+    def get_all_groups(self):
+        if self.all_groups is None:
+            _groups = []
+            for obj in self.devices:
+                for group in obj.group:
+                    if group not in _groups:
+                        _groups.append(group)
+            self.all_groups = _groups
+        return self.all_groups
 
     def get_descriptions(self, as_list = False):
         """ Getter for configured devices descriptions """
