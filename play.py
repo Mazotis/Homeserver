@@ -79,6 +79,7 @@ class HomeServer(object):
                         ls_status["state"] = lm.get_state()
                         ls_status["mode"] = lm.get_modes()
                         ls_status["type"] = lm.get_types()
+                        ls_status["name"] = lm.get_names()
                         ls_status["description"] = lm.get_descriptions(True)
                         ls_status["starttime"] = "{}".format(lm.starttime)
                         ls_status["groups"] = lm.get_all_groups()
@@ -553,6 +554,20 @@ class DeviceManager(object):
         for obj in self.devices:
             modelist.append(obj.auto_mode)
         return modelist
+
+    def get_names(self):
+        namelist = []
+        for obj in self.devices:
+            if obj.name is not None:
+                namelist.append(obj.name)
+            else:
+                # Fallback to device then device type
+                try:
+                    namelist.append(obj.device)
+                except NameError:
+                    namelist.append(obj.device_type)
+
+        return namelist
 
     def get_event_time(self):
         if self.lastupdate != datetime.date.today():

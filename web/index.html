@@ -15,6 +15,15 @@
         pointer-events: none;
         opacity: 0.4;
     }
+    .noselect-nooverflow {
+        user-select: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none; 
+        -ms-user-select: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
     </style>
     <script>
     $(document).ready(function() {
@@ -91,7 +100,8 @@
         $("#cardmodel").find("div.mb-3").attr("cstate", data.state[devid])
         $("#cardmodel").find("div.mb-3").attr("cid", devid)
         $("#cardmodel").find("div.mb-3").attr("cmode", mode)
-        $("#cardmodel").find("div.card-header").text(data.type[devid])
+        $("#cardmodel").find(".card-title").text(data.name[devid])
+        $("#cardmodel").find(".text-muted").text(data.type[devid])
         $("#cardmodel").find("p.c-desc").text(data.description[devid])
 
         if (last_state != parseInt(data.state[devid]) &&  !(last_state != 0 && parseInt(data.state[devid]) != 0) && last_state != null) {
@@ -216,7 +226,7 @@
     </script>
     <div class="navbar bg-info">
         <div class="navbar-inner" style="width:100%;">
-            <center><h1 class="display-2" style="font-size:4vw;color:white;width:100%;">Lightserver controls</h1></center>
+            <center><h1 style="color:white;width:100%;">Lightserver controls</h1></center>
                <!-- nav bar items here -->
         </div>
     </div>
@@ -265,14 +275,17 @@
     </div>
     <div id="cardmodel" style="display:none;">
         <div class="card text-center mb-3" cstate="" cid="" cmode="">
-            <div class="card-header text-white" style="font-weight:bold;"></div>
-            <div class="card-body">
+            <div class="card-header"></div>
+            <h5 class="card-title noselect-nooverflow" style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"></h5>
+            <small class="text-muted noselect-nooverflow"></small>
+            <div class="card-body noselect-nooverflow" style="padding-top: none;">
                 <p class="card-text c-desc"></p>
-                <div class="btn-group btn-group-lg" role="group">
+                <div class="btn-group btn-group-lg" role="group" style="margin-bottom:10px;">
                     <button type="button" class="btn btn-danger offbuttons">OFF</button>
                     <button type="button" class="btn btn-success onbuttons">ON</button>
                 </div>
-                <div class="btn-group btn-group-lg btn-group-toggle radiomode" data-toggle="buttons" style="float:right;margin-top:10px;">
+                <br>
+                <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons">
                     <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> Auto</label>
                     <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> Manual</label>
                 </div>
@@ -282,10 +295,10 @@
     </div>
     <div id="groupcardmodel" style="display:none;">
         <div class="card text-center bg-light mb-3">
-            <div class="card-header" style="font-weight:bold;"></div>
-            <div class="card-body">
+            <h5 class="card-header noselect-nooverflow" style="font-weight:bold;"></h5>
+            <div class="card-body noselect-nooverflow">
                 <center>
-                    <div class="btn-group" role="group">
+                    <div class="btn-group btn-group-sm" role="group">
                         <button type="button" class="btn btn-danger goffbuttons">OFF</button>
                         <button type="button" class="btn btn-success gonbuttons">ON</button>
                     </div>

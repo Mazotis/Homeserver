@@ -16,7 +16,7 @@ class GenericOnOff(device):
     def __init__(self, devid, config):
         super().__init__(devid, config)
         self.config = config["DEVICE"+str(devid)]
-        self.device = self.config["NAME"]
+        self.device = self.config["DEVICE"]
         self.device_type = "GenericOnOff"
         debug.write("Created generic On/Off device named: {}".format(self.device), 0, self.device_type)
 

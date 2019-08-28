@@ -24,6 +24,7 @@ class device(object):
         self.auto_mode = True
         self.reset_mode = False
         self.default_skip_time = False
+        self.name = None
         if config.has_option("DEVICE"+str(devid),"SKIPTIME"):
             self.default_skip_time = config["DEVICE"+str(devid)].getboolean("SKIPTIME")
         self.skip_time = self.default_skip_time
@@ -33,6 +34,8 @@ class device(object):
         self.ignoremode = False
         if config.has_option("DEVICE"+str(devid),"IGNOREMODE"):
             self.ignoremode = config["DEVICE"+str(devid)].getboolean("IGNOREMODE")
+        if config.has_option("DEVICE"+str(devid),"NAME"):
+            self.name = config["DEVICE"+str(devid)]["NAME"]
 
     def run(self, color, priority):
         if self.success:

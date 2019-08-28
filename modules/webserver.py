@@ -85,6 +85,24 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         response.write(data)
                 finally:
                     s.close()
+            if reqtype == 4:
+                group = str(postvars[b'group'][0].decode('utf-8'))
+                value = str(postvars[b'value'][0].decode('utf-8'))
+                skiptime = postvars[b'skiptime'][0].decode('utf-8') in ['true', True]
+                try:
+                    s.sendall("0008".encode('utf-8'))
+                    s.sendall("setgroup".encode('utf-8'))
+                    s.sendall(group.zfill(64).encode('utf-8'))
+                    s.sendall(value.zfill(2).encode('utf-8'))
+                    if skiptime:
+                        s.sendall("1".encode('utf-8'))
+                    else:
+                        s.sendall("0".encode('utf-8'))
+                    data = s.recv(1)
+                    if data:
+                        response.write(data)
+                finally:
+                    s.close()
 
         else:
             response.write("No request".encode("UTF-8"))
