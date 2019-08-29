@@ -44,6 +44,7 @@ class HomeServer(object):
         self.tcp_start_hour = datetime.datetime.strptime(self.config['SERVER']['TCP_START_HOUR'],'%H:%M').time()
         self.tcp_end_hour = datetime.datetime.strptime(self.config['SERVER']['TCP_END_HOUR'],'%H:%M').time()
         self.conn_sockets = []
+        self.state_thread = None
 
     def listen(self):
         """ Starts the server """
@@ -76,7 +77,7 @@ class HomeServer(object):
                 if data:
                     if data.decode('utf-8') == "getstate":
                         ls_status = {}
-                        ls_status["state"] = lm.get_state()
+                        ls_status["state"] = lm.get_state(async=True)
                         ls_status["mode"] = lm.get_modes()
                         ls_status["type"] = lm.get_types()
                         ls_status["name"] = lm.get_names()
@@ -85,6 +86,17 @@ class HomeServer(object):
                         ls_status["groups"] = lm.get_all_groups()
                         debug.write('Sending lightserver status', 0)
                         client.send(json.dumps(ls_status).encode('UTF-8'))
+                        # Run the non-async state getter after ?
+                        if self.state_thread is None or not self.state_thread.is_alive():
+                            self.state_thread = threading.Thread(target=lm.get_state)
+                            self.state_thread.start()
+                        break
+                    if data.decode('utf-8') == "getstatepost":
+                        ls_status = {}
+                        while self.state_thread.is_alive():
+                            time.sleep(0.2)
+                        ls_status["state"] = lm.get_state(async=True)
+                        client.send(json.dumps(ls_status).encode('UTF-8')) 
                         break
                     if data.decode('utf-8') == "setstate":
                         debug.write('Running a single device state change', 0)
@@ -239,7 +251,6 @@ class HomeServer(object):
         debug.write("Closing remaining connections", 0)
         for _thr in self.conn_sockets:
             if _thr is not None:
-                _thr.stop()
                 _thr.join()
         if self.scheduled_disconnect is not None:
             debug.write("Purging scheduled light changes", 0)
@@ -606,13 +617,17 @@ class DeviceManager(object):
         """ Locks the light change request """
         self.locked = is_locked
 
-    def get_state(self, devid=None):
+    def get_state(self, devid=None, async=False):
         """ Getter for configured devices actual colors """
         states = [None] * len(self.devices)
         for _cnt, dev in enumerate(self.devices):
             if devid is not None and devid != _cnt:
                 continue
-            states[_cnt] = dev.get_state()
+            if async:
+                states[_cnt] = dev.state
+            else:
+                states[_cnt] = dev.get_state()
+        debug.write("Got state status", 0)
         if devid is not None:
             return states[devid]
         return states

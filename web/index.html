@@ -7,6 +7,7 @@
     <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+    <script src="js/app.js"></script>
     <title>Lightserver control panel</title>
   </head>
   <body style="background-color:#eee !important">
@@ -25,207 +26,8 @@
         text-overflow: ellipsis;
     }
     </style>
-    <script>
-    $(document).ready(function() {
-        getResult();
-    })
-
-    function getResult() {
-        $("#preloader").show()
-        $.ajax({
-            type: "POST",
-            url: ".",
-            dataType: "text",
-            data: {
-                    request: "True",
-                    reqtype: "1"
-                },
-            success: function(data){
-                $("#preloader").hide()
-                var thedata = JSON.parse(decodeURIComponent(data))
-                var cnt = 0
-                $('#suntime').html(thedata.starttime)
-
-                var ghtml = '<div class="row"><div class="col-sm-3">'
-                for (group in thedata.groups) {
-                    $("#groups").html("")
-                    if (cnt % Math.round(thedata.groups.length/4) === 0 && cnt != 0) {
-                        ghtml += '</div><div class="col-sm-3">'
-                    }
-                    $("#groupcardmodel").find(".card-header").text(thedata.groups[group].charAt(0).toUpperCase() + thedata.groups[group].substr(1).toLowerCase())
-                    ghtml += '<div class="gcard" id="gcard' + cnt + '">' + $("#groupcardmodel").html() + '</div>'
-                    cnt = cnt + 1
-                }
-                ghtml += '</div></div>'
-                $("#groups").html(ghtml)
-
-                cnt = 0
-                var html = '<div class="row"><div class="col-sm-4">'
-                for (_ in thedata.state) {
-                    if (cnt % Math.round(thedata.state.length/3) === 0 && cnt != 0) {
-                        html += '</div><div class="col-sm-4">'
-                    }
-                    html += '<div class="dcard" id="card' + cnt + '">' + generateCard(cnt, thedata) + '</div>'
-                    cnt = cnt + 1
-                }
-
-                html += '</div></div></div>'
-                $("#resultid").html(html)
-                computeCards()
-            }
-        })
-    }
-
-    function getOneResult(devid, last_state) {
-        $.ajax({
-            type: "POST",
-            url: ".",
-            dataType: "text",
-            data: {
-                    request: "True",
-                    reqtype: "1"
-                },
-            success: function(data){
-                var thedata = JSON.parse(decodeURIComponent(data))
-                $("#card" + devid).html(generateCard(devid, thedata, last_state))
-                computeCards()
-                $("#card" + devid).removeClass("disabledbutton")
-            }
-        })
-    }
-
-    function generateCard(devid, data, last_state = null) {
-        var mode
-        data.mode[devid] ? mode = 1 : mode = 0
-        $("#cardmodel").find("div.mb-3").attr("cstate", data.state[devid])
-        $("#cardmodel").find("div.mb-3").attr("cid", devid)
-        $("#cardmodel").find("div.mb-3").attr("cmode", mode)
-        $("#cardmodel").find(".card-title").text(data.name[devid])
-        $("#cardmodel").find(".text-muted").text(data.type[devid])
-        $("#cardmodel").find("p.c-desc").text(data.description[devid])
-
-        if (last_state != parseInt(data.state[devid]) &&  !(last_state != 0 && parseInt(data.state[devid]) != 0) && last_state != null) {
-            $("#cardmodel").find("p.errortext").show()
-        } else {
-            $("#cardmodel").find("p.errortext").hide()
-        }
-
-        html = $("#cardmodel").html()
-
-        return html
-    }
-
-    function computeCards() {
-        $(".dcard .card").each(function() {
-            var cstate, cid, cmode
-            cstate = $(this).attr("cstate")
-            cid = $(this).attr("cid")
-            cmode = $(this).attr("cmode")
-            if (cstate == "0" || (!isNaN(cstate) && parseInt(cstate) == 0)) {
-                $(this).find(".offbuttons").attr('disabled', true)
-                $(this).find(".onbuttons").attr('disabled', false)
-                $(this).find(".card-header").addClass("bg-danger")
-                $(this).find(".card-header").removeClass("bg-success")
-                $(this).addClass("border-danger")
-                $(this).removeClass("border-success")
-            } else {
-                $(this).find(".offbuttons").attr('disabled', false)
-                $(this).find(".onbuttons").attr('disabled', true)
-                $(this).find(".card-header").addClass("bg-success")
-                $(this).find(".card-header").removeClass("bg-danger")
-                $(this).addClass("border-success")
-                $(this).removeClass("border-danger")
-            }
-            if (cmode == "0") {
-                $(this).find(".autobtn").removeClass('active')
-                $(this).find(".manbtn").addClass('active')
-            } else {
-                $(this).find(".autobtn").addClass('active')
-                $(this).find(".manbtn").removeClass('active')
-            }
-
-            $(this).find(".radiomode :input").on('change', function() {
-                sendModeRequest(cid, cstate, $(this).val())
-            })
-            $(this).find(".offbuttons").on('click', function() {
-                sendPowerRequest(cid, 0)
-            })
-            $(this).find(".onbuttons").on('click', function() {
-                sendPowerRequest(cid, 1)
-            })
-        })
-
-        $(".gcard").each(function() {
-            var group, cid
-            group = $(this).find("div.card-header").text()
-            cid = $(this).attr("id")
-            $(this).find(".goffbuttons").on('click', function() {
-                sendGroupPowerRequest(group, 0, cid)
-            })
-            $(this).find(".gonbuttons").on('click', function() {
-                sendGroupPowerRequest(group, 1, cid)
-            })
-        })
-    }
-
-    function sendPowerRequest(devid, value) {
-        $("#card" + devid).addClass("disabledbutton")
-        $.ajax({
-            type: "POST",
-            url: ".",
-            dataType: "text",
-            data: {
-                    request: "True",
-                    reqtype: "2",
-                    devid: devid,
-                    value: value,
-                    skiptime: $('input[name=skiptime2]').is(":checked")
-                },
-            success: function(data){
-                getOneResult(devid, value)
-            }
-        })
-    }
-
-    function sendGroupPowerRequest(group, value, devid) {
-        $("#"+devid).addClass("disabledbutton")
-        $.ajax({
-            type: "POST",
-            url: ".",
-            dataType: "text",
-            data: {
-                    request: "True",
-                    reqtype: "4",
-                    group: group,
-                    value: value,
-                    skiptime: $('input[name=skiptime2]').is(":checked")
-                },
-            success: function(data){
-                $("#"+devid).removeClass("disabledbutton")
-            }
-        })
-    }
-
-    function sendModeRequest(devid, value, auto) {
-        $("#card" + devid).addClass("disabledbutton")
-        $.ajax({
-            type: "POST",
-            url: ".",
-            dataType: "text",
-            data: {
-                    request: "True",
-                    reqtype: "3",
-                    mode: auto,
-                    devid: devid
-                },
-            success: function(data){
-                getOneResult(devid, value)
-            }
-        })
-    }
-    </script>
     <div class="navbar bg-info">
-        <div class="navbar-inner" style="width:100%;">
+        <div class="navbar-inner noselect-nooverflow" style="width:100%;">
             <center><h1 style="color:white;width:100%;">Lightserver controls</h1></center>
                <!-- nav bar items here -->
         </div>
@@ -237,7 +39,7 @@
                 <div class="row">
                     <div class="col-sm-12">
                         <div class="card text-white bg-dark mb-3">
-                            <div class="card-body">
+                            <div class="card-body noselect-nooverflow">
                                 <h4 class="card-title">Options</h4>
                                 <p class="card-text">Time check feature (sunset time). Today's start time: <span id="suntime">N/A</span></p>
                                 <p class="card-text">

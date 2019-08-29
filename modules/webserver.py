@@ -103,6 +103,15 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         response.write(data)
                 finally:
                     s.close()
+            if reqtype == 5:
+                try:
+                    s.sendall("0012".encode('utf-8'))
+                    s.sendall("getstatepost".encode('utf-8'))
+                    data = s.recv(1024)
+                    if data:
+                        response.write(data)
+                finally:
+                    s.close()
 
         else:
             response.write("No request".encode("UTF-8"))
