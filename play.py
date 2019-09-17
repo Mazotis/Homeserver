@@ -2,7 +2,7 @@
 '''
     File name: play.py
     Author: Maxime Bergeron
-    Date last modified: 23/08/2019
+    Date last modified: 17/09/2019
     Python Version: 3.5
 
     A python websocket server/client and IFTTT receiver to control various cheap IoT
@@ -81,6 +81,9 @@ class HomeServer(object):
                         ls_status["mode"] = lm.get_modes()
                         ls_status["type"] = lm.get_types()
                         ls_status["name"] = lm.get_names()
+                        for op in ["skiptime", "forceoff", "ignoremode"]:
+                            ls_status["op_" + op] = lm.get_option(op)
+                        ls_status["icon"] = lm.get_icons()
                         ls_status["description"] = lm.get_descriptions(True)
                         ls_status["starttime"] = "{}".format(lm.starttime)
                         ls_status["groups"] = lm.get_all_groups()
@@ -587,6 +590,26 @@ class DeviceManager(object):
                     namelist.append(obj.device_type)
 
         return namelist
+
+    def get_option(self, option):
+        oplist = []
+        for obj in self.devices:
+            if option == "skiptime":
+                oplist.append(obj.default_skip_time)
+            elif option == "forceoff":
+                oplist.append(obj.forceoff)
+            elif option == "ignoremode":
+                oplist.append(obj.ignoremode)
+        return oplist
+
+    def get_icons(self):
+        iconlist = []
+        for obj in self.devices:
+            if obj.icon is not None:
+                iconlist.append(obj.icon)
+            else:
+                iconlist.append("none")
+        return iconlist
 
     def get_event_time(self):
         if self.lastupdate != datetime.date.today():

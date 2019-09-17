@@ -36,6 +36,9 @@ class device(object):
             self.ignoremode = config["DEVICE"+str(devid)].getboolean("IGNOREMODE")
         if config.has_option("DEVICE"+str(devid),"NAME"):
             self.name = config["DEVICE"+str(devid)]["NAME"]
+        self.icon = None
+        if config.has_option("DEVICE"+str(devid),"ICON"):
+            self.icon = config["DEVICE"+str(devid)]["ICON"]
 
     def run(self, color, priority):
         if self.success:

@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link href="fa/css/all.css" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
@@ -82,8 +83,12 @@
         </div>
     </div>
     <div id="cardmodel" style="display:none;">
-        <div class="card text-center mb-3" cstate="" cid="" cmode="">
-            <div class="card-header"></div>
+        <div class="card text-center mb-3" cstate="" cid="" cmode="" cskiptime="" cforceoff="" cignoremode="">
+            <div class="card-header text-white" style="padding:5px;min-height: 30px;">
+                <center>
+                    <i class="iconi"></i>
+                </center>
+            </div>
             <h5 class="card-title noselect-nooverflow" style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"></h5>
             <small class="text-muted noselect-nooverflow"></small>
             <div class="card-body noselect-nooverflow" style="padding-top: none;">
@@ -98,6 +103,13 @@
                     <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> Manual</label>
                 </div>
             <p class=" errortext card-text" style="display:none;">No changes occured, maybe you should set the Time check option</p>
+            </div>
+            <div class="card-footer noselect-nooverflow">
+                <center>
+                    <i class="fas fa-clock skiptime" title="Device follows the time-check feature" style="margin-right:5px; display:none"></i>
+                    <i class="fas fa-power-off forceoff" title="If the device status is OFF, will ignore all turn-off requests" style="margin-right:5px; display:none"></i>
+                    <i class="fas fa-exclamation ignoremode" title="Device ignores its mode" style="display:none"></i>
+                </center>
             </div>
         </div>
     </div>

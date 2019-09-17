@@ -26,6 +26,7 @@ function getResult() {
             var thedata = JSON.parse(decodeURIComponent(data))
             var cnt = 0
             $('#suntime').html(thedata.starttime)
+            console.log(thedata)
 
             var ghtml = '<div class="row"><div class="col-sm-3">'
             for (group in thedata.groups) {
@@ -110,6 +111,10 @@ function generateCard(devid, data, last_state = null) {
     $("#cardmodel").find("div.mb-3").attr("cstate", data.state[devid])
     $("#cardmodel").find("div.mb-3").attr("cid", devid)
     $("#cardmodel").find("div.mb-3").attr("cmode", mode)
+    $("#cardmodel").find("div.mb-3").attr("cskiptime", data.op_skiptime[devid])
+    $("#cardmodel").find("div.mb-3").attr("cforceoff", data.op_forceoff[devid])
+    $("#cardmodel").find("div.mb-3").attr("cignoremode", data.op_ignoremode[devid])
+    $("#cardmodel").find("div.mb-3").attr("cicon", data.icon[devid])
     $("#cardmodel").find(".card-title").text(data.name[devid])
     $("#cardmodel").find(".text-muted").text(data.type[devid])
     $("#cardmodel").find("p.c-desc").text(data.description[devid])
@@ -131,6 +136,11 @@ function computeCards() {
         cstate = $(this).attr("cstate")
         cid = $(this).attr("cid")
         cmode = $(this).attr("cmode")
+        cforceoff = $(this).attr("cforceoff")
+        cignoremode = $(this).attr("cignoremode")
+        cskiptime = $(this).attr("cskiptime")
+        cicon = $(this).attr("cicon")
+
         if (cstate == "0" || (!isNaN(cstate) && parseInt(cstate) == 0)) {
             $(this).find(".offbuttons").attr('disabled', true)
             $(this).find(".onbuttons").attr('disabled', false)
@@ -146,12 +156,29 @@ function computeCards() {
             $(this).addClass("border-success")
             $(this).removeClass("border-danger")
         }
+
         if (cmode == "0") {
             $(this).find(".autobtn").removeClass('active')
             $(this).find(".manbtn").addClass('active')
         } else {
             $(this).find(".autobtn").addClass('active')
             $(this).find(".manbtn").removeClass('active')
+        }
+
+        if (cforceoff == "false") {
+            $(this).find(".forceoff").show()
+        }
+
+        if (cignoremode == "true") {
+            $(this).find(".ignoremode").show()
+        }
+
+        if (cskiptime == "false") {
+            $(this).find(".skiptime").show()
+        }
+
+        if (cicon != "none") {
+            $(this).find(".iconi").attr("class", "iconi " + cicon)
         }
 
         $(this).find(".radiomode :input").on('change', function() {
