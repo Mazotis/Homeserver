@@ -123,6 +123,12 @@ class HomeServer(object):
                         debug.write('Device modes: {}'.format(lm.get_modes()), 0)
                         client.send("1".encode("UTF-8"))
                         break
+                    if data.decode('utf-8') == "setallmode":
+                        debug.write('Running an all-devices mode change', 0)
+                        lm.set_mode(False,False,True)
+                        debug.write('Device modes: {}'.format(lm.get_modes()), 0)
+                        client.send("1".encode("UTF-8"))
+                        break
                     if data.decode('utf-8') == "setgroup":
                         debug.write('Running a group change of state', 0)
                         group = str(client.recv(64).decode("UTF-8")).strip()
@@ -461,11 +467,13 @@ class DeviceManager(object):
         """ Setter function for color request. Required. """
         self.colors = color
 
-    def set_mode(self, auto_mode, reset_mode):
+    def set_mode(self, auto_mode, reset_mode, force_auto=False):
         for _cnt, device in enumerate(self.devices):
             if self.colors[_cnt] != LIGHT_SKIP:
                 self.devices[_cnt].request_auto_mode = auto_mode
                 self.devices[_cnt].reset_mode = reset_mode
+            if force_auto:
+                self.devices[_cnt].auto_mode = True
 
     def set_mode_for_device(self, auto_mode, devid):
         """ Used by the webserver to switch device modes one by one """
@@ -627,7 +635,8 @@ class DeviceManager(object):
                 states[_cnt] = dev.state
             else:
                 states[_cnt] = dev.get_state()
-        debug.write("Got state status", 0)
+        if not async:
+            debug.write("State status updated from devices get_state()", 0)
         if devid is not None:
             return states[devid]
         return states

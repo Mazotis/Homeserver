@@ -112,6 +112,15 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         response.write(data)
                 finally:
                     s.close()
+            if reqtype == 6:
+                try:
+                    s.sendall("0010".encode('utf-8'))
+                    s.sendall("setallmode".encode('utf-8'))
+                    data = s.recv(1)
+                    if data:
+                        response.write(data)
+                finally:
+                    s.close()
 
         else:
             response.write("No request".encode("UTF-8"))
