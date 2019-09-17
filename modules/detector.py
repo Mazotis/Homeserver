@@ -125,7 +125,10 @@ class runDetectorServer(Thread):
         if self.status == 1 and all(s == 0 for s in self.DEVICE_STATE_LEVEL):
             debug.write("STATE changed to {} and DELAYED_START {}, turned off" \
                                   .format(self.DEVICE_STATE_LEVEL, self.delayed_start), 0, "DETECTOR")
-            os.system('./playclient.py --auto-mode --off --notime --priority 3')
+            if self.config['DETECTOR'].getboolean('FALLBACK_AUTO_ON_DISCONNECT'):
+                os.system('./playclient.py --reset-mode --off --notime --priority 3')
+            else:
+                os.system('./playclient.py --auto-mode --off --notime --priority 3')
             self.status = 0
             self.delayed_start = 0
         if datetime.datetime.now().time() == EVENT_TIME and self.delayed_start == 1:
