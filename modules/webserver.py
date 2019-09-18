@@ -2,7 +2,7 @@
 '''
     File name: webserver.py
     Author: Maxime Bergeron
-    Date last modified: 22/08/2019
+    Date last modified: 17/09/2019
     Python Version: 3.5
 
     The web server interface module for the lightserver

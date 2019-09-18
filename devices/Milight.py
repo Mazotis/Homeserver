@@ -36,10 +36,22 @@ class Milight(Bulb):
         self.id1 = config["DEVICE"+str(devid)]["ID1"]
         self.id2 = config["DEVICE"+str(devid)]["ID2"]
         self.state = "0"
+        self.color_type = "255"
+        self.color_temp = int(config["DEVICE"+str(devid)]["DEFAULT_TEMP"])
+        if self.color_temp < 2000 or self.color_temp > 6500:
+            debug.write("Default color temperature should be between 2000K and 6500K. Quitting.", 2, self.device_type)
+            quit()
+        #TODO is this accurate enough?
+        self.color_temp = int((self.color_temp-2000)*125/6500)
+        self.color_brightness = int(config["DEVICE"+str(devid)]["DEFAULT_BRIGHTNESS"])
+        if self.color_brightness < 0 or self.color_brightness > 100:
+            debug.write("Default bulb brightness should be between 0 and 100. Quitting.", 2, self.device_type)
+            quit()
 
     def turn_on(self):
         """ Helper function to turn on device """
-        return self._write(self.get_query(32, 161, 1, self.id1, self.id2), "1")
+        if not self._write(self.get_query(32, 161, 1, self.id1, self.id2), "1"): return False
+        return self._write(self.get_query(20, 161, 4, self.id1, self.id2, 1, 4, 255), "1")
 
     def turn_off(self):
         """ Helper function to turn off device """
@@ -49,8 +61,14 @@ class Milight(Bulb):
     def turn_on_and_set_color(self, color):
         """ Helper function to change color """
         debug.write("Setting ({}) to COLOR {}".format(self.description, color), 0, self.device_type)
-        if not self.turn_on(): return False
-        return self._write(self.get_query(45, 161, 4, self.id1, self.id2, color, 2, 50), color)
+        if self.state == "0":
+            if not self.turn_on(): return False
+        if type(color) is tuple:
+            if not self._write(self.get_query(45, 161, 4, self.id1, self.id2, int(color[0]), 2, 100), color[0]): return False
+            return self._write(self.get_query(45, 161, 5, self.id1, self.id2, int(color[0]), 2, int(color[1])), color)
+        else:
+            if not self._write(self.get_query(45, 161, 4, self.id1, self.id2, color, 2, 100), color): return False
+            return self._write(self.get_query(45, 161, 5, self.id1, self.id2, color, 2, self.color_brightness), color)
 
     def turn_on_and_dim_on(self, color):
         """ Helper function to turn on device to default intensity """
@@ -60,19 +78,16 @@ class Milight(Bulb):
 
     def dim_on(self, color):
         """ Helper function to set default intensity """
-        return self._write(self.get_query(20, 161, 5, self.id1, self.id2, 200, 4, 50), color)
+        return self._write(self.get_query(20, 161, 5, self.id1, self.id2, self.color_temp, 4, self.color_brightness), color)
 
     def color(self, color, priority):
         """ Checks the request and trigger a light change if needed """
-        if len(color) > 3:
-            debug.write("Unhandled color format {}".format(color), 1, self.device_type)
-            return True
         if color == LIGHT_OFF:
             if not self.turn_off(): 
                 return False
         elif color == LIGHT_ON:
             if not self.turn_on_and_dim_on(color):
-                return False
+                return False         
         else:
             if not self.turn_on_and_set_color(color): 
                 return False

@@ -38,20 +38,14 @@ class Playbulb(Bulb):
         #TODO get actual color at instanciation
         self.state = "00000000"
         self.intensity = config["DEVICE"+str(devid)]["DEFAULT_INTENSITY"]
+        self.color_type = "argb"
 
-    def convert(self, color):
-        """ Conversion to a color code acceptable by the device """
+    def color(self, color, priority):
+        """ Checks the request and trigger a light change if needed """
         if color == LIGHT_OFF:
             color = "00000000"
         elif color == LIGHT_ON:
             color = self.intensity
-        return color
-
-    def color(self, color, priority):
-        """ Checks the request and trigger a light change if needed """
-        if len(color) not in (1, 8) and color != LIGHT_SKIP:
-            debug.write("Unhandled color format {}".format(color), 1, self.device_type)
-            return True
         debug.write("Changing ({}) color to {}".format(self.description, color), 0, self.device_type)
         if not self._write(color): return False
         return True

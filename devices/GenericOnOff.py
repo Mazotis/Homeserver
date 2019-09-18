@@ -18,6 +18,7 @@ class GenericOnOff(device):
         self.config = config["DEVICE"+str(devid)]
         self.device = self.config["DEVICE"]
         self.device_type = "GenericOnOff"
+        self.color_type = "io-ops"
         debug.write("Created generic On/Off device named: {}".format(self.device), 0, self.device_type)
 
     def get_state(self):
@@ -34,31 +35,21 @@ class GenericOnOff(device):
             self.state = 0
             return 0
         return self.state
-
-    def convert(self, color):
-        # TODO: Only accept int values of 1, 2 and LIGHT_SKIP?
-        if int(color) == 1:
-            return 1
-        if int(color) == 2:
-            return 2
-        if color == LIGHT_SKIP:
-            return LIGHT_SKIP
-        return 0
         
     def color(self, color, priority):
-        if color == 0 and self.config["OFF"]:
+        if color == LIGHT_OFF and self.config["OFF"]:
             debug.write("Turning device {} OFF".format(self.device), 0, self.device_type)
             os.system(self.config["OFF"])
             self.success = True
             self.state = 0
             return True
-        elif color == 1 and self.config["ON"]:
+        elif color == LIGHT_ON and self.config["ON"]:
             debug.write("Turning device {} ON".format(self.device), 0, self.device_type)
             os.system(self.config["ON"])
             self.success = True
             self.state = 1
             return True
-        elif color == 2 and self.config["RESTART"]:
+        elif color == "2" and self.config["RESTART"]:
             debug.write("Restarting device {}".format(self.device), 0, self.device_type)
             os.system(self.config["RESTART"])
             self.success = True

@@ -130,12 +130,6 @@ Bulb.py provides the device.py functions + additional features used in BLE light
     def disconnect(self):
         """ Disconnects the device """
         pass
-
-    def convert(self, color):
-        """ Conversion to a color code/state code acceptable by the device """
-        """ Ideally to convert a AARRGGBB (or any value that could be sent """
-        """ to this device) to a value that the device can handle """
-        return color
         
     def descriptions(self):
         """ Getter for the device description """

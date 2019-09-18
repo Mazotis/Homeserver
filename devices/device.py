@@ -9,6 +9,7 @@
 '''
 
 from devices.common import *
+from modules.convert import convert_color
 
 class device(object):
     def __init__(self, devid, config):
@@ -25,6 +26,7 @@ class device(object):
         self.reset_mode = False
         self.default_skip_time = False
         self.name = None
+        self.color_type = None
         if config.has_option("DEVICE"+str(devid),"SKIPTIME"):
             self.default_skip_time = config["DEVICE"+str(devid)].getboolean("SKIPTIME")
         self.skip_time = self.default_skip_time
@@ -93,8 +95,10 @@ class device(object):
         return self.color(color, priority)
 
     def convert(self, color):
-        """ Conversion to a color code acceptable by the device """
-        return color
+        if self.color_type is None:
+            debug.write("Device {} must declare a color type. Quitting.",2)
+            quit()
+        return convert_color(color, self.color_type)
 
     def reinit(self):
         """ Prepares the device for a future request """
