@@ -24,6 +24,7 @@ import traceback
 import json
 import queue
 from devices.common import *
+from modules.convert import convert_to_web_rgb
 from argparse import RawTextHelpFormatter, Namespace
 from multiprocessing.pool import ThreadPool
 from functools import partial
@@ -77,7 +78,7 @@ class HomeServer(object):
                 if data:
                     if data.decode('utf-8') == "getstate":
                         ls_status = {}
-                        ls_status["state"] = lm.get_state(async=True)
+                        ls_status["state"] = lm.get_state(async=True, webcolors=True)
                         ls_status["mode"] = lm.get_modes()
                         ls_status["type"] = lm.get_types()
                         ls_status["name"] = lm.get_names()
@@ -87,6 +88,7 @@ class HomeServer(object):
                         ls_status["description"] = lm.get_descriptions(True)
                         ls_status["starttime"] = "{}".format(lm.starttime)
                         ls_status["groups"] = lm.get_all_groups()
+                        ls_status["colortype"] = lm.get_colortypes()
                         debug.write('Sending lightserver status', 0)
                         client.send(json.dumps(ls_status).encode('UTF-8'))
                         # Run the non-async state getter after ?
@@ -98,13 +100,18 @@ class HomeServer(object):
                         ls_status = {}
                         while self.state_thread.is_alive():
                             time.sleep(0.2)
-                        ls_status["state"] = lm.get_state(async=True)
+                        ls_status["state"] = lm.get_state(async=True, webcolors=True)
                         client.send(json.dumps(ls_status).encode('UTF-8')) 
                         break
                     if data.decode('utf-8') == "setstate":
                         debug.write('Running a single device state change', 0)
                         iddata = int(client.recv(3).decode("UTF-8"))
-                        valdata = int(client.recv(8).decode("UTF-8"))
+                        valdata = client.recv(8).decode("UTF-8")
+                        try:
+                            valdata = int(valdata)
+                        except ValueError:
+                            # Must be hexadecimal
+                            valdata = valdata[2:9]
                         skiptime = int(client.recv(1).decode("UTF-8"))
                         _col = ["-1"] * len(lm.devices)
                         _col[iddata] = str(valdata)
@@ -611,6 +618,12 @@ class DeviceManager(object):
                 iconlist.append("none")
         return iconlist
 
+    def get_colortypes(self):
+        ctypelist = []
+        for obj in self.devices:
+            ctypelist.append(obj.color_type)
+        return ctypelist
+
     def get_event_time(self):
         if self.lastupdate != datetime.date.today():
             self.lastupdate = datetime.date.today()
@@ -648,7 +661,7 @@ class DeviceManager(object):
         """ Locks the light change request """
         self.locked = is_locked
 
-    def get_state(self, devid=None, async=False):
+    def get_state(self, devid=None, async=False, webcolors=False):
         """ Getter for configured devices actual colors """
         states = [None] * len(self.devices)
         for _cnt, dev in enumerate(self.devices):
@@ -658,6 +671,8 @@ class DeviceManager(object):
                 states[_cnt] = dev.state
             else:
                 states[_cnt] = dev.get_state()
+            if webcolors:
+                states[_cnt] = convert_to_web_rgb(states[_cnt], dev.color_type, dev.color_brightness)
         if not async:
             debug.write("State status updated from devices get_state()", 0)
         if devid is not None:

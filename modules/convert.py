@@ -96,3 +96,27 @@ def convert_color(color, output_type=None):
         if is_8bit:
             debug.write("Conversion from Milight 8-bit {} to RGB color code not yet implemented".format(color),1)
             return LIGHT_ON
+
+def convert_to_web_rgb(color, input_type, device_luminosity=None):
+    if input_type not in ["255","rgb","argb"]:
+        return color
+    if color == LIGHT_ON:
+        return "FFFFFF"
+    elif color == LIGHT_OFF:
+        return "000000"
+    if input_type == "argb":
+        if len(color) == 8:
+            return color[2:8]
+        debug.write("Unexpected color length, for conversion from argb to rgb. Got {}".format(color),1)
+        return color
+    if input_type == "255":
+        if type(color) is tuple:
+            #TODO is there a way to support saturation for those devices?
+            color_hls = colorsys.hls_to_rgb(color[0]/255,color[1]/100,1.0)
+            color_rgb = "{:02x}".format(int(color_hls[0]*255)) + "{:02x}".format(int(color_hls[1]*255)) + "{:02x}".format(int(color_hls[2]*255)) 
+            debug.write("Conversion from HLS {}-{} to RGB {}".format(color[0], color[1], color_rgb), 0)
+        else:
+            color_hls = colorsys.hls_to_rgb(color/255,device_luminosity/100,1.0)
+            color_rgb = "{:02x}".format(int(color_hls[0]*255)) + "{:02x}".format(int(color_hls[1]*255)) + "{:02x}".format(int(color_hls[2]*255)) 
+            debug.write("Conversion from HLS {}-{} to RGB {}".format(color, device_luminosity, color_rgb), 0)
+        return color_rgb

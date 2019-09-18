@@ -83,7 +83,7 @@
         </div>
     </div>
     <div id="cardmodel" style="display:none;">
-        <div class="card text-center mb-3" cstate="" cid="" cmode="" cskiptime="" cforceoff="" cignoremode="">
+        <div class="card text-center mb-3" cstate="" cid="" cmode="" cskiptime="" cforceoff="" cignoremode="" cicon="" ccolortype="">
             <div class="card-header text-white" style="padding:5px;min-height: 30px;">
                 <center>
                     <i class="iconi"></i>
@@ -97,12 +97,15 @@
                     <button type="button" class="btn btn-danger offbuttons">OFF</button>
                     <button type="button" class="btn btn-success onbuttons">ON</button>
                 </div>
+                <div class="form-group form-group-lg colorpick" style="display:none; margin-bottom:0;">
+                    <input class="form-control" type="color" cid="" style="padding:2px; margin-bottom: 0;">
+                </div>
                 <br>
                 <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons">
                     <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> Auto</label>
                     <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> Manual</label>
                 </div>
-            <p class=" errortext card-text" style="display:none;">No changes occured, maybe you should set the Time check option</p>
+            <p class="errortext card-text" style="display:none;margin-top:5px;">No changes occured, maybe you should set the Time check option</p>
             </div>
             <div class="card-footer noselect-nooverflow">
                 <center>

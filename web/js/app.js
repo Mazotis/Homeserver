@@ -114,14 +114,15 @@ function generateCard(devid, data, last_state = null) {
     $("#cardmodel").find("div.mb-3").attr("cforceoff", data.op_forceoff[devid])
     $("#cardmodel").find("div.mb-3").attr("cignoremode", data.op_ignoremode[devid])
     $("#cardmodel").find("div.mb-3").attr("cicon", data.icon[devid])
+    $("#cardmodel").find("div.mb-3").attr("ccolortype", data.colortype[devid])
     $("#cardmodel").find(".card-title").text(data.name[devid])
     $("#cardmodel").find(".text-muted").text(data.type[devid])
     $("#cardmodel").find("p.c-desc").text(data.description[devid])
 
-    if (last_state != parseInt(data.state[devid]) &&  !(last_state != 0 && parseInt(data.state[devid]) != 0) && last_state != null) {
+    $("#cardmodel").find("p.errortext").hide()
+    //TODO - Find a way to determine if a change between two colors has succeded (as the reported state from the lightserver differs from the "real" selection)
+    if (last_state != data.state[devid] && !(last_state == 1 && data.state[devid] == "FFFFFF") && last_state != null && !(last_state.length == 6 && data.state[devid].length == 6 && data.state[devid] != "000000" && data.state[devid] != "FFFFFF")) {
         $("#cardmodel").find("p.errortext").show()
-    } else {
-        $("#cardmodel").find("p.errortext").hide()
     }
 
     html = $("#cardmodel").html()
@@ -131,7 +132,8 @@ function generateCard(devid, data, last_state = null) {
 
 function computeCards() {
     $(".dcard .card").each(function() {
-        var cstate, cid, cmode
+        var cstate, cid, cmode, ccolortype, cinit
+        cinit = $(this).attr("cinit")
         cstate = $(this).attr("cstate")
         cid = $(this).attr("cid")
         cmode = $(this).attr("cmode")
@@ -139,6 +141,7 @@ function computeCards() {
         cignoremode = $(this).attr("cignoremode")
         cskiptime = $(this).attr("cskiptime")
         cicon = $(this).attr("cicon")
+        ccolortype = $(this).attr("ccolortype")
 
         if (cstate == "0" || (!isNaN(cstate) && parseInt(cstate) == 0)) {
             $(this).find(".offbuttons").attr('disabled', true)
@@ -180,27 +183,50 @@ function computeCards() {
             $(this).find(".iconi").attr("class", "iconi " + cicon)
         }
 
-        $(this).find(".radiomode :input").on('change', function() {
-            sendModeRequest(cid, cstate, $(this).val())
-        })
-        $(this).find(".offbuttons").on('click', function() {
-            sendPowerRequest(cid, 0)
-        })
-        $(this).find(".onbuttons").on('click', function() {
-            sendPowerRequest(cid, 1)
-        })
+        if (["argb", "rgb", "255"].includes(ccolortype)) {
+            if (cstate.length == 6) {
+                $(this).find(".colorpick input").attr("value", "#" + cstate)
+            }
+            $(this).find(".colorpick").show()
+            if (cinit != "1") {
+                $(this).find(".colorpick").on("change", function(ev) {
+                    color = ev.currentTarget.firstElementChild.value.substr(1)
+                    sendPowerRequest(cid, color)
+                })
+            }
+        }
+
+        if (cinit != "1") {
+            $(this).find(".radiomode :input").on('change', function() {
+                sendModeRequest(cid, cstate, $(this).val())
+            })
+            $(this).find(".offbuttons").on('click', function() {
+                sendPowerRequest(cid, 0)
+            })
+            $(this).find(".onbuttons").on('click', function() {
+                sendPowerRequest(cid, 1)
+            })
+        }
+
+        $(this).attr("cinit", "1")
     })
 
     $(".gcard").each(function() {
-        var group, cid
+        var group, cid, cinit
         group = $(this).find("h5.card-header").text()
+        cinit = $(this).attr("cinit")
         cid = $(this).attr("id")
-        $(this).find(".goffbuttons").on('click', function() {
-            sendGroupPowerRequest(group, 0, cid)
-        })
-        $(this).find(".gonbuttons").on('click', function() {
-            sendGroupPowerRequest(group, 1, cid)
-        })
+
+        if (cinit != "1") {
+            $(this).find(".goffbuttons").on('click', function() {
+                sendGroupPowerRequest(group, 0, cid)
+            })
+            $(this).find(".gonbuttons").on('click', function() {
+                sendGroupPowerRequest(group, 1, cid)
+            })
+        }
+
+        $(this).attr("cinit", "1")
     })
 }
 

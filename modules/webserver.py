@@ -46,7 +46,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 try:
                     s.sendall("0008".encode('utf-8'))
                     s.sendall("getstate".encode('utf-8'))
-                    data = s.recv(2048)
+                    data = s.recv(4096)
                     if data:
                         response.write(data)
                 finally:

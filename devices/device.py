@@ -27,6 +27,7 @@ class device(object):
         self.default_skip_time = False
         self.name = None
         self.color_type = None
+        self.color_brightness = None
         if config.has_option("DEVICE"+str(devid),"SKIPTIME"):
             self.default_skip_time = config["DEVICE"+str(devid)].getboolean("SKIPTIME")
         self.skip_time = self.default_skip_time
