@@ -2,7 +2,7 @@
 '''
     File name: ifttt.py
     Author: Maxime Bergeron
-    Date last modified: 22/08/2019
+    Date last modified: 18/09/2019
     Python Version: 3.5
 
     The IFTTT receiver module for the lightserver
@@ -10,6 +10,7 @@
 
 import hashlib
 import requests
+import ssl
 import time
 import urllib.parse
 from devices.common import *
@@ -69,15 +70,24 @@ class IFTTTServer(BaseHTTPRequestHandler):
 
 
 class runIFTTTServer(Thread):
-    def __init__(self, port):
+    def __init__(self, port, config):
         Thread.__init__(self)
         self.port = port
+        self.config = config
+        self.protocol = self.config['IFTTT']['PROTOCOL']
+        if self.protocol == "https":
+            self.key = self.config['IFTTT']['IFTTT_HTTPS_CERTS_KEY']
+            self.cert = self.config['IFTTT']['IFTTT_HTTPS_CERTS_CERT']
         self.running = True
 
     def run(self):
-        debug.write('Getting lightserver POST requests on port {}' \
-                    .format(self.port), 0, "IFTTT")
+        debug.write('Getting lightserver POST requests on port {} using {} protocol' \
+                    .format(self.port, self.protocol), 0, "IFTTT")
         httpd = HTTPServer(('', self.port), IFTTTServer)
+        if self.protocol == "https":
+            httpd.socket = ssl.wrap_socket(httpd.socket, 
+                keyfile=self.key, 
+                certfile=self.cert, server_side=True)
         try:
             while self.running:
                 httpd.handle_request()

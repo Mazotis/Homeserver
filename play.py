@@ -983,7 +983,7 @@ if __name__ == "__main__":
         if voice_server is not None:
             if voice_server == 'ifttt':
                 from modules.ifttt import runIFTTTServer
-                ti = runIFTTTServer(PLAYCONFIG['SERVER'].getint('VOICE_SERVER_PORT'))
+                ti = runIFTTTServer(PLAYCONFIG['SERVER'].getint('VOICE_SERVER_PORT'), PLAYCONFIG)
                 ti.start()
             elif voice_server == 'dialogflow':
                 from modules.dialogflow import runDFServer
