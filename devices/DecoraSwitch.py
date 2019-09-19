@@ -40,7 +40,7 @@ class DecoraSwitch(device):
                 _att['power'] = 'ON'
                 _att['brightness'] = int(self.intensity)
                 self.decora.request(self.device, _att)
-                self.state = "1"
+                self.state = self.intensity
                 self.success = True
                 return True
             else:
