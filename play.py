@@ -829,7 +829,7 @@ class DeviceManager(object):
                                     if not self.queue.empty():
                                         continue
                                     self.states[_cnt] = self.get_state(_cnt)
-                                    if self.devices[_cnt].convert(colors[_cnt]) != self.states[_cnt]:
+                                    if self.devices[_cnt].convert(colors[_cnt]) != self.states[_cnt] and self.devices[_cnt].success != True:
                                         i = 0
                                 tries = tries + 1
                                 if tries == 5:
