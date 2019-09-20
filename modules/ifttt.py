@@ -139,6 +139,7 @@ class runIFTTTServer(Thread):
             while self.running:
                 httpd.handle_request()
         finally:
+            time.sleep(1)
             httpd.server_close()
             debug.write('Stopped.', 0, "IFTTT")
             return
@@ -147,4 +148,7 @@ class runIFTTTServer(Thread):
         debug.write('Stopping.', 0, "IFTTT")
         self.running = False
         # Needs a last call to shut down properly
-        _r = requests.get("http://localhost:{}/".format(self.port))
+        try:
+            _r = requests.get("http://localhost:{}/".format(self.port))
+        except requests.exceptions.ConnectionError:
+            pass

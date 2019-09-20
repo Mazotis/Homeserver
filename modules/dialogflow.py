@@ -70,4 +70,7 @@ class runDFServer(Thread):
         debug.write('Stopping.', 0, "DIALOGFLOW")
         self.running = False
         # Needs a last call to shut down properly
-        _r = requests.get("http://localhost:{}/".format(self.port))
+        try:
+            _r = requests.get("http://localhost:{}/".format(self.port))
+        except requests.exceptions.ConnectionError:
+            pass
