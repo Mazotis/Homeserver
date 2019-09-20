@@ -346,7 +346,7 @@ class HomeServer(object):
                 lm.set_colors([LIGHT_ON] * len(lm.devices))
             if args["restart"]:
                 debug.write("Received RESTART change request", 0)
-                if not lm.set_typed_colors(2, "GenericOnOff"):
+                if not lm.set_typed_colors(["2"], "GenericOnOff"):
                     return
             if args["toggle"]:
                 debug.write("Received TOGGLE change request", 0)
@@ -983,7 +983,7 @@ if __name__ == "__main__":
         if voice_server is not None:
             if voice_server == 'ifttt':
                 from modules.ifttt import runIFTTTServer
-                ti = runIFTTTServer(PLAYCONFIG['SERVER'].getint('VOICE_SERVER_PORT'), PLAYCONFIG)
+                ti = runIFTTTServer(PLAYCONFIG, lm)
                 ti.start()
             elif voice_server == 'dialogflow':
                 from modules.dialogflow import runDFServer
