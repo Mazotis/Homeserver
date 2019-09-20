@@ -20,6 +20,7 @@ import time
 from os.path import dirname, basename, isfile
 
 # CONSTANTS
+LIGHT_STANDBY = "-2"
 LIGHT_SKIP = "-1"
 LIGHT_OFF = "0"
 LIGHT_ON = "1"

@@ -82,7 +82,7 @@ class HomeServer(object):
                         ls_status["mode"] = lm.get_modes()
                         ls_status["type"] = lm.get_types()
                         ls_status["name"] = lm.get_names()
-                        for op in ["skiptime", "forceoff", "ignoremode"]:
+                        for op in ["skiptime", "forceoff", "ignoremode", "actiondelay"]:
                             ls_status["op_" + op] = lm.get_option(op)
                         ls_status["icon"] = lm.get_icons()
                         ls_status["description"] = lm.get_descriptions(True)
@@ -607,6 +607,8 @@ class DeviceManager(object):
                 oplist.append(obj.forceoff)
             elif option == "ignoremode":
                 oplist.append(obj.ignoremode)
+            elif option == "actiondelay":
+                oplist.append(obj.action_delay)
         return oplist
 
     def get_icons(self):

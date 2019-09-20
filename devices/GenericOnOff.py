@@ -9,6 +9,7 @@
 '''
 
 import subprocess
+import time
 from devices.common import *
 from devices.device import device
 
@@ -22,6 +23,9 @@ class GenericOnOff(device):
         debug.write("Created generic On/Off device named: {}".format(self.device), 0, self.device_type)
 
     def get_state(self):
+        if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
+            self.state = LIGHT_STANDBY
+            return self.state
         if self.config["STATE"] and not self.success:
             try:
                 _stdout = subprocess.check_output(self.config["STATE"], 

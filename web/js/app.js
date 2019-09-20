@@ -4,9 +4,9 @@ $(document).ready(function() {
     getResult();
     lastupdate = new Date()
     window.onscroll = function (e) {
-        if ((new Date() - lastupdate) > 30000 ) {
+        if ((new Date() - lastupdate) > 20000 ) {
             lastupdate = new Date()
-            getResultPost()
+            getResultRefresh()
         }
     } 
 })
@@ -56,6 +56,33 @@ function getResult() {
             getResultPost()
         }
     })
+}
+
+function getResultRefresh() {
+    $("#update-spin").show()
+    $.ajax({
+        type: "POST",
+        url: ".",
+        dataType: "text",
+        data: {
+                request: "True",
+                reqtype: "1"
+            },
+        success: function(data){
+            var thedata = JSON.parse(decodeURIComponent(data))
+            has_errors = false
+            for (cnt in thedata.state) {
+                if ($("#card" + cnt).find("div.mb-3").attr("cstate") != thedata.state[cnt]) {
+                    $("#card" + cnt).find("div.mb-3").attr("cstate", thedata.state[cnt])
+                    has_errors = true
+                }
+            }
+            if (has_errors) {
+                computeCards()
+            }
+            getResultPost()
+        }
+    })  
 }
 
 function getResultPost() {
@@ -113,6 +140,7 @@ function generateCard(devid, data, last_state = null) {
     $("#cardmodel").find("div.mb-3").attr("cskiptime", data.op_skiptime[devid])
     $("#cardmodel").find("div.mb-3").attr("cforceoff", data.op_forceoff[devid])
     $("#cardmodel").find("div.mb-3").attr("cignoremode", data.op_ignoremode[devid])
+    $("#cardmodel").find("div.mb-3").attr("cactiondelay", data.op_actiondelay[devid])
     $("#cardmodel").find("div.mb-3").attr("cicon", data.icon[devid])
     $("#cardmodel").find("div.mb-3").attr("ccolortype", data.colortype[devid])
     $("#cardmodel").find(".card-title").text(data.name[devid])
@@ -121,7 +149,10 @@ function generateCard(devid, data, last_state = null) {
 
     $("#cardmodel").find("p.errortext").hide()
     //TODO - Find a way to determine if a change between two colors has succeded (as the reported state from the lightserver differs from the "real" selection)
-    if (last_state != data.state[devid] && !(last_state == 1 && data.state[devid] == "FFFFFF") && last_state != null && !(last_state.length == 6 && data.state[devid].length == 6 && data.state[devid] != "000000" && data.state[devid] != "FFFFFF")) {
+    if (last_state != data.state[devid] && !(last_state == 1 && data.state[devid] == "FFFFFF") 
+        && last_state != null && !(last_state.length == 6 && data.state[devid].length == 6 
+            && data.state[devid] != "000000" && data.state[devid] != "FFFFFF") &&
+            data.state[devid] != "-2") {
         $("#cardmodel").find("p.errortext").show()
     }
 
@@ -140,23 +171,31 @@ function computeCards() {
         cforceoff = $(this).attr("cforceoff")
         cignoremode = $(this).attr("cignoremode")
         cskiptime = $(this).attr("cskiptime")
+        cactiondelay = $(this).attr("cactiondelay")
         cicon = $(this).attr("cicon")
         ccolortype = $(this).attr("ccolortype")
 
+        $(this).find(".card-header").removeClass("bg-danger")
+        $(this).find(".card-header").removeClass("bg-warning")
+        $(this).find(".card-header").removeClass("bg-success")
+        $(this).removeClass("border-danger")
+        $(this).removeClass("border-warning")
+        $(this).removeClass("border-success")
         if (cstate == "0" || (!isNaN(cstate) && parseInt(cstate) == 0)) {
             $(this).find(".offbuttons").attr('disabled', true)
             $(this).find(".onbuttons").attr('disabled', false)
             $(this).find(".card-header").addClass("bg-danger")
-            $(this).find(".card-header").removeClass("bg-success")
             $(this).addClass("border-danger")
-            $(this).removeClass("border-success")
+        } else if (cstate == "-2") {
+            $(this).find(".offbuttons").attr('disabled', true)
+            $(this).find(".onbuttons").attr('disabled', true)
+            $(this).find(".card-header").addClass("bg-warning")
+            $(this).addClass("border-warning")
         } else {
             $(this).find(".offbuttons").attr('disabled', false)
             $(this).find(".onbuttons").attr('disabled', true)
             $(this).find(".card-header").addClass("bg-success")
-            $(this).find(".card-header").removeClass("bg-danger")
             $(this).addClass("border-success")
-            $(this).removeClass("border-danger")
         }
 
         if (cmode == "0") {
@@ -177,6 +216,11 @@ function computeCards() {
 
         if (cskiptime == "false") {
             $(this).find(".skiptime").show()
+        }
+
+        if (cactiondelay != "0") {
+            $(this).find(".actiondelay").show()
+            $(this).find(".actiondelay span").html(cactiondelay + " s.")
         }
 
         if (cicon != "none") {

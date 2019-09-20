@@ -8,6 +8,7 @@
     Main wrapper object for all Lightserver devices. Not a device per-se.
 '''
 
+import time
 from devices.common import *
 from modules.convert import convert_color
 
@@ -42,9 +43,18 @@ class device(object):
         self.icon = None
         if config.has_option("DEVICE"+str(devid),"ICON"):
             self.icon = config["DEVICE"+str(devid)]["ICON"]
+        self.action_delay = 0
+        self.last_action_timestamp = 0
+        if config.has_option("DEVICE"+str(devid),"ACTION_DELAY"):
+            self.action_delay = int(config["DEVICE"+str(devid)]["ACTION_DELAY"])
 
     def run(self, color, priority):
         if self.success:
+            return True
+        if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
+            debug.write("Device ({}) {} is still executing previous request."
+                        .format(self.device_type, self.device), 0)
+            self.state = LIGHT_STANDBY
             return True
         if not self.skip_time:
             self.success = True
@@ -93,6 +103,9 @@ class device(object):
             debug.write("Device ({}) {} is already off and forcing-off disabled, skipping."
                         .format(self.device_type, self.device), 0)
             return True
+
+        if self.action_delay != 0:
+            self.last_action_timestamp = time.time()
         return self.color(color, priority)
 
     def convert(self, color):
