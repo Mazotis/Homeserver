@@ -5,7 +5,7 @@
     Date last modified: 18/09/2019
     Python Version: 3.5
 
-    The IFTTT receiver module for the lightserver
+    The IFTTT receiver module for the homeserver
 '''
 
 import hashlib
@@ -53,7 +53,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
 
             if action in self.config["IFTTT"]:
                 debug.write('Running action : {}'.format(self.config["IFTTT"][action]), 0, "IFTTT")
-                os.system("./playclient.py " + self.config["IFTTT"][action])
+                os.system("./homeclient.py " + self.config["IFTTT"][action])
             else:
                 debug.write('Unknown action: {}'.format(action), 1, "IFTTT")
 
@@ -64,9 +64,9 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 debug.write("Function {} not defined. Request aborted.", 1, "IFTTT")
                 return
             if func == "on":
-                self.lm.set_colors([LIGHT_ON] * len(self.lm.devices))
+                self.lm.set_colors([DEVICE_ON] * len(self.lm.devices))
             elif func == "off":
-                self.lm.set_colors([LIGHT_OFF] * len(self.lm.devices))
+                self.lm.set_colors([DEVICE_OFF] * len(self.lm.devices))
 
             group = postvars['group'][0].split()
             group = [unidecode.unidecode(x) for x in group]
@@ -88,9 +88,9 @@ class IFTTTServer(BaseHTTPRequestHandler):
 
             if "delay" in postvars and int(postvars['delay'][0]) != 0:
                 if func == "on":
-                    self.lm.set_colors([LIGHT_OFF] * len(self.lm.devices))
+                    self.lm.set_colors([DEVICE_OFF] * len(self.lm.devices))
                 elif func == "off":
-                    self.lm.set_colors([LIGHT_ON] * len(self.lm.devices))
+                    self.lm.set_colors([DEVICE_ON] * len(self.lm.devices))
                 self.lm.get_group(changed_groups)
                 self.lm.run(int(postvars['delay'][0])*60)
 
@@ -104,7 +104,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 debug.write('Will run action {} in {} seconds'.format(post_action, delay+5), 0, "IFTTT")
                 time.sleep(5)
                 if post_action in self.config["IFTTT"]:
-                    os.system("./playclient.py --delay {} {}".format(delay, self.config["IFTTT"][post_action]))
+                    os.system("./homeclient.py --delay {} {}".format(delay, self.config["IFTTT"][post_action]))
                 else:
                     #
                     # Complex delayed actions should be hardcoded here if needed
@@ -139,7 +139,6 @@ class runIFTTTServer(Thread):
             while self.running:
                 httpd.handle_request()
         finally:
-            time.sleep(1)
             httpd.server_close()
             debug.write('Stopped.', 0, "IFTTT")
             return

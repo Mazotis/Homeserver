@@ -24,11 +24,11 @@ class TPLinkSwitch(device):
         self.color_type = "io"
         debug.write("Created device with IP {} and name {}.".format(self.ip, self.device), 0, self.device_type)
 
-    def color(self, color, priority):
+    def run(self, color, priority):
         self.connect()
-        if color == "1":
+        if color == DEVICE_ON:
             self.plug.turn_on()
-        elif color == "0":
+        elif color == DEVICE_OFF:
             self.plug.turn_off()
         else:
             debug.write("Unknown color code for device {}".format(self.device), 1, self.device_type)

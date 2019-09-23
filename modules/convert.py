@@ -28,8 +28,8 @@ def convert_color(color, output_type=None):
 
     is_argb=is_rgb=is_8bit=is_100=is_ioops=is_io=False
 
-    if color == LIGHT_SKIP:
-        return LIGHT_SKIP
+    if color == DEVICE_SKIP:
+        return DEVICE_SKIP
 
     ''' Type autodetect '''
     is_argb = bool(re.search(r'[a-fA-F0-9]{8}$', color)) and len(color) == 8
@@ -61,7 +61,7 @@ def convert_color(color, output_type=None):
     if output_type in ["io", "io-ops"]:
         #TODO - consider all non-zero requests as ON requests ?
         debug.write("Converted {} to an ON request for IO/IO-OPS color type".format(color),0)
-        return LIGHT_ON
+        return DEVICE_ON
 
     if output_type in ["255","100"]:
         if is_argb:
@@ -76,7 +76,7 @@ def convert_color(color, output_type=None):
             debug.write("Conversion from rgb {} to luminosity (type: 100) level {}".format(color, lum_color),0)
             return lum_color
         debug.write("Conversion from unexpected value {} to 8-bit/brightness color code not yet implemented".format(color),1)
-        return LIGHT_ON
+        return DEVICE_ON
 
     if output_type in ["argb","rgb"]:
         if is_argb:
@@ -88,26 +88,26 @@ def convert_color(color, output_type=None):
             if output_type == "argb":
                 return "00" + color
         if is_io or is_ioops:
-            if color in [LIGHT_OFF, LIGHT_ON]:
+            if color in [DEVICE_OFF, DEVICE_ON]:
                 return color
             else:
                 debug.write("Conversion from IO/IO-OPS {} to RGB color code not yet implemented".format(color),1)
-                return LIGHT_ON
+                return DEVICE_ON
         if is_8bit:
             debug.write("Conversion from Milight 8-bit {} to RGB color code not yet implemented".format(color),1)
-            return LIGHT_ON
+            return DEVICE_ON
 
 def convert_to_web_rgb(color, input_type, device_luminosity=None):
     if input_type not in ["255","rgb","argb"]:
         return color
-    if color == LIGHT_ON:
+    if color == DEVICE_ON:
         return "FFFFFF"
-    elif color == LIGHT_OFF:
+    elif color == DEVICE_OFF:
         return "000000"
     if input_type == "argb":
         if len(color) == 8:
             return color[2:8]
-        debug.write("Unexpected color length, for conversion from argb to rgb. Got {}".format(color),1)
+        debug.write("Unexpected state length, for conversion from argb to rgb. Got {}".format(color),1)
         return color
     if input_type == "255":
         if type(color) is tuple:

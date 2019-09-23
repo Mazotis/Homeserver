@@ -5,7 +5,7 @@
     Date last modified: 22/08/2019
     Python Version: 3.5
 
-    The device-pinging detector module for the lightserver
+    The device-pinging detector module for the homeserver
 '''
 
 import datetime
@@ -93,9 +93,9 @@ class runDetectorServer(Thread):
                        TRACKED_FIND3_LOCAL[_cnt] != _r.json()['analysis']['guesses'][0]['location']:
                         if _r.json()['analysis']['guesses'][0]['location'] in self.config['FIND3-PRESETS']:
                             if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
-                                os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
+                                os.system("./homeclient.py --auto-mode " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
                             else:
-                                os.system("./playclient.py " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
+                                os.system("./homeclient.py " + self.config['FIND3-PRESETS'][_r.json()['analysis']['guesses'][0]['location']])
                             debug.write("Device {} found in '{}'. Running change of lights."
                                         .format(TRACKED_FIND3_DEVS[_cnt], 
                                                 _r.json()['analysis']['guesses'][0]['location']), 0, "DETECTOR")
@@ -106,9 +106,9 @@ class runDetectorServer(Thread):
                                                 _r.json()['analysis']['guesses'][0]['location']), 0, "DETECTOR")
                         if TRACKED_FIND3_LOCAL[_cnt]+"-off" in self.config['FIND3-PRESETS']:
                             if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
-                                os.system("./playclient.py --auto-mode " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
+                                os.system("./homeclient.py --auto-mode " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
                             else:
-                                os.system("./playclient.py " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
+                                os.system("./homeclient.py " + self.config['FIND3-PRESETS'][TRACKED_FIND3_LOCAL[_cnt]+"-off"])
                             debug.write("Device {} left '{}'. Running change of lights."
                                         .format(TRACKED_FIND3_DEVS[_cnt], 
                                                 TRACKED_FIND3_LOCAL[_cnt]), 0, "DETECTOR")
@@ -126,15 +126,15 @@ class runDetectorServer(Thread):
             debug.write("STATE changed to {} and DELAYED_START {}, turned off" \
                                   .format(self.DEVICE_STATE_LEVEL, self.delayed_start), 0, "DETECTOR")
             if self.config['DETECTOR'].getboolean('FALLBACK_AUTO_ON_DISCONNECT'):
-                os.system('./playclient.py --reset-mode --off --notime --priority 3')
+                os.system('./homeclient.py --reset-mode --off --notime --priority 3')
             else:
-                os.system('./playclient.py --auto-mode --off --notime --priority 3')
+                os.system('./homeclient.py --auto-mode --off --notime --priority 3')
             self.status = 0
             self.delayed_start = 0
         if datetime.datetime.now().time() == EVENT_TIME and self.delayed_start == 1:
             debug.write("DELAYED STATE with actual state {}, turned on".format(self.DEVICE_STATE_LEVEL), 
                                                                                0, "DETECTOR")
-            os.system('./playclient.py --auto-mode --on --group passage')
+            os.system('./homeclient.py --auto-mode --on --group passage')
             self.delayed_start = 0
             self.status = 1  
         if self.DEVICE_STATE_MAX in self.DEVICE_STATE_LEVEL and self.delayed_start == 0:
@@ -146,7 +146,7 @@ class runDetectorServer(Thread):
         if self.DEVICE_STATE_MAX in self.DEVICE_STATE_LEVEL and self.status == 0 and datetime.datetime.now().time() \
            >= EVENT_TIME:
             debug.write("STATE changed to {}, turned on".format(self.DEVICE_STATE_LEVEL), 0, "DETECTOR")
-            os.system('./playclient.py --auto-mode --on --group passage')
+            os.system('./homeclient.py --auto-mode --on --group passage')
             self.status = 1
             self.delayed_start = 0
         if all(s == 0 for s in self.DEVICE_STATE_LEVEL) and self.status == 0 and self.delayed_start == 1:

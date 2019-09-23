@@ -24,7 +24,7 @@ class GenericOnOff(device):
 
     def get_state(self):
         if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
-            self.state = LIGHT_STANDBY
+            self.state = DEVICE_STANDBY
             return self.state
         if self.config["STATE"] and not self.success:
             try:
@@ -40,14 +40,14 @@ class GenericOnOff(device):
             return 0
         return self.state
         
-    def color(self, color, priority):
-        if color == LIGHT_OFF and self.config["OFF"]:
+    def run(self, color, priority):
+        if color == DEVICE_OFF and self.config["OFF"]:
             debug.write("Turning device {} OFF".format(self.device), 0, self.device_type)
             os.system(self.config["OFF"])
             self.success = True
             self.state = 0
             return True
-        elif color == LIGHT_ON and self.config["ON"]:
+        elif color == DEVICE_ON and self.config["ON"]:
             debug.write("Turning device {} ON".format(self.device), 0, self.device_type)
             os.system(self.config["ON"])
             self.success = True

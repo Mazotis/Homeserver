@@ -241,16 +241,16 @@ function computeCards() {
         }
 
         if (["100"].includes(ccolortype)) {
-            $(this).find(".sliderpick input").attr("value", cstate)
+            $(this).find(".sliderpick").attr("value", cstate)
             $(this).find(".slider-text").html(cstate)
             $(this).find(".sliderpick").show()
             if (cinit != "1") {
-                $(this).find(".sliderpick").on("change", function(ev) {
-                    color = ev.currentTarget.firstElementChild.value
+                $(this).find(".sliderpick").on("change", function() {
+                    color = $(this).find("input").val()
                     sendPowerRequest(cid, color)
                 })
-                $(this).find(".sliderpick").on("input", function(ev) {
-                    color = ev.currentTarget.firstElementChild.value
+                $(this).find(".sliderpick").on("input", function() {
+                    color = $(this).find("input").val()
                     $(this).find(".slider-text").html(color)
                 })
             }

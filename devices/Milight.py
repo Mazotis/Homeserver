@@ -80,12 +80,12 @@ class Milight(Bulb):
         """ Helper function to set default intensity """
         return self._write(self.get_query(20, 161, 5, self.id1, self.id2, self.color_temp, 4, self.color_brightness), color)
 
-    def color(self, color, priority):
+    def run(self, color, priority):
         """ Checks the request and trigger a light change if needed """
-        if color == LIGHT_OFF:
+        if color == DEVICE_OFF:
             if not self.turn_off(): 
                 return False
-        elif color == LIGHT_ON:
+        elif color == DEVICE_ON:
             if not self.turn_on_and_dim_on(color):
                 return False         
         else:

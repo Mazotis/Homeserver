@@ -40,11 +40,11 @@ class Playbulb(Bulb):
         self.intensity = config["DEVICE"+str(devid)]["DEFAULT_INTENSITY"]
         self.color_type = "argb"
 
-    def color(self, color, priority):
+    def run(self, color, priority):
         """ Checks the request and trigger a light change if needed """
-        if color == LIGHT_OFF:
+        if color == DEVICE_OFF:
             color = "00000000"
-        elif color == LIGHT_ON:
+        elif color == DEVICE_ON:
             color = self.intensity
         debug.write("Changing ({}) color to {}".format(self.description, color), 0, self.device_type)
         if not self._write(color): return False

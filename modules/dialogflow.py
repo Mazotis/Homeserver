@@ -5,7 +5,7 @@
     Date last modified: 22/08/2019
     Python Version: 3.5
 
-    The Google DIALOGFLOW receiver module for the lightserver
+    The Google DIALOGFLOW receiver module for the homeserver
 '''
 
 import json
@@ -26,7 +26,7 @@ class DFServer(BaseHTTPRequestHandler):
 
     def do_POST(self):
         config = configparser.ConfigParser()
-        config.read('play.ini')
+        config.read('home.ini')
         """ Receives and handles POST request """
         debug.write('Getting request', 0, "DIALOGFLOW")
         data_string = self.rfile.read(int(self.headers['Content-Length']))
@@ -35,9 +35,9 @@ class DFServer(BaseHTTPRequestHandler):
         action = request['queryResult']['parameters']['LightserverAction']
         groups = request['queryResult']['parameters']['LightserverGroups']
         if config['DIALOGFLOW'].getboolean('AUTOMATIC_MODE'):
-            request = "./playclient.py --{} --auto-mode --notime --group {}".format(action, ' '.join(groups))
+            request = "./homeclient.py --{} --auto-mode --notime --group {}".format(action, ' '.join(groups))
         else:
-            request = "./playclient.py --{} --notime --group {}".format(action, ' '.join(groups))
+            request = "./homeclient.py --{} --notime --group {}".format(action, ' '.join(groups))
 
         debug.write('Running detected request: {}'.format(request), 0, "DIALOGFLOW")
         os.system(request)

@@ -9,7 +9,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
     <script src="js/app.js"></script>
-    <title>Lightserver control panel</title>
+    <title>Homeserver control panel</title>
   </head>
   <body style="background-color:#eee !important">
     <style>
@@ -36,9 +36,26 @@
     <div class="container">
         <div class="row">
             <div class="col-md-12" style="background-color:white !important">
+                <br>
+                <center>
+                    <div id="preloader" style="display:none">
+                        <div class="spinner-border" style="width: 200px; height: 200px; margin-bottom:20px" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                    </div>
+                </center>
+                <div id="resultid"></div>
                 <hr>
                 <div class="row">
                     <div class="col-sm-12">
+                        <div class="card bg-info mb-3">
+                            <div class="card-body">
+                                <h4 class="card-title text-white">Groups</h4>
+                                <div id="groups" class="card-text">
+                                    <p class="text-white">No available device groups</p>
+                                </div>
+                            </div>
+                        </div>
                         <div class="card text-white bg-dark mb-3">
                             <div class="card-body noselect-nooverflow">
                                 <h4 class="card-title">Options</h4>
@@ -61,24 +78,8 @@
                                 </p>
                             </div>
                         </div>
-                        <div class="card bg-info mb-3">
-                            <div class="card-body">
-                                <h4 class="card-title text-white">Groups</h4>
-                                <div id="groups" class="card-text">
-                                    <p class="text-white">No available device groups</p>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
-                <center>
-                    <div id="preloader" style="display:none">
-                        <div class="spinner-border" style="width: 200px; height: 200px; margin-bottom:20px" role="status">
-                            <span class="sr-only">Loading...</span>
-                        </div>
-                    </div>
-                </center>
-                <div id="resultid"></div>
             </div>
         </div>
     </div>
@@ -100,10 +101,12 @@
                 <div class="form-group form-group-lg colorpick" style="display:none; margin-bottom:0;">
                     <input class="form-control" type="color" cid="" style="padding:2px; margin-bottom: 0;">
                 </div>
-                <div class="form-group form-group-lg sliderpick" style="display:none; margin-bottom:0;">
-                    <input type="range" min="0" max="100" value="1" class="slider">
-                    <span class="slider-text" style="float:left;">1</span>
-                </div>
+                <span class="sliderpick" style="display:none;">
+                    <div class="form-group form-group-lg d-flex justify-content-center" style="margin-bottom:0;">
+                        <span class="slider-text" style="margin-right:5px;">1</span>
+                        <input type="range" min="0" max="100" value="1" class="slider">
+                    </div>
+                </span>
                 <br>
                 <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons">
                     <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> Auto</label>

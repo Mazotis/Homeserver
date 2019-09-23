@@ -5,8 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-WorkingDirectory=/home/pi/play
-ExecStart=/usr/bin/python3 /home/pi/play/play.py --server --voice --detector --threaded --webserver 8080
+WorkingDirectory=/home/pi/homeserver
+ExecStart=/usr/bin/python3 /home/pi/homeserver/home.py --server --voice --detector --threaded --webserver 8080
 User=pi
 
 [Install]

@@ -5,7 +5,7 @@
     Date last modified: 17/09/2019
     Python Version: 3.5
 
-    The web server interface module for the lightserver
+    The web server interface module for the homeserver
 '''
 
 import requests

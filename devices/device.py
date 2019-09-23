@@ -5,7 +5,7 @@
     Date last modified: 13/03/2019
     Python Version: 3.7
 
-    Main wrapper object for all Lightserver devices. Not a device per-se.
+    Main wrapper object for all Homeserver devices. Not a device per-se.
 '''
 
 import time
@@ -48,7 +48,7 @@ class device(object):
         if config.has_option("DEVICE"+str(devid),"ACTION_DELAY"):
             self.action_delay = int(config["DEVICE"+str(devid)]["ACTION_DELAY"])
 
-    def run(self, color, priority):
+    def pre_run(self, color, priority):
         if self.success:
             return True
         if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
@@ -106,15 +106,15 @@ class device(object):
 
         if self.action_delay != 0:
             self.last_action_timestamp = time.time()
-        return self.color(color, priority)
+        return self.run(color, priority)
 
     def convert(self, color):
         if self.color_type is None:
-            debug.write("Device {} must declare a color type. Quitting.",2)
+            debug.write("Device {} must declare a state type. Quitting.",2)
             quit()
         return convert_color(color, self.color_type)
 
-    def reinit(self):
+    def post_run(self):
         """ Prepares the device for a future request """
         self.success = False
         self.skip_time = self.default_skip_time

@@ -1,5 +1,4 @@
-DESCRIPTION = living room HTPC
-; Playserver configuration file
+; Homeserver configuration file
 ; RPi3 related configurables
 [SERVER]
 ; The RPI3 IP address

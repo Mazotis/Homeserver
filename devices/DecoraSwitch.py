@@ -26,17 +26,17 @@ class DecoraSwitch(device):
         self.color_type = "100"
         debug.write("Created device DecoraSwitch named {}.".format(self.device), 0, self.device_type)
 
-    def color(self, color, priority):
+    def run(self, color, priority):
         """ Checks the request and trigger a light change if needed """
         if not (self.decora.disabled):
             _att = {}
-            if color == LIGHT_OFF:
+            if color == DEVICE_OFF:
                 _att['power'] = 'OFF'
                 self.decora.request(self.device, _att)
                 self.state = "0"
                 self.success = True
                 return True
-            elif color == LIGHT_ON:
+            elif color == DEVICE_ON:
                 _att['power'] = 'ON'
                 _att['brightness'] = int(self.intensity)
                 self.decora.request(self.device, _att)

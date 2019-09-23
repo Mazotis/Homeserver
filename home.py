@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 '''
-    File name: play.py
+    File name: home.py
     Author: Maxime Bergeron
-    Date last modified: 17/09/2019
+    Date last modified: 23/09/2019
     Python Version: 3.5
 
-    A python websocket server/client and IFTTT receiver to control various cheap IoT
-    RGB BLE lightbulbs and HDMI-CEC-to-TV RPi3
+    A python home control server
 '''
 import os
 import os.path
@@ -35,7 +34,7 @@ class HomeServer(object):
     """ Handles server-side request reception and handling """
     def __init__(self, lm):
         self.config = configparser.ConfigParser()
-        self.config.read('play.ini')
+        self.config.read('home.ini')
         self.host = self.config['SERVER']['HOST']
         self.port = int(self.config['SERVER'].getint('PORT'))
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -178,9 +177,9 @@ class HomeServer(object):
                         if data.decode('utf-8')[3:] in self.config["TCP-PRESETS"]:
                             debug.write("Running TCP preset {}".format(data.decode('utf-8')[3:]), 0)
                             if self.config["TCP-PRESETS"].getboolean('AUTOMATIC_MODE'):
-                                os.system("./playclient.py --auto-mode " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
+                                os.system("./homeclient.py --auto-mode " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
                             else:
-                                os.system("./playclient.py " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
+                                os.system("./homeclient.py " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
                         else:
                             debug.write("TCP preset {} is not configured".format(data.decode('utf-8')[3:]), 1)
                         break
@@ -260,7 +259,7 @@ class HomeServer(object):
         debug.write("Closing down server and lights.", 0)
         lm.stop_delayed_changes()
         lm.set_skip_time_check()
-        lm.set_colors([LIGHT_OFF] * len(lm.devices))
+        lm.set_colors([DEVICE_OFF] * len(lm.devices))
         lm.set_mode(False,True)
         #lm.run()
         self.sock.close()
@@ -336,14 +335,14 @@ class HomeServer(object):
                     lm.set_colors(self.config["PRESETS"][args["preset"]].split(','))
                     args["auto_mode"] = self.config["PRESETS"].getboolean("AUTOMATIC_MODE")
                 except:
-                    debug.write("Preset {} not found in play.ini. Quitting.".format(args["preset"]), 3)
+                    debug.write("Preset {} not found in home.ini. Quitting.".format(args["preset"]), 3)
                     return                       
             if args["off"]:
                 debug.write("Received OFF change request", 0)
-                lm.set_colors([LIGHT_OFF] * len(lm.devices))
+                lm.set_colors([DEVICE_OFF] * len(lm.devices))
             if args["on"]:
                 debug.write("Received ON change request", 0)
-                lm.set_colors([LIGHT_ON] * len(lm.devices))
+                lm.set_colors([DEVICE_ON] * len(lm.devices))
             if args["restart"]:
                 debug.write("Received RESTART change request", 0)
                 if not lm.set_typed_colors(["2"], "GenericOnOff"):
@@ -413,6 +412,9 @@ class HomeServer(object):
         if type(args["meross"]).__name__ == "str":
             debug.write('Converting values to lists for meross', 0)
             args["meross"] = args["meross"].replace("'", "").split(',')
+        if type(args["tplinkswitch"]).__name__ == "str":
+            debug.write('Converting values to lists for tplinkswitch', 0)
+            args["tplinkswitch"] = args["tplinkswitch"].replace("'", "").split(',')
         return args
 
 
@@ -479,7 +481,7 @@ class DeviceManager(object):
 
     def set_mode(self, auto_mode, reset_mode, force_auto=False):
         for _cnt, device in enumerate(self.devices):
-            if self.colors[_cnt] != LIGHT_SKIP:
+            if self.colors[_cnt] != DEVICE_SKIP:
                 self.devices[_cnt].request_auto_mode = auto_mode
                 self.devices[_cnt].reset_mode = reset_mode
             if force_auto:
@@ -496,15 +498,15 @@ class DeviceManager(object):
                 continue
             debug.write("Skipping device {} as it does not belong in the {} group(s)" \
                         .format(device.device, group), 0)
-            self.colors[_cnt] = LIGHT_SKIP
+            self.colors[_cnt] = DEVICE_SKIP
 
     def get_toggle(self):
         """ Toggles the devices on/off """
-        colors = [LIGHT_ON] * len(lm.devices)
+        colors = [DEVICE_ON] * len(lm.devices)
         i = 0
         for color in self.get_state():
-            if color != LIGHT_OFF:
-                colors = [LIGHT_OFF] * len(lm.devices)
+            if color != DEVICE_OFF:
+                colors = [DEVICE_OFF] * len(lm.devices)
             i = i+1
         return colors
 
@@ -514,11 +516,11 @@ class DeviceManager(object):
         cvals = self._get_type_index(atype)
         if len(colorargs) == 1 and cvals[0] > 1:
             # Allow a single value to be repeated to n devices
-            debug.write("Expanding color {} to {} devices." \
+            debug.write("Expanding state {} to {} devices." \
                                   .format(len(colorargs), cvals[0]), 0)
             colorargs = [colorargs[0]] * cvals[0]
         if cvals[0] != len(colorargs):
-            debug.write("Received color hexvalues length {} for {} devices. Quitting" \
+            debug.write("Received state hexvalues length {} for {} devices. Quitting" \
                                   .format(len(colorargs), cvals[0]), 2)
             return False
         self.colors[cvals[1]:cvals[1]+cvals[0]] = colorargs
@@ -636,7 +638,7 @@ class DeviceManager(object):
                 self.lastupdate = datetime.date.today()
                 self.starttime = self._update_sunset_time(self.config['SERVER']['EVENT_LOCALIZATION'])
                 if not self.serverwide_skip_time:
-                    debug.write("Event time set as sunset time: {}".format(self.starttime), 0)
+                    debug.write("State change event time set as sunset time: {}".format(self.starttime), 0)
         return self.starttime
 
     def check_event_time(self):
@@ -648,10 +650,10 @@ class DeviceManager(object):
         if datetime.time(6, 00) < datetime.datetime.now().time() < self.starttime:
             for _dev in self.devices:
                 if _dev.skip_time:
-                    debug.write("Not all devices will be changed. Light changes begins at {}"
+                    debug.write("Not all devices will be changed. Device changes begins at {}"
                                 .format(self.starttime), 0)
                     return True
-            debug.write("Too soon to change devices. Light changes begins at {}"
+            debug.write("Too soon to change devices. Device changes begins at {}"
                         .format(self.starttime), 0)
             return False
         else:
@@ -746,25 +748,25 @@ class DeviceManager(object):
             for _delay in self.delays:
                 if _delay != 0 and _delay not in _delay_list:
                     _delay_list.append(_delay)
-                    _delay_colors = [LIGHT_SKIP] * len(self.devices)
+                    _delay_colors = [DEVICE_SKIP] * len(self.devices)
                     for _acnt,_adelay in enumerate(self.delays):
                         if _adelay == _delay:
                             #debug.write("COLORS: {} DELAY COLOR: {}".format(colors, _delay_colors), 0)
                             if _adelay < 0:
-                                _delay_colors[_acnt] = LIGHT_OFF
+                                _delay_colors[_acnt] = DEVICE_OFF
                                 _delay = -_delay
                             else:
                                 _delay_colors[_acnt] = colors[_acnt]
-                                colors[_acnt] = LIGHT_SKIP
+                                colors[_acnt] = DEVICE_SKIP
                             self.delays[_acnt] = 0
-                    debug.write("Scheduling light change ({}) after {} seconds".format(_delay_colors, _delay), 0)
+                    debug.write("Scheduling device state change ({}) after {} seconds".format(_delay_colors, _delay), 0)
                     _sched = threading.Timer(int(_delay), self.run, (None, _delay_colors, self.skip_time,))
                     _sched.start()
                     self.scheduled_changes.append(_sched)
         return colors
 
     def _set_lights(self):
-        debug.write("Running a change of lights (priority level: {})..." \
+        debug.write("Running a change of states (priority level: {})..." \
                               .format(self.priority), 0)
         try:
             self.lockcount = 0
@@ -776,10 +778,10 @@ class DeviceManager(object):
                         debug.write("Getting remainder of queue", 0)
                         self.reinit()
                     colors = self._decode_colors(self.queue.get()) #TODO Check performance
-                    if all(c == LIGHT_SKIP for c in colors):
+                    if all(c == DEVICE_SKIP for c in colors):
                         debug.write("All device requests skipped", 0)
                         return                
-                    debug.write("Changing colors to {} from state {}" \
+                    debug.write("Changing states to {} from state {}" \
                                 .format(colors, self.states), 0)
                     self.set_lock(1)
                     i = 0
@@ -790,10 +792,10 @@ class DeviceManager(object):
                         if not self.devices[i].success:
                             _color = self.devices[i].convert(colors[i])
 
-                            if _color != LIGHT_SKIP:
+                            if _color != DEVICE_SKIP:
                                 self.states[i] = self.get_state(i)
                                 if _color != self.states[i]:
-                                    debug.write(("DEVICE: {}, REQUESTED COLOR: {} "
+                                    debug.write(("DEVICE: {}, REQUESTED STATE: {} "
                                                   "FROM STATE: {}, PRIORITY: {}, AUTO: {}")
                                                   .format(self.devices[i].device,
                                                           _color, self.states[i],
@@ -842,7 +844,7 @@ class DeviceManager(object):
                 pass
 
             finally:
-                debug.write("Clearing up light change queues.", 0)
+                debug.write("Clearing up device change queues.", 0)
                 if colors:
                     self.queue.task_done()
                 self.states = self.get_state()
@@ -857,10 +859,10 @@ class DeviceManager(object):
             self.set_lock(0)
             self.skip_time = False
 
-        debug.write("Change of lights completed.", 0)
+        debug.write("Change of device states completed.", 0)
 
     def _set_device(self, count, color, priority):
-        return self.devices[count].run(color, priority)
+        return self.devices[count].pre_run(color, priority)
 
     def _get_type_index(self, atype):
         # TODO This should not depend on an ordered set of devices
@@ -895,25 +897,25 @@ def runServer():
 
 """ Script executed directly """
 if __name__ == "__main__":
-    PLAYCONFIG = configparser.ConfigParser()
-    PLAYCONFIG.read('play.ini')
-    lm = DeviceManager(PLAYCONFIG)
+    HOMECONFIG = configparser.ConfigParser()
+    HOMECONFIG.read('home.ini')
+    lm = DeviceManager(HOMECONFIG)
 
-    parser = argparse.ArgumentParser(description='BLE light bulbs manager script', epilog=lm.get_descriptions(),
+    parser = argparse.ArgumentParser(description='Home server manager script', epilog=lm.get_descriptions(),
                                      formatter_class=RawTextHelpFormatter)
     parser.add_argument('hexvalues', metavar='N', type=str, nargs="*",
-                        help='color hex values for the lightbulbs (see list below)')
-    parser.add_argument('--playbulb', metavar='P', type=str, nargs="*", help='Change playbulbs colors only')
-    parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights colors only')
-    parser.add_argument('--decora', metavar='D', type=str, nargs="*", help='Change decora colors only')
+                        help='state values for the devices (see list below)')
+    parser.add_argument('--playbulb', metavar='P', type=str, nargs="*", help='Change playbulbs states only')
+    parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights states only')
+    parser.add_argument('--decora', metavar='D', type=str, nargs="*", help='Change decora states only')
     parser.add_argument('--meross', metavar='M', type=str, nargs="*", help='Change meross states only')
     parser.add_argument('--tplinkswitch', metavar='T', type=str, nargs="*", help='Change tplinkswitch states only')
     parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1,
                         help='Request priority from 1 to 3')
     parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
-                        help='Apply light actions from specified preset name defined in play.ini')
+                        help='Apply state change actions from specified preset name defined in home.ini')
     parser.add_argument('--group', metavar='group', type=str, nargs="+", default=None,
-                        help='Apply light actions on specified device group(s)')
+                        help='Apply state change on specified device group(s)')
     parser.add_argument('--notime', action='store_true', default=False,
                         help='Skip the time check and run the script anyways')
     parser.add_argument('--delay', metavar='delay', type=int, nargs="?", default=None,
@@ -921,7 +923,7 @@ if __name__ == "__main__":
     parser.add_argument('--on', action='store_true', default=False, help='Turn everything on')
     parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')
     parser.add_argument('--restart', action='store_true', default=False, help='Restart generics')
-    parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all lights on/off')
+    parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all devices on/off')
     parser.add_argument('--server', action='store_true', default=False,
                         help='Start as a socket server daemon')
     parser.add_argument('--webserver', metavar='prio', type=int, nargs="?", default=0,
@@ -937,11 +939,11 @@ if __name__ == "__main__":
     parser.add_argument('--stream-group', metavar='str-grp', type=str, nargs="?", default=None,
                         help='Stream colors directly to device group')
     parser.add_argument('--reset-mode', action='store_true', default=False,
-                        help='Force light change (whatever the actual mode) and set back devices to AUTO mode')
+                        help='Force device state change (whatever the actual mode) and set back devices to AUTO mode')
     parser.add_argument('--reset-location-data', action='store_true', default=False,
                         help='Purge all RTT, locations and location training data (default: false)')
     parser.add_argument('--auto-mode', action='store_true', default=False,
-                        help='(internal) Run requests for non-LIGHT_SKIP devices as AUTO mode (default: false)')
+                        help='(internal) Run requests for non-DEVICE_SKIP devices as AUTO mode (default: false)')
     parser.add_argument('--set-mode-for-devid', metavar='devid', type=int, nargs="?", default=None,
                         help='(internal) Force device# to change mode (as set by auto-mode)')
 
@@ -957,7 +959,7 @@ if __name__ == "__main__":
 
     voice_server = None
     if args.voice:
-        voice_server = PLAYCONFIG['SERVER']['VOICE_SERVER_TYPE']
+        voice_server = HOMECONFIG['SERVER']['VOICE_SERVER_TYPE']
         if voice_server not in ['none', 'dialogflow', 'ifttt']:
             debug.write("Invalid voice assistant server type. Choose between none, dialogflow or ifttt. Quitting.", 2)
             sys.exit()
@@ -973,7 +975,7 @@ if __name__ == "__main__":
         sys.exit()
 
     if args.server:
-        if PLAYCONFIG['SERVER'].getboolean('ENABLE_WIFI_RTT'):
+        if HOMECONFIG['SERVER'].getboolean('ENABLE_WIFI_RTT'):
             from dnn.dnn import run_tensorflow
         if args.webserver is None:
             debug.write("You need to define a port for the webserver, using --webserver PORT. Quitting.", 2)
@@ -985,19 +987,19 @@ if __name__ == "__main__":
         if voice_server is not None:
             if voice_server == 'ifttt':
                 from modules.ifttt import runIFTTTServer
-                ti = runIFTTTServer(PLAYCONFIG, lm)
+                ti = runIFTTTServer(HOMECONFIG, lm)
                 ti.start()
             elif voice_server == 'dialogflow':
                 from modules.dialogflow import runDFServer
-                ti = runDFServer(PLAYCONFIG)
+                ti = runDFServer(HOMECONFIG)
                 ti.start()
         if args.detector:
             from modules.detector import runDetectorServer
-            td = runDetectorServer(PLAYCONFIG, lm)
+            td = runDetectorServer(HOMECONFIG, lm)
             td.start()
         if args.webserver != 0:
             from modules.webserver import runWebServer
-            tw = runWebServer(args.webserver,PLAYCONFIG)
+            tw = runWebServer(args.webserver,HOMECONFIG)
             tw.start()
         runServer()
         if voice_server is not None:
@@ -1015,7 +1017,7 @@ if __name__ == "__main__":
     elif args.stream_dev or args.stream_group:
         colorval = ""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER'].getint('PORT'))))
+        s.connect((HOMECONFIG['SERVER']['HOST'], int(HOMECONFIG['SERVER'].getint('PORT'))))
         if args.stream_dev:
             s.sendall("0006".encode('utf-8'))
             s.sendall("stream".encode('utf-8'))
@@ -1028,10 +1030,10 @@ if __name__ == "__main__":
             s.sendall(args.stream_group.encode('utf-8'))
         while colorval != "quit":
             if args.stream_dev:
-                colorval = input("Set device {} to colorvalue ('quit' to exit): " \
+                colorval = input("Set device {} to state value ('quit' to exit): " \
                                   .format(args.stream_dev))
             else:
-                colorval = input("Set group '{}' to colorvalue ('quit' to exit): " \
+                colorval = input("Set group '{}' to state value ('quit' to exit): " \
                                   .format(args.stream_group))
             try:
                 if colorval == "quit":
@@ -1044,7 +1046,7 @@ if __name__ == "__main__":
                 if colorval != "quit":
                     s.close()
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER'].getint('PORT'))))
+                    s.connect((HOMECONFIG['SERVER']['HOST'], int(HOMECONFIG['SERVER'].getint('PORT'))))
                     if args.stream_dev:
                         s.sendall("0006".encode('utf-8'))
                         s.sendall("stream".encode('utf-8'))
@@ -1062,9 +1064,9 @@ if __name__ == "__main__":
 
     else:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER'].getint('PORT'))))
+        s.connect((HOMECONFIG['SERVER']['HOST'], int(HOMECONFIG['SERVER'].getint('PORT'))))
         #TODO report connection errors or allow feedback response
-        debug.write('Connecting with lightmanager daemon', 0)
+        debug.write('Connecting with homeserver daemon', 0)
         debug.write('Sending request: ' + json.dumps(vars(args)), 0)
         s.sendall("1024".encode('utf-8'))
         s.sendall(json.dumps(vars(args)).encode('utf-8'))

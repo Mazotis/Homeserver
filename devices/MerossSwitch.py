@@ -26,14 +26,14 @@ class MerossSwitch(device):
         self.color_type = "io"
         debug.write("Created device MerossSwitch with MAC {}.".format(self.device), 0, self.device_type)
 
-    def color(self, color, priority):
+    def run(self, color, priority):
         """ Checks the request and trigger a light change if needed """
-        if color == LIGHT_OFF:
+        if color == DEVICE_OFF:
             self.meross.request(self.device, False)
             self.state = "0"
             self.success = True
             return True
-        elif color == LIGHT_ON:
+        elif color == DEVICE_ON:
             self.meross.request(self.device, True)
             self.state = "1"
             self.success = True

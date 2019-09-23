@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 '''
-    File name: playclient.py
+    File name: homeclient.py
     Author: Maxime Bergeron
-    Date last modified: 20/02/2019
-    Python Version: 3.7
+    Date last modified: 23/09/2019
+    Python Version: 3.5
 
-    The stripped-down version of play.py.
+    The stripped-down version of home.py.
 '''
 import argparse
 import sys
@@ -19,24 +19,24 @@ from __main__ import *
 
 if __name__ == "__main__":
     debug.enable_debug()
-    PLAYCONFIG = configparser.ConfigParser()
-    PLAYCONFIG.readfp(open(os.path.dirname(os.path.realpath(__file__)) + '/play.ini'))
+    HOMECONFIG = configparser.ConfigParser()
+    HOMECONFIG.readfp(open(os.path.dirname(os.path.realpath(__file__)) + '/home.ini'))
 
-    parser = argparse.ArgumentParser(description='BLE light bulbs manager script',
+    parser = argparse.ArgumentParser(description='Home server client script',
                                      formatter_class=RawTextHelpFormatter)
     parser.add_argument('hexvalues', metavar='N', type=str, nargs="*", default=None,
-                        help='color hex values for the lightbulbs (see list below)')
-    parser.add_argument('--playbulb', metavar='P', type=str, nargs="*", help='Change playbulbs colors only')
-    parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights colors only')
-    parser.add_argument('--decora', metavar='M', type=str, nargs="*", help='Change decora colors only')
+                        help='state values for the devuces (see list below)')
+    parser.add_argument('--playbulb', metavar='P', type=str, nargs="*", help='Change playbulbs states only')
+    parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights states only')
+    parser.add_argument('--decora', metavar='M', type=str, nargs="*", help='Change decora states only')
     parser.add_argument('--meross', metavar='M', type=str, nargs="*", help='Change meross states only')
     parser.add_argument('--tplinkswitch', metavar='T', type=str, nargs="*", help='Change tplinkswitch states only')
     parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1,
                         help='Request priority from 1 to 3')
     parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
-                        help='Apply light actions from specified preset name defined in play.ini')
+                        help='Apply state change actions from specified preset name defined in home.ini')
     parser.add_argument('--group', metavar='group', type=str, nargs="+", default=None,
-                        help='Apply light actions on specified device group(s)')
+                        help='Apply state change actions on specified device group(s)')
     parser.add_argument('--notime', action='store_true', default=False,
                         help='Skip the time check and run the script anyways')
     parser.add_argument('--delay', metavar='delay', type=int, nargs="?", default=None,
@@ -44,17 +44,17 @@ if __name__ == "__main__":
     parser.add_argument('--on', action='store_true', default=False, help='Turn everything on')
     parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')
     parser.add_argument('--restart', action='store_true', default=False, help='Restart generics')
-    parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all lights on/off')
+    parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all devices on/off')
     parser.add_argument('--stream-dev', metavar='str-dev', type=int, nargs="?", default=None,
-                        help='Stream colors directly to device id')
+                        help='Stream states directly to device id')
     parser.add_argument('--stream-group', metavar='str-grp', type=str, nargs="?", default=None,
-                        help='Stream colors directly to device group')
+                        help='Stream states directly to device group')
     parser.add_argument('--reset-mode', action='store_true', default=False,
-                        help='Force light change (whatever the actual mode) and set back devices to AUTO mode')
+                        help='Force state change (whatever the actual mode) and set back devices to AUTO mode')
     parser.add_argument('--reset-location-data', action='store_true', default=False,
                         help='Purge all RTT, locations and location training data (default: false)')
     parser.add_argument('--auto-mode', action='store_true', default=False,
-                        help='(internal) Run requests for non-LIGHT_SKIP devices as AUTO mode (default: false)')
+                        help='(internal) Run requests for non-DEVICE_SKIP devices as AUTO mode (default: false)')
     parser.add_argument('--set-mode-for-devid', metavar='devid', type=int, nargs="?", default=None,
                         help='(internal) Force device# to change mode (as set by auto-mode)')
 
@@ -71,7 +71,7 @@ if __name__ == "__main__":
     elif args.stream_dev or args.stream_group:
         colorval = ""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT'])))
+        s.connect((HOMECONFIG['SERVER']['HOST'], int(HOMECONFIG['SERVER']['PORT'])))
         if args.stream_dev:
             s.sendall("0006".encode('utf-8'))
             s.sendall("stream".encode('utf-8'))
@@ -100,7 +100,7 @@ if __name__ == "__main__":
                 if colorval != "quit":
                     s.close()
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT'])))
+                    s.connect((HOMECONFIG['SERVER']['HOST'], int(HOMECONFIG['SERVER']['PORT'])))
                     if args.stream_dev:
                         s.sendall("0006".encode('utf-8'))
                         s.sendall("stream".encode('utf-8'))
@@ -118,9 +118,9 @@ if __name__ == "__main__":
 
     else:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((PLAYCONFIG['SERVER']['HOST'], int(PLAYCONFIG['SERVER']['PORT'])))
+        s.connect((HOMECONFIG['SERVER']['HOST'], int(HOMECONFIG['SERVER']['PORT'])))
         #todo report connection errors or allow feedback response
-        debug.write('Connecting with lightmanager daemon', 0, "CLIENT")
+        debug.write('Connecting with homeserver daemon', 0, "CLIENT")
         debug.write('Sending request: ' + json.dumps(vars(args)), 0, "CLIENT")
         s.sendall("1024".encode('utf-8'))
         s.sendall(json.dumps(vars(args)).encode('utf-8'))
