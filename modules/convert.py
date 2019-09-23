@@ -106,7 +106,10 @@ def convert_to_web_rgb(color, input_type, device_luminosity=None):
         return "000000"
     if input_type == "argb":
         if len(color) == 8:
-            return color[2:8]
+            if color[2:8] == "000000" and color[0:2] != "00":
+                return DEVICE_ON
+            else:
+                return color[2:8]
         debug.write("Unexpected state length, for conversion from argb to rgb. Got {}".format(color),1)
         return color
     if input_type == "255":

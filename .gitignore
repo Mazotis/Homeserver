@@ -1,5 +1,7 @@
 *.log
 /dnn/tf
+# My backup INI
+home.bak
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

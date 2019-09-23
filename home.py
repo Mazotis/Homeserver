@@ -724,7 +724,7 @@ class DeviceManager(object):
         """ Resets the Success bool to False """
         i = 0
         while i < len(self.devices):
-            self.devices[i].reinit()
+            self.devices[i].post_run()
             i += 1
 
     def _decode_colors(self, colors):

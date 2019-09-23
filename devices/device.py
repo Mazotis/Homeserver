@@ -54,14 +54,14 @@ class device(object):
         if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
             debug.write("Device ({}) {} is still executing previous request."
                         .format(self.device_type, self.device), 0)
-            self.state = LIGHT_STANDBY
+            self.state = DEVICE_STANDBY
             return True
         if not self.skip_time:
             self.success = True
             debug.write("Device ({}) {} skipped due to actual time."
                         .format(self.device_type, self.device), 0)
             return True
-        if color == LIGHT_SKIP:
+        if color == DEVICE_SKIP:
             self.success = True
             return True
         if not self.ignoremode:
@@ -93,12 +93,12 @@ class device(object):
             self.priority = 1
         else:
             self.priority = priority
-        if self.state == color and color != self.convert(LIGHT_OFF):
+        if self.state == color and color != self.convert(DEVICE_OFF):
             self.success = True
             debug.write("Device ({}) {} is already of the requested state, skipping."
                         .format(self.device_type, self.device), 0)
             return True
-        if self.state == color and color == self.convert(LIGHT_OFF) and not self.forceoff:
+        if self.state == color and color == self.convert(DEVICE_OFF) and not self.forceoff:
             self.success = True
             debug.write("Device ({}) {} is already off and forcing-off disabled, skipping."
                         .format(self.device_type, self.device), 0)
