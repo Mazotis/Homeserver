@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/home/pi/Homeserver
-ExecStart=/usr/bin/python3 /home/pi/Homeserver/home.py --server --voice --detector --threaded --webserver 8080
+ExecStart=/usr/bin/python3 /home/pi/Homeserver/home.py --server --threaded
 User=pi
 
 [Install]

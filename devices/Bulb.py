@@ -17,7 +17,6 @@ class Bulb(device):
     def __init__(self, devid, config):
         super().__init__(devid, config)
         self.device = config["DEVICE"+str(devid)]["ADDRESS"]
-        debug.write("Created device Bulb: {}.".format(self.description), 0)
 
     def disconnect(self):
         """ Disconnects the device """

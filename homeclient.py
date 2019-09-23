@@ -18,6 +18,7 @@ from devices.common import *
 from __main__ import *
 
 if __name__ == "__main__":
+    #TODO make this script portable ?
     debug.enable_debug()
     HOMECONFIG = configparser.ConfigParser()
     HOMECONFIG.readfp(open(os.path.dirname(os.path.realpath(__file__)) + '/home.ini'))
@@ -26,11 +27,8 @@ if __name__ == "__main__":
                                      formatter_class=RawTextHelpFormatter)
     parser.add_argument('hexvalues', metavar='N', type=str, nargs="*", default=None,
                         help='state values for the devuces (see list below)')
-    parser.add_argument('--playbulb', metavar='P', type=str, nargs="*", help='Change playbulbs states only')
-    parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights states only')
-    parser.add_argument('--decora', metavar='M', type=str, nargs="*", help='Change decora states only')
-    parser.add_argument('--meross', metavar='M', type=str, nargs="*", help='Change meross states only')
-    parser.add_argument('--tplinkswitch', metavar='T', type=str, nargs="*", help='Change tplinkswitch states only')
+    for _dev in getDevices(True):
+        parser.add_argument('--' + _dev, type=str, nargs="*", help='Change {} states only'.format(_dev))
     parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1,
                         help='Request priority from 1 to 3')
     parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,

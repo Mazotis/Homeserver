@@ -24,7 +24,7 @@ class Decora(object):
         self.disabled = False
         self.connect()
         decora = self
-        debug.write("Created device Decora with account {}.".format(self.email), 0)
+        debug.write("Created pseudo-device Decora with account {}.".format(self.email), 0)
 
     def get_switch(self, name = None):
         self.session.login(self.email, self.password)

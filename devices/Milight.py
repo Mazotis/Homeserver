@@ -47,6 +47,7 @@ class Milight(Bulb):
         if self.color_brightness < 0 or self.color_brightness > 100:
             debug.write("Default bulb brightness should be between 0 and 100. Quitting.", 2, self.device_type)
             quit()
+        debug.write("Created device Milight: {}.".format(self.description), 0, self.device_type)
 
     def turn_on(self):
         """ Helper function to turn on device """

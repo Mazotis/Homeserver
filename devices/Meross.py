@@ -17,7 +17,7 @@ class Meross(object):
         self.email = config["DEVICE"+str(devid)]["EMAIL"]
         self.password = config["DEVICE"+str(devid)]["PASSWORD"]
         meross = self
-        debug.write("Created device Meross with account {}.".format(self.email), 0)
+        debug.write("Created pseudo-device Meross with account {}.".format(self.email), 0)
 
     def request(self, address, state):
         self.connect()

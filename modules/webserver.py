@@ -127,11 +127,11 @@ class WebServerHandler(SimpleHTTPRequestHandler):
         self.wfile.write(response.getvalue())
 
 
-class runWebServer(Thread):
-    def __init__(self, port, config):
+class webserver(Thread):
+    def __init__(self, config, lm):
         Thread.__init__(self)
-        self.port = port
         self.config = config
+        self.port = self.config['SERVER'].getint('WEBSERVER_PORT')
         self.running = True
 
     def run(self):

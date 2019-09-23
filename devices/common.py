@@ -86,8 +86,21 @@ decora = None
 meross = None
 debug = DebugLog()
 
-def getDevices():
+def getDevices(to_lower=False, get_both_ulcase=False):
     """ Getter for available device modules, same as __init__ """
     modules = glob.glob(dirname(__file__)+"/*.py")
-    return [basename(f)[:-3] for f in modules if isfile(f) and not f.endswith('__init__.py') 
-            and not f.endswith('common.py')]
+    devices = [basename(f)[:-3] for f in modules if isfile(f) and not f.endswith('__init__.py') 
+            and not f.endswith('common.py') and not f.endswith('Bulb.py') and not f.endswith('Meross.py')
+            and not f.endswith('Decora.py') and not f.endswith('device.py')]
+    if to_lower:
+        return [x.lower() for x in devices]
+    elif get_both_ulcase:
+        return [(x.lower(), x) for x in devices]
+    else:
+        return devices
+
+def getModules():
+    """ Getter for available server modules, same as __init__ """
+    modules = glob.glob(dirname(__file__)+"/../modules/*.py")
+    devices = [basename(f)[:-3] for f in modules if isfile(f) and not f.endswith('convert.py')]
+    return devices

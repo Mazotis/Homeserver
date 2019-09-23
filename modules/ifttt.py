@@ -114,7 +114,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
             pass
 
 
-class runIFTTTServer(Thread):
+class ifttt(Thread):
     def __init__(self, config, lm):
         Thread.__init__(self)
         self.config = config
@@ -151,3 +151,6 @@ class runIFTTTServer(Thread):
             _r = requests.get("http://localhost:{}/".format(self.port))
         except requests.exceptions.ConnectionError:
             pass
+
+def run(config, lm):
+    runIFTTTServer(config, lm)

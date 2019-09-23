@@ -43,8 +43,8 @@ class DFServer(BaseHTTPRequestHandler):
         os.system(request)
 
 
-class runDFServer(Thread):
-    def __init__(self, config):
+class dialogflow(Thread):
+    def __init__(self, config, lm):
         Thread.__init__(self)
         self.port = config['SERVER'].getint('VOICE_SERVER_PORT')
         self.key = config['DIALOGFLOW']['DIALOGFLOW_HTTPS_CERTS_KEY']
@@ -74,3 +74,6 @@ class runDFServer(Thread):
             _r = requests.get("http://localhost:{}/".format(self.port))
         except requests.exceptions.ConnectionError:
             pass
+
+def run(config, lm):
+    runDFServer(config)

@@ -90,6 +90,7 @@ To turn off the living room lights over the tv any time:
 ```
 
 ## Development
+### Devices
 More devices can be hardcoded directly in the devices folder. See below for examples.
 
 The __init__ function of your device will receive variables devid (device number) and config (handler for the home.ini configparser).
@@ -97,6 +98,8 @@ The __init__ function of your device will receive variables devid (device number
 Decora compatible devices should use the decora variable to send requests (created by the Decora.py module).
 
 BLE bulbs can use the Bulb.py module to simplify development. Integrate this module by changing MyNewDevice(device) to MyNewDevice(Bulb).
+
+*Note: the device name and the entry function should match or else the dynamic loader in home.py will fail.*
 ```
 from devices.common import *
 from devices.device import device
@@ -153,6 +156,30 @@ Bulb.py provides the device.py functions + additional features used in BLE light
     def post_run(self):
         """ Prepares the device for a future request. """
         self.success = False
+``` 
+
+### Modules
+More modules can be hardcoded in the modules folder. Modules can execute any required tasks and are able to communicate with the home server.
+
+All modules receive the config handler and a reference to the home server itself. All modules are also threaded by default. See below for the base code.
+
+*Note: the module name and the entry function should match or else the dynamic loader in home.py will fail.*
+``` 
+from devices.common import *
+from threading import Thread, Event
+
+class mynewmodule(Thread):
+    def __init__(self, config, lm):
+        Thread.__init__(self)
+        self.config = config # The config file
+        self.lm = lm # The reference to the Homeserver. 
+        self.running = True # Required. You may want to use this in a "while self.running:" loop in def run(): for telling your module when to start/stop.
+
+    def run(self):
+        # Functions to run when the module starts
+
+    def stop(self):
+        # Functions to clean-up ressources when the thread/module stops
 ``` 
 
 ## Credits

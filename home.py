@@ -29,6 +29,7 @@ from multiprocessing.pool import ThreadPool
 from functools import partial
 from __main__ import *
 
+VERSION = "alpha"
 
 class HomeServer(object):
     """ Handles server-side request reception and handling """
@@ -280,18 +281,21 @@ class HomeServer(object):
             #TODO eventually add training data cleanup
             os.remove("./dnn/train.log")
             debug.write("Purged location and RTT data", 0)
-        if args["hexvalues"] and (args["playbulb"] or args["milight"] or args["decora"]
-                                  or args["meross"] or args["tplinkswitch"]):
-            debug.write("Got color hexvalues for milights and/or playbulbs \
-                                   and/or other devices in the same request, which is not \
-                                   supported. Use '{} -h' for help. Quitting".format(sys.argv[0]),
-                                 2)
-            return     
-        if len(args["hexvalues"]) != len(lm.devices) and not any([args["notime"], args["off"], args["on"], 
-                                                                  args["playbulb"], args["milight"], 
-                                                                  args["toggle"], args["decora"], 
-                                                                  args["preset"], args["restart"],
-                                                                  args["meross"], args["tplinkswitch"]]):
+
+        has_device_requests = False
+        for _dev in getDevices(True):
+            if args[_dev]:
+                has_device_requests = True
+
+        if args["hexvalues"] and has_device_requests:            
+            debug.write("Got color hexvalues for multiple devices in the same request, which is not \
+                        supported. Use '{} -h' for help. Quitting".format(sys.argv[0]),
+                        2)
+            return
+
+        if len(args["hexvalues"]) != len(lm.devices) and not any([args["notime"], args["off"], args["on"],
+                                                                  args["toggle"], args["preset"], args["restart"],
+                                                                  has_device_requests]):
             debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting" \
                                   .format(len(args["hexvalues"]), len(lm.devices), sys.argv[0]), 2)
             return
@@ -309,26 +313,13 @@ class HomeServer(object):
                 except KeyError:
                     debug.write("Devid {} does not exist".format(args["set_mode_for_devid"]), 1)
                 return
-            if args["playbulb"] is not None:
-                debug.write("Received playbulb change request", 0)
-                if not lm.set_typed_colors(args["playbulb"], "Playbulb"):
-                    return
-            if args["milight"] is not None:
-                debug.write("Received milight change request", 0)
-                if not lm.set_typed_colors(args["milight"], "Milight"):
-                    return
-            if args["decora"] is not None:
-                debug.write("Received decora change request", 0)
-                if not lm.set_typed_colors(args["decora"], "DecoraSwitch"):
-                    return
-            if args["meross"] is not None:
-                debug.write("Received meross change request", 0)
-                if not lm.set_typed_colors(args["meross"], "MerossSwitch"):
-                    return
-            if args["tplinkswitch"] is not None:
-                debug.write("Received tplinkswitch change request", 0)
-                if not lm.set_typed_colors(args["tplinkswitch"], "TP-LinkSwitch"):
-                    return
+
+            for _dev, _Dev in getDevices(get_both_ulcase=True):
+                if args[_dev] is not None:
+                    debug.write("Received {} change request".format(_dev), 0)
+                    if not lm.set_typed_colors(args[_dev], _Dev):
+                        return
+
             if args["preset"] is not None:
                 debug.write("Received change to preset [{}] request".format(args["preset"]), 0)
                 try:
@@ -370,16 +361,12 @@ class HomeServer(object):
             args["restart"] = False
         if "toggle" not in args:
             args["toggle"] = False
-        if "playbulb" not in args:
-            args["playbulb"] = None
-        if "milight" not in args:
-            args["milight"] = None
-        if "decora" not in args:
-            args["decora"] = None
-        if "meross" not in args:
-            args["meross"] = None
-        if "tplinkswitch" not in args:
-            args["tplinkswitch"] = None
+        for _dev in getDevices(True):
+            if _dev not in args:
+                args[_dev] = None
+            if type(args[_dev]).__name__ == "str":
+                debug.write('Converting values to lists for {}'.format(_dev), 0)
+                args[_dev] = args[_dev].replace("'", "").split(',')
         if "notime" not in args:
             args["notime"] = False
         if "delay" not in args:
@@ -400,21 +387,6 @@ class HomeServer(object):
             args["set_mode_for_devid"] = None
         if "reset_location_data" not in args:
             args["reset_location_data"] = False
-        if type(args["playbulb"]).__name__ == "str":
-            debug.write('Converting values to lists for playbulb', 0)
-            args["playbulb"] = args["playbulb"].replace("'", "").split(',')
-        if type(args["milight"]).__name__ == "str":
-            debug.write('Converting values to lists for milight', 0)
-            args["milight"] = args["milight"].replace("'", "").split(',')
-        if type(args["decora"]).__name__ == "str":
-            debug.write('Converting values to lists for decora', 0)
-            args["decora"] = args["decora"].replace("'", "").split(',')
-        if type(args["meross"]).__name__ == "str":
-            debug.write('Converting values to lists for meross', 0)
-            args["meross"] = args["meross"].replace("'", "").split(',')
-        if type(args["tplinkswitch"]).__name__ == "str":
-            debug.write('Converting values to lists for tplinkswitch', 0)
-            args["tplinkswitch"] = args["tplinkswitch"].replace("'", "").split(',')
         return args
 
 
@@ -425,6 +397,14 @@ class DeviceManager(object):
         debug.enable_debug()
         self.config = config
         self.devices = []
+        debug.write("***********************************************************", 0)
+        debug.write("***               HomeServer, by Mazotis                ***", 0)
+        debug.write("***********************************************************", 0)
+        debug.write("Version: {}".format(VERSION), 0)
+        debug.write("Compiled devices: {}".format(", ".join(getDevices())), 0)
+        debug.write("Compiled modules: {}".format(", ".join(getModules())), 0)        
+        debug.write("***********************************************************", 0)
+        debug.write("", 0)
         i = 0
         while True:
             try:
@@ -438,7 +418,7 @@ class DeviceManager(object):
                     debug.write('Unsupported device type {}' \
                                           .format(self.config["DEVICE"+str(i)]["TYPE"]), 1)
             except KeyError:
-                debug.write('Loaded {} devices'.format(i-1), 0)
+                debug.write('Loaded {} devices'.format(i), 0)
                 break
             i = i + 1
         self.skip_time = False
@@ -905,11 +885,10 @@ if __name__ == "__main__":
                                      formatter_class=RawTextHelpFormatter)
     parser.add_argument('hexvalues', metavar='N', type=str, nargs="*",
                         help='state values for the devices (see list below)')
-    parser.add_argument('--playbulb', metavar='P', type=str, nargs="*", help='Change playbulbs states only')
-    parser.add_argument('--milight', metavar='M', type=str, nargs="*", help='Change milights states only')
-    parser.add_argument('--decora', metavar='D', type=str, nargs="*", help='Change decora states only')
-    parser.add_argument('--meross', metavar='M', type=str, nargs="*", help='Change meross states only')
-    parser.add_argument('--tplinkswitch', metavar='T', type=str, nargs="*", help='Change tplinkswitch states only')
+
+    for _dev in getDevices(True):
+        parser.add_argument('--' + _dev, type=str, nargs="*", help='Change {} states only'.format(_dev))
+
     parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1,
                         help='Request priority from 1 to 3')
     parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
@@ -926,12 +905,6 @@ if __name__ == "__main__":
     parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all devices on/off')
     parser.add_argument('--server', action='store_true', default=False,
                         help='Start as a socket server daemon')
-    parser.add_argument('--webserver', metavar='prio', type=int, nargs="?", default=0,
-                        help='Starts a webserver at the given PORT')
-    parser.add_argument('--voice', action='store_true', default=False,
-                        help='Start a voice-assistant websocket receiver along with server')
-    parser.add_argument('--detector', action='store_true', default=False,
-                        help='Start a ping-based device detector (usually for mobiles)')
     parser.add_argument('--threaded', action='store_true', default=False,
                         help='Starts the server daemon with threaded light change requests')
     parser.add_argument('--stream-dev', metavar='str-dev', type=int, nargs="?", default=None,
@@ -949,22 +922,12 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.server and (args.playbulb or args.milight or args.decora or args.on
-                        or args.off or args.toggle or args.stream_dev
-                        or args.stream_group or args.preset or args.restart 
-                        or args.meross or args.tplinkswitch):
+    #TODO add back device state change  request validation or just ignore?
+    if args.server and (args.on or args.off or args.toggle or args.stream_dev
+                        or args.stream_group or args.preset or args.restart):
         debug.write("You cannot start the daemon and send arguments at the same time. \
                               Quitting.", 2)
         sys.exit()
-
-    voice_server = None
-    if args.voice:
-        voice_server = HOMECONFIG['SERVER']['VOICE_SERVER_TYPE']
-        if voice_server not in ['none', 'dialogflow', 'ifttt']:
-            debug.write("Invalid voice assistant server type. Choose between none, dialogflow or ifttt. Quitting.", 2)
-            sys.exit()
-        if voice_server == 'none':
-            voice_server = None
 
     if args.stream_dev and args.stream_group:
         debug.write("You cannot stream data to both devices and groups. Quitting.", 2)
@@ -975,42 +938,41 @@ if __name__ == "__main__":
         sys.exit()
 
     if args.server:
+        loaded_modules = HOMECONFIG['SERVER']['MODULES'].split(",")
+        #TODO put that check in some module?
+        if all(x in loaded_modules for x in ['ifttt', 'dialogflow']):
+            debug.write("You cannot load ifttt and dialogflow at the same time. Quitting.", 2)
+            sys.exit()
+
+        module_threads = []
+        for _cnt,_mod in enumerate(loaded_modules):
+            if _mod in getModules():
+                _module = __import__("modules." + _mod)
+                #TODO Needed twice ? looks unpythonic
+                _class = getattr(_module,_mod)
+                _class = getattr(_class,_mod)
+                module_threads.append(_class(HOMECONFIG, lm))
+                module_threads[_cnt].start()
+            else:
+                debug.write('Unsupported module {}' \
+                                      .format(_mod), 1)
+
         if HOMECONFIG['SERVER'].getboolean('ENABLE_WIFI_RTT'):
             from dnn.dnn import run_tensorflow
-        if args.webserver is None:
-            debug.write("You need to define a port for the webserver, using --webserver PORT. Quitting.", 2)
-            sys.exit()
         if args.notime:
             lm.set_skip_time_check(True)
         if args.threaded:
             lm.start_threaded()
-        if voice_server is not None:
-            if voice_server == 'ifttt':
-                from modules.ifttt import runIFTTTServer
-                ti = runIFTTTServer(HOMECONFIG, lm)
-                ti.start()
-            elif voice_server == 'dialogflow':
-                from modules.dialogflow import runDFServer
-                ti = runDFServer(HOMECONFIG)
-                ti.start()
-        if args.detector:
-            from modules.detector import runDetectorServer
-            td = runDetectorServer(HOMECONFIG, lm)
-            td.start()
-        if args.webserver != 0:
-            from modules.webserver import runWebServer
-            tw = runWebServer(args.webserver,HOMECONFIG)
-            tw.start()
+
         runServer()
-        if voice_server is not None:
-            ti.stop()
-            ti.join()
-        if args.webserver != 0:
-            tw.stop()
-            tw.join()
-        if args.detector:
-            td.stop()
-            td.join()
+
+        for _mod in module_threads:
+            try:
+                _mod.stop()
+            except AttributeError:
+                pass
+            _mod.join()
+
         debug.write("Threaded modules stopped.", 0)
 
 

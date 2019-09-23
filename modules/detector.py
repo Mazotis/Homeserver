@@ -14,7 +14,7 @@ import requests
 from devices.common import *
 from threading import Thread, Event
 
-class runDetectorServer(Thread):
+class detector(Thread):
     def __init__ (self, config, lightmanager):
         Thread.__init__(self)
         self.config = config
