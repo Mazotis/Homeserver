@@ -87,12 +87,17 @@ def convert_color(color, output_type=None):
         if is_rgb:
             if output_type == "argb":
                 return "00" + color
-        if is_io or is_ioops:
+        if is_io:
             if color in [DEVICE_OFF, DEVICE_ON]:
                 return color
             else:
                 debug.write("Conversion from IO/IO-OPS {} to RGB color code not yet implemented".format(color),1)
                 return DEVICE_ON
+        if is_100 and output_type == "argb":
+            intensity = "{:02x}".format(int(int(color)/100*255))
+            debug.write("Conversion from intensity level ({}) to argb {}000000".format(color, intensity),0)
+            return "{}000000".format(intensity)
+
         if is_8bit:
             debug.write("Conversion from Milight 8-bit {} to RGB color code not yet implemented".format(color),1)
             return DEVICE_ON

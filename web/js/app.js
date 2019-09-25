@@ -26,7 +26,6 @@ function getResult() {
             var thedata = JSON.parse(decodeURIComponent(data))
             var cnt = 0
             $('#suntime').html(thedata.starttime)
-            console.log(thedata)
 
             var ghtml = '<div class="row"><div class="col-sm-3">'
             for (group in thedata.groups) {
@@ -251,7 +250,7 @@ function computeCards() {
             }
 
             if (["100"].includes(ccolortype)) {
-                $(this).find(".sliderpick").attr("value", cstate)
+                $(this).find(".slider").attr("value", cstate)
                 $(this).find(".slider-text").html(cstate)
                 $(this).find(".sliderpick").show()
                 if (cinit != "1") {

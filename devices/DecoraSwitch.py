@@ -20,7 +20,6 @@ class DecoraSwitch(device):
         else:
             self.decora = decora
         self.device = config["DEVICE"+str(devid)]["DEVICE"]
-        self.intensity = config["DEVICE"+str(devid)]["DEFAULT_INTENSITY"]
         self.device_type = "DecoraSwitch"
         self.state = "0"
         if self.color_type is None:

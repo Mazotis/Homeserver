@@ -44,8 +44,8 @@ class Milight(Bulb):
             quit()
         #TODO is this accurate enough?
         self.color_temp = int((self.color_temp-2000)*125/6500)
-        self.color_brightness = int(config["DEVICE"+str(devid)]["DEFAULT_BRIGHTNESS"])
-        if self.color_brightness < 0 or self.color_brightness > 100:
+        self.intensity = int(self.intensity)
+        if self.intensity < 0 or self.intensity > 100:
             debug.write("Default bulb brightness should be between 0 and 100. Quitting.", 2, self.device_type)
             quit()
         debug.write("Created device Milight: {}.".format(self.description), 0, self.device_type)
@@ -70,7 +70,7 @@ class Milight(Bulb):
             return self._write(self.get_query(45, 161, 5, self.id1, self.id2, int(color[0]), 2, int(color[1])), color)
         else:
             if not self._write(self.get_query(45, 161, 4, self.id1, self.id2, color, 2, 100), color): return False
-            return self._write(self.get_query(45, 161, 5, self.id1, self.id2, color, 2, self.color_brightness), color)
+            return self._write(self.get_query(45, 161, 5, self.id1, self.id2, color, 2, self.intensity), color)
 
     def turn_on_and_dim_on(self, color):
         """ Helper function to turn on device to default intensity """
@@ -80,7 +80,7 @@ class Milight(Bulb):
 
     def dim_on(self, color):
         """ Helper function to set default intensity """
-        return self._write(self.get_query(20, 161, 5, self.id1, self.id2, self.color_temp, 4, self.color_brightness), color)
+        return self._write(self.get_query(20, 161, 5, self.id1, self.id2, self.color_temp, 4, self.intensity), color)
 
     def run(self, color, priority):
         """ Checks the request and trigger a light change if needed """

@@ -22,6 +22,8 @@ class device(object):
         if config.has_option("DEVICE"+str(devid),"GROUP"):
             self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
         self.priority = 0
+        if config.has_option("DEVICE"+str(devid),"DEFAULT_INTENSITY"):
+            self.intensity = config["DEVICE"+str(devid)]["DEFAULT_INTENSITY"]
         self.state = 0
         self.device_type = None
         self.request_auto_mode = True
