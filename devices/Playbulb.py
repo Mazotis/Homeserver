@@ -38,7 +38,8 @@ class Playbulb(Bulb):
         #TODO get actual color at instanciation
         self.state = "00000000"
         self.intensity = config["DEVICE"+str(devid)]["DEFAULT_INTENSITY"]
-        self.color_type = "argb"
+        if self.color_type is None:
+            self.color_type = "argb"
         debug.write("Created device Playbulb: {}.".format(self.description), 0, self.device_type)
 
     def run(self, color, priority):

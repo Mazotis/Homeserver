@@ -21,7 +21,8 @@ class TPLinkSwitch(device):
         self.device_type = "TP-LinkSwitch"
         self.device = self.config["DEVICE"]
         self.plug = None
-        self.color_type = "io"
+        if self.color_type is None:
+            self.color_type = "io"
         self.connect()
         debug.write("Created device with IP {} and name {}.".format(self.ip, self.device), 0, self.device_type)
 

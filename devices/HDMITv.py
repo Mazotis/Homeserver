@@ -18,7 +18,8 @@ class HDMITv(device):
         self.config = config["DEVICE"+str(devid)]
         self.device = self.config["DEVICE"]
         self.device_type = "HDMITv"
-        self.color_type = "io-ops"
+        if self.color_type is None:
+            self.color_type = "io"
         debug.write("Created HDMITv device named: {}".format(self.device), 0, self.device_type)
 
     def get_state(self):

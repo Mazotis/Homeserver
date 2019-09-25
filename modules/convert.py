@@ -22,13 +22,13 @@ import re
 from devices.common import *
 
 def convert_color(color, output_type=None):
-    if output_type not in ["io","io-ops","255","100","rgb","argb"]:
+    if output_type not in ["io","io-ops","255","100","rgb","argb","noop"]:
         debug.write("Required color code output_type doesn't exist. Quitting",2)
         quit()
 
     is_argb=is_rgb=is_8bit=is_100=is_ioops=is_io=False
 
-    if color == DEVICE_SKIP:
+    if color == DEVICE_SKIP or output_type == "noop":
         return DEVICE_SKIP
 
     ''' Type autodetect '''

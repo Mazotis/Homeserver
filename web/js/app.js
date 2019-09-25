@@ -198,74 +198,79 @@ function computeCards() {
             $(this).addClass("border-success")
         }
 
-        if (cmode == "0") {
-            $(this).find(".autobtn").removeClass('active')
-            $(this).find(".manbtn").addClass('active')
+        if (["noop"].includes(ccolortype)) {
+            $(this).find(".btn-group").hide()
+            $(this).find(".noop").show()
         } else {
-            $(this).find(".autobtn").addClass('active')
-            $(this).find(".manbtn").removeClass('active')
-        }
+            if (cmode == "0") {
+                $(this).find(".autobtn").removeClass('active')
+                $(this).find(".manbtn").addClass('active')
+            } else {
+                $(this).find(".autobtn").addClass('active')
+                $(this).find(".manbtn").removeClass('active')
+            }
 
-        if (cforceoff == "false") {
-            $(this).find(".forceoff").show()
-        }
+            if (cforceoff == "false") {
+                $(this).find(".forceoff").show()
+            }
 
-        if (cignoremode == "true") {
-            $(this).find(".ignoremode").show()
-        }
+            if (cignoremode == "true") {
+                $(this).find(".ignoremode").show()
+            }
 
-        if (cskiptime == "false") {
-            $(this).find(".skiptime").show()
-        }
+            if (cskiptime == "false") {
+                $(this).find(".skiptime").show()
+            }
 
-        if (cactiondelay != "0") {
-            $(this).find(".actiondelay").show()
-            $(this).find(".actiondelay span").html(cactiondelay + " s.")
+            if (cactiondelay != "0") {
+                $(this).find(".actiondelay").show()
+                $(this).find(".actiondelay span").html(cactiondelay + " s.")
+            }
+
+            if (["argb", "rgb", "255"].includes(ccolortype)) {
+                if (cstate.length == 6) {
+                    $(this).find(".colorpick input").attr("value", "#" + cstate)
+                }
+                $(this).find(".colorpick").show()
+                if (cinit != "1") {
+                    $(this).find(".colorpick").on("change", function(ev) {
+                        color = ev.currentTarget.firstElementChild.value.substr(1)
+                        sendPowerRequest(cid, color)
+                    })
+                }
+            }
+
+            if (["100"].includes(ccolortype)) {
+                $(this).find(".sliderpick").attr("value", cstate)
+                $(this).find(".slider-text").html(cstate)
+                $(this).find(".sliderpick").show()
+                if (cinit != "1") {
+                    $(this).find(".sliderpick").on("change", function() {
+                        color = $(this).find("input").val()
+                        sendPowerRequest(cid, color)
+                    })
+                    $(this).find(".sliderpick").on("input", function() {
+                        color = $(this).find("input").val()
+                        $(this).find(".slider-text").html(color)
+                    })
+                }
+            }
+
+            if (cinit != "1") {
+                $(this).find(".radiomode :input").on('change', function() {
+                    sendModeRequest(cid, cstate, $(this).val())
+                })
+                $(this).find(".offbuttons").on('click', function() {
+                    sendPowerRequest(cid, 0)
+                })
+                $(this).find(".onbuttons").on('click', function() {
+                    sendPowerRequest(cid, 1)
+                })
+            }
         }
 
         if (cicon != "none") {
             $(this).find(".iconi").attr("class", "iconi " + cicon)
-        }
-
-        if (["argb", "rgb", "255"].includes(ccolortype)) {
-            if (cstate.length == 6) {
-                $(this).find(".colorpick input").attr("value", "#" + cstate)
-            }
-            $(this).find(".colorpick").show()
-            if (cinit != "1") {
-                $(this).find(".colorpick").on("change", function(ev) {
-                    color = ev.currentTarget.firstElementChild.value.substr(1)
-                    sendPowerRequest(cid, color)
-                })
-            }
-        }
-
-        if (["100"].includes(ccolortype)) {
-            $(this).find(".sliderpick").attr("value", cstate)
-            $(this).find(".slider-text").html(cstate)
-            $(this).find(".sliderpick").show()
-            if (cinit != "1") {
-                $(this).find(".sliderpick").on("change", function() {
-                    color = $(this).find("input").val()
-                    sendPowerRequest(cid, color)
-                })
-                $(this).find(".sliderpick").on("input", function() {
-                    color = $(this).find("input").val()
-                    $(this).find(".slider-text").html(color)
-                })
-            }
-        }
-
-        if (cinit != "1") {
-            $(this).find(".radiomode :input").on('change', function() {
-                sendModeRequest(cid, cstate, $(this).val())
-            })
-            $(this).find(".offbuttons").on('click', function() {
-                sendPowerRequest(cid, 0)
-            })
-            $(this).find(".onbuttons").on('click', function() {
-                sendPowerRequest(cid, 1)
-            })
         }
 
         $(this).attr("cinit", "1")

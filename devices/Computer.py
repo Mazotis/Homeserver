@@ -18,7 +18,8 @@ class Computer(device):
         self.config = config["DEVICE"+str(devid)]
         self.device = self.config["DEVICE"]
         self.device_type = "Computer"
-        self.color_type = "io-ops"
+        if self.color_type is None:
+            self.color_type = "io-ops"
         self.ip = self.config["IP_ADDRESS"]
         self.mac = self.config["MAC_ADDRESS"]
         self.user = self.config["SSH_USER"]

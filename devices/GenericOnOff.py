@@ -19,7 +19,8 @@ class GenericOnOff(device):
         self.config = config["DEVICE"+str(devid)]
         self.device = self.config["DEVICE"]
         self.device_type = "GenericOnOff"
-        self.color_type = "io-ops"
+        if self.color_type is None:
+            self.color_type = "io-ops"
         debug.write("Created generic On/Off device named: {}".format(self.device), 0, self.device_type)
 
     def get_state(self):

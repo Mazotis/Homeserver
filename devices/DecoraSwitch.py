@@ -23,7 +23,8 @@ class DecoraSwitch(device):
         self.intensity = config["DEVICE"+str(devid)]["DEFAULT_INTENSITY"]
         self.device_type = "DecoraSwitch"
         self.state = "0"
-        self.color_type = "100"
+        if self.color_type is None:
+            self.color_type = "100"
         debug.write("Created device DecoraSwitch named {}.".format(self.device), 0, self.device_type)
 
     def run(self, color, priority):

@@ -23,7 +23,8 @@ class MerossSwitch(device):
         self.device = config["DEVICE"+str(devid)]["ADDRESS"]
         self.device_type = "MerossSwitch"
         self.state = "0"
-        self.color_type = "io"
+        if self.color_type is None:
+            self.color_type = "io"
         debug.write("Created device MerossSwitch with MAC {}.".format(self.device), 0, self.device_type)
 
     def run(self, color, priority):

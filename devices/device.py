@@ -28,6 +28,8 @@ class device(object):
         self.default_skip_time = False
         self.name = None
         self.color_type = None
+        if config.has_option("DEVICE"+str(devid),"COLOR_TYPE"):
+            self.color_type = config["DEVICE"+str(devid)]["COLOR_TYPE"]
         self.color_brightness = None
         if config.has_option("DEVICE"+str(devid),"SKIPTIME"):
             self.default_skip_time = config["DEVICE"+str(devid)].getboolean("SKIPTIME")
@@ -50,6 +52,11 @@ class device(object):
 
     def pre_run(self, color, priority):
         if self.success:
+            return True
+        if self.color_type == "noop":
+            debug.write("Device ({}) {} does not handle requests."
+                        .format(self.device_type, self.device), 0)
+            self.success = True
             return True
         if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
             debug.write("Device ({}) {} is still executing previous request."
