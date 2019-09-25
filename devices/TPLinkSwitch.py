@@ -21,7 +21,12 @@ class TPLinkSwitch(device):
         self.device_type = "TP-LinkSwitch"
         self.device = self.config["DEVICE"]
         self.plug = None
-        if self.color_type is None:
+        self.dimmable = False
+        if config.has_option("DEVICE"+str(devid), "DIMMABLE"):
+            self.dimmable = self.config.getboolean("DIMMABLE")
+            if self.dimmable and self.color_type is None:
+                self.color_type = "100"
+        elif self.color_type is None:
             self.color_type = "io"
         self.connect()
         debug.write("Created device with IP {} and name {}.".format(self.ip, self.device), 0, self.device_type)
@@ -33,17 +38,22 @@ class TPLinkSwitch(device):
         elif color == DEVICE_OFF:
             self.plug.turn_off()
             self.state = DEVICE_OFF
+        elif self.dimmable:
+            self.plug.brightness = int(color)
+            self.state = color
         else:
             debug.write("Unknown color code for device {}".format(self.device), 1, self.device_type)
         self.success = True
         return True
 
     def get_state(self):
-        #TODO add support for dimmers?
-        if self.plug.state == "ON":
-            self.state = DEVICE_ON
-        else:
+        if self.plug.state == "OFF":
             self.state = DEVICE_OFF
+        else:
+            if self.dimmable:
+                self.state = self.plug.brightness
+            else:
+                self.state = DEVICE_OFF
         return self.state
 
     def connect(self):

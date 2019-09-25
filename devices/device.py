@@ -18,7 +18,9 @@ class device(object):
         self.description = config["DEVICE"+str(devid)]["DESCRIPTION"]
         self.success = False
         self._connection = None
-        self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
+        self.group = []
+        if config.has_option("DEVICE"+str(devid),"GROUP"):
+            self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
         self.priority = 0
         self.state = 0
         self.device_type = None
