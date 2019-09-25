@@ -121,6 +121,28 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         response.write(data)
                 finally:
                     s.close()
+            if reqtype == 7:
+                try:
+                    module = str(postvars[b'module'][0].decode('utf-8'))
+                    s.sendall("0009".encode('utf-8'))
+                    s.sendall("getmodule".encode('utf-8'))
+                    s.sendall(module.zfill(64).encode('utf-8'))
+                    data = s.recv(8184)
+                    if data:
+                        response.write(data)
+                finally:
+                    s.close()
+            if reqtype == 8:
+                try:
+                    clientid = str(postvars[b'clientid'][0].decode('utf-8'))
+                    s.sendall("0008".encode('utf-8'))
+                    s.sendall("dobackup".encode('utf-8'))
+                    s.sendall(clientid.zfill(4).encode('utf-8'))
+                    data = s.recv(1)
+                    if data:
+                        response.write(data)
+                finally:
+                    s.close()
 
         else:
             response.write("No request".encode("UTF-8"))

@@ -26,6 +26,7 @@ function getResult() {
             var thedata = JSON.parse(decodeURIComponent(data))
             var cnt = 0
             $('#suntime').html(thedata.starttime)
+            console.log(thedata)
 
             var ghtml = '<div class="row"><div class="col-sm-3">'
             for (group in thedata.groups) {
@@ -51,6 +52,15 @@ function getResult() {
             }
 
             html += '</div></div></div>'
+
+            for (_mod in thedata.moduleweb) {
+                if (thedata.moduleweb[_mod] != "none") {
+                    $.get("/modules/" + thedata.moduleweb[_mod], function(htmlpage) {
+                        $("#resultid").append(htmlpage)
+                    });
+                }
+            }
+
             $("#resultid").html(html)
             computeCards()
             getResultPost()
@@ -363,6 +373,25 @@ function sendAllModeAuto() {
             },
         success: function(data){
             getResult()
+        }
+    })
+}
+
+function getContent(amodule) {
+    $.ajax({
+        type: "POST",
+        url: ".",
+        dataType: "text",
+        data: {
+                request: "True",
+                reqtype: "7",
+                module: amodule
+            },
+        success: function(data){
+            $("#" + amodule + "-content").html(data)
+        },
+        error: function(data){
+            console.log(data)
         }
     })
 }

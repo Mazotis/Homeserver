@@ -89,6 +89,7 @@ class HomeServer(object):
                         ls_status["starttime"] = "{}".format(lm.starttime)
                         ls_status["groups"] = lm.get_all_groups()
                         ls_status["colortype"] = lm.get_colortypes()
+                        ls_status["moduleweb"] = lm.get_module_web()
                         debug.write('Sending lightserver status', 0)
                         client.send(json.dumps(ls_status).encode('UTF-8'))
                         # Run the non-async state getter after ?
@@ -153,6 +154,28 @@ class HomeServer(object):
                         lm.set_mode(False,False)
                         lm.get_group([group.replace("0", "").lower()])
                         lm.run()
+                        client.send("1".encode("UTF-8"))
+                        break
+                    #TODO Create some protocol to link webserver to modules directly ?
+                    if data.decode('utf-8') == "getmodule":
+                        module = str(client.recv(64).decode("UTF-8")).replace("0", "")
+                        debug.write('Getting module "{}" web content'.format(module), 0)
+                        content = None
+                        for _mod in lm.modules:
+                            if _mod.__class__.__name__ == module:
+                                content = _mod.webcontent
+                        if content is None:
+                            debug.write('Cannot find module', 1)
+                            client.send("0".encode("UTF-8"))
+                        else:
+                            client.send(content.encode("UTF-8"))
+                        break
+                    if data.decode('utf-8') == "dobackup":
+                        clientid = int(client.recv(4).decode("UTF-8"))
+                        debug.write('Scheduling backup', 0)
+                        for _mod in lm.modules:
+                            if _mod.__class__.__name__ == "backup":
+                                content = _mod.backup_queue.put(clientid)
                         client.send("1".encode("UTF-8"))
                         break
                     if data.decode('utf-8') == "stream":
@@ -438,6 +461,7 @@ class DeviceManager(object):
         self.light_threads = [None] * len(self.devices)
         self.light_pool = None
         self.all_groups = None
+        self.modules = []
 
     def start_threaded(self):
         """ Enables multithreaded light change requests """
@@ -607,6 +631,16 @@ class DeviceManager(object):
         for obj in self.devices:
             ctypelist.append(obj.color_type)
         return ctypelist
+
+    def get_module_web(self):
+        weblist = []
+        for obj in self.modules:
+            try:
+                weblist.append(obj.web)
+            except AttributeError:
+                weblist.append("none")
+                pass
+        return weblist
 
     def get_event_time(self):
         if self.lastupdate != datetime.date.today():
@@ -944,15 +978,14 @@ if __name__ == "__main__":
             debug.write("You cannot load ifttt and dialogflow at the same time. Quitting.", 2)
             sys.exit()
 
-        module_threads = []
         for _cnt,_mod in enumerate(loaded_modules):
             if _mod in getModules():
                 _module = __import__("modules." + _mod)
                 #TODO Needed twice ? looks unpythonic
                 _class = getattr(_module,_mod)
                 _class = getattr(_class,_mod)
-                module_threads.append(_class(HOMECONFIG, lm))
-                module_threads[_cnt].start()
+                lm.modules.append(_class(HOMECONFIG, lm))
+                lm.modules[_cnt].start()
             else:
                 debug.write('Unsupported module {}' \
                                       .format(_mod), 1)
@@ -966,7 +999,7 @@ if __name__ == "__main__":
 
         runServer()
 
-        for _mod in module_threads:
+        for _mod in lm.modules:
             try:
                 _mod.stop()
             except AttributeError:

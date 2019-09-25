@@ -9,6 +9,7 @@
 '''
 
 import os
+import queue
 import shlex
 import signal
 import subprocess
@@ -29,6 +30,9 @@ class backup(Thread):
         self.last_backup = 0
         self.running = True
         self.rsync = None
+        self.web = "backup.html"
+        self.webcontent = self.get_web()
+        self.backup_queue = queue.Queue()
 
     def run(self):
         debug.write("Starting backup manager", 0, "BACKUP")
@@ -49,7 +53,11 @@ class backup(Thread):
                                                                    0, "BACKUP")
         while not self.stopevent.is_set():
             if _next_run > datetime.datetime.now():
-                self.stopevent.wait(600)
+                if not self.backup_queue.empty():
+                    needs_backup = self.backup_queue.get()
+                    self.run_backup(needs_backup)
+                    self.backup_queue.task_done()
+                self.stopevent.wait(60)
                 continue
             self.run_backup()
             _next_run = self.last_backup + timedelta(hours=self.backup_interval)
@@ -58,7 +66,7 @@ class backup(Thread):
         self.stop()
         return
 
-    def run_backup(self):
+    def run_backup(self, clientid = None):
         self.last_backup = datetime.datetime.now()
         debug.write("Starting backups", 0, "BACKUP")
         backup_server = None
@@ -84,6 +92,10 @@ class backup(Thread):
 
         i = 0
         while self.running:
+            if clientid is not None and clientid != i:
+                if i > clientid:
+                    break
+                continue
             try:
                 destination = ""
                 if self.config["BACKUP"]["CLIENT" + str(i)] != "local":
@@ -130,7 +142,7 @@ class backup(Thread):
                             command = "{} {}@{}:{} {}".format(command, client.user, client.ip, _folder, destination)
 
                     debug.write('Backing up folder {}'.format(_folder), 0, "BACKUP")
-                    debug.write('Running rsync command: {}'.format(command), 0, "BACKUPS")
+                    debug.write('Running rsync command: {}'.format(command), 0, "BACKUP")
                     
                     #TODO handle keyboardinterrupts properly ?
                     self.rsync = subprocess.Popen(shlex.split(command), stdout=None, 
@@ -155,6 +167,9 @@ class backup(Thread):
 
             i = i + 1
 
+        if clientid is not None:
+            debug.write('Backups are done', 0, "BACKUP")
+
         if server_was_off:
             debug.write("Turning back OFF backup server".format(i), 0, "BACKUP")
             _col = ["-1"] * len(self.lm.devices)
@@ -174,3 +189,33 @@ class backup(Thread):
             os.killpg(os.getpgid(self.rsync.pid), signal.SIGTERM)
         self.stopevent.set()
         pass
+
+    def get_web(self):
+        web = """
+<table class="table table-dark table-striped table-bordered">
+  <thead>
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Device name</th>
+      <th scope="col">Folders</th>
+      <th scope="col"></th>
+    </tr>
+  </thead>
+  <tbody> """
+        i = 0
+        has_devices = False
+        while True:
+            try:
+                client = self.lm.devices[self.config["BACKUP"].getint("CLIENT" + str(i))]
+                web += '<tr><th scope="row">{}</th>'.format(i+1)
+                web += '<td>{}</td>'.format(client.name)
+                web += '<td style="font-size:x-small;">{}</td>'.format(self.config["BACKUP"]["CLIENT" + str(i) + "_FOLDERS"].replace(',', ', '))
+                web += '<td><button id="backupbtn{}" type="button" class="btn btn-warning" onclick="doBackup({})">Backup</button></td></tr>'.format(i,i)
+                has_devices = True
+            except TypeError:
+                break;
+            i = i + 1
+        if not has_devices:
+            web += '<tr><th rowspan="4">No backup devices configured</th></tr>'
+        web += "</tbody></table>"
+        return web

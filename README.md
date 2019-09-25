@@ -1,9 +1,9 @@
 # Homeserver
 New - [Read the WIKI](https://github.com/Mazotis/Homeserver/wiki)
 
-A python websocket server/client to control various cheap IoT RGB BLE lightbulbs, DIY devices and programmable ON/OFF devices (TVs via HDMI-CEC, sound systems using LIRC, HTPCs using shutdown/wake-on-lan functions...)
+A python home IoT control suite, featuring a websocket server/client to control various cheap IoT RGB BLE lightbulbs, DIY devices and programmable ON/OFF devices (TVs via HDMI-CEC, sound systems using LIRC, HTPCs using shutdown/wake-on-lan functions...) and various modules (such as an automatic file backup wrapper around rsync)
 
-The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and waits for requests, either from IFTTT (using a webhook Then That), from a device on-connection event (detected by pinging a static local IP, ie. for a mobile phone), from the included webserver or by a direct command-line call using homeclient.py (for example, when called on a specific event/via a menu button on Kodi - or other HTPC softwares). 
+The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and waits for requests, either from IFTTT (using a webhook Then That), dialogflow, from a device on-connection event (detected by pinging a static local IP, ie. for a mobile phone), from the included webserver or by a direct command-line call using homeclient.py (for example, when called on a specific event/via a menu button on Kodi - or other HTPC softwares). 
 
 ## Why Homeserver ?
 * It allows to control multiple devices that uses different protocols at the same time.
@@ -15,17 +15,18 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 * Compatible with IFTTT (can be interfaced with Google Assistant/Google home and other voice devices) to add vocal commands to any non-smart device.
 * Allows indoor localization with [FIND3](https://github.com/schollz/find3) to turn on/off devices depending on where you are located inside your home.
 * Can receive commands from any IoT device/detectors that can connect via TCP wifi socket (see [WIKI](https://github.com/Mazotis/Homeserver/wiki/Connecting-a-Arduino-ESP8266-other-devices-via-TCP-socket) page on this) 
-* Can receive commands from a mobile-friendly web interface (for a rpi3, default address is raspberrypi:8080 if the server is started with the "--webserver 8080" commandline option)
+* Can receive commands from a mobile-friendly web interface (for a rpi3, default address is raspberrypi:WEBSERVER_PORT - as defined in home.ini)
+* Can automatically schedule - or start from the webserver - rsync backups between linux computers via the backup module.
+
 
 ## Supported devices
 - Milight BLE light bulbs
 - Mipow Playbulbs (tested with Rainbow, other BLE Pb devices should work)
 - Decora Leviton switches (all switches that are accessible via the MyLeviton app)
-- Generic ON/OFF devices (devices that can be turned ON, OFF or restarted using a sh/bash command. Includes TVs with cec-client commands, HTPCs with wakeonlan commands, IR Devices with LIRC irsend commands and everything else. TIP - Group or subgroup them together with a similar name (for example SUBGROUP = livingroom) and call "./homeclient.py --on --subgroup livingroom" to turn them all ON simultaneously)
+- Generic ON/OFF devices (devices that can be turned ON, OFF or restarted using a sh/bash command. Includes TVs with cec-client commands, HTPCs with wakeonlan commands, IR Devices with LIRC irsend commands and everything else. TIP - Group them together with a similar name (for example GROUP = livingroom) and call "./homeclient.py --on --group livingroom" to turn them all ON simultaneously)
 - Meross smart switches MSS110, MSS210, MSS310 and MSS425E (ON/OFF functions - via the Meross cloud app)
 - Input devices (arduinos, esp8266 and other wifi-enable boards) to link various sensors to the homeserver setup
 - TPLink smart switches (HS200, HS210, HS220)
-
 
 ## Requirements
 ### Absolute requirements
@@ -163,6 +164,8 @@ More modules can be hardcoded in the modules folder. Modules can execute any req
 
 All modules receive the config handler and a reference to the home server itself. All modules are also threaded by default. See below for the base code.
 
+Modules can also add some content to the webserver. It needs to provide a HTML file in the /web/modules folder - with its name set in the self.web variable. You can also create some dynamic content by filling the self.webcontent variable - its content will be ajax-called on the webserver when you call the javascript function getContent("mynewmodule") (on the module's webpage) and fill any span/div with id = mynewmodule-content. Subject to change.
+
 *Note: the module name and the entry function should match or else the dynamic loader in home.py will fail.*
 ``` 
 from devices.common import *
@@ -174,6 +177,8 @@ class mynewmodule(Thread):
         self.config = config # The config file
         self.lm = lm # The reference to the Homeserver. 
         self.running = True # Required. You may want to use this in a "while self.running:" loop in def run(): for telling your module when to start/stop.
+        self.web = "mynewmodule.html" # Optional. The filename of the module web content, for the webserver
+        self.webcontent = self.some_function_to_get_content() # Optional. Some content to show on the module's web content, generated by the module itself.
 
     def run(self):
         # Functions to run when the module starts

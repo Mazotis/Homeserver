@@ -1,0 +1,32 @@
+<script>
+getContent("backup")
+
+function doBackup(clientid) {
+	$("#backupbtn" + clientid).prop("disabled", true)
+	$("#backupbtn" + clientid).html("Scheduled")
+	$.ajax({
+        type: "POST",
+        url: ".",
+        dataType: "text",
+        data: {
+                request: "True",
+                reqtype: "8",
+                clientid: clientid
+            },
+        error: function(data){
+            console.log(data)
+        }
+    })
+}
+</script>
+<div class="row">
+    <div class="col-sm-12">
+        <div class="card bg-secondary mb-3 text-white">
+            <div class="card-header">Backup module</div>
+            <div class="card-body">
+                <h5 class="card-title">Configured backups</h5>
+                <p class="card-text"><div id="backup-content"></div></p>
+            </div>
+        </div>
+    </div>
+</div>
