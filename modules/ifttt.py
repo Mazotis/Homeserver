@@ -2,7 +2,7 @@
 '''
     File name: ifttt.py
     Author: Maxime Bergeron
-    Date last modified: 18/09/2019
+    Date last modified: 25/09/2019
     Python Version: 3.5
 
     The IFTTT receiver module for the homeserver
@@ -66,6 +66,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
             if func == "on":
                 self.lm.set_colors([DEVICE_ON] * len(self.lm.devices))
             elif func == "off":
+                self.lm.set_skip_time_check()
                 self.lm.set_colors([DEVICE_OFF] * len(self.lm.devices))
 
             group = postvars['group'][0].split()
@@ -84,14 +85,19 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 debug.write("No devices belong to group {}. Request aborted.".format(group), 1, "IFTTT")
                 return
             debug.write("Running function '{}' on group(s) {}".format(func, changed_groups), 0, "IFTTT")
+            if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
+                self.lm.set_mode(False, False)
             self.lm.run()
 
             if "delay" in postvars and int(postvars['delay'][0]) != 0:
                 if func == "on":
                     self.lm.set_colors([DEVICE_OFF] * len(self.lm.devices))
                 elif func == "off":
+                    self.lm.set_skip_time_check()
                     self.lm.set_colors([DEVICE_ON] * len(self.lm.devices))
                 self.lm.get_group(changed_groups)
+                if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
+                    self.lm.set_mode(False, False)
                 self.lm.run(int(postvars['delay'][0])*60)
 
 
@@ -104,7 +110,10 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 debug.write('Will run action {} in {} seconds'.format(post_action, delay+5), 0, "IFTTT")
                 time.sleep(5)
                 if post_action in self.config["IFTTT"]:
-                    os.system("./homeclient.py --delay {} {}".format(delay, self.config["IFTTT"][post_action]))
+                    if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
+                        os.system("./homeclient.py --delay {} {}".format(delay, self.config["IFTTT"][post_action]))
+                    else:
+                        os.system("./homeclient.py --delay {} --auto-mode {}".format(delay, self.config["IFTTT"][post_action]))
                 else:
                     #
                     # Complex delayed actions should be hardcoded here if needed
