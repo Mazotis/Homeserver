@@ -13,7 +13,7 @@ from devices.Meross import Meross
 from devices.device import device
 
 class MerossSwitch(device):
-    """ Methods for driving a Decora wifi switch """
+    """ Methods for driving a Meross wifi switch """
     def __init__(self, devid, config):
         super().__init__(devid, config)
         if meross is None:
