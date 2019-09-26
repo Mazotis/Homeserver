@@ -50,7 +50,7 @@ function getResult() {
                 cnt = cnt + 1
             }
 
-            html += '</div></div></div>'
+            html += '</div></div></div><hr>'
 
             for (_mod in thedata.moduleweb) {
                 if (thedata.moduleweb[_mod] != "none") {

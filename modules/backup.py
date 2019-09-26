@@ -197,7 +197,7 @@ class backup(Thread):
     <tr>
       <th scope="col">#</th>
       <th scope="col">Device name</th>
-      <th scope="col">Folders</th>
+      <th class="d-none d-md-table-cell" scope="col">Folders</th>
       <th scope="col"></th>
     </tr>
   </thead>
@@ -209,13 +209,13 @@ class backup(Thread):
                 client = self.lm.devices[self.config["BACKUP"].getint("CLIENT" + str(i))]
                 web += '<tr><th scope="row">{}</th>'.format(i+1)
                 web += '<td>{}</td>'.format(client.name)
-                web += '<td style="font-size:x-small;">{}</td>'.format(self.config["BACKUP"]["CLIENT" + str(i) + "_FOLDERS"].replace(',', ', '))
-                web += '<td><button id="backupbtn{}" type="button" class="btn btn-warning" onclick="doBackup({})">Backup</button></td></tr>'.format(i,i)
+                web += '<td class="d-none d-md-table-cell" style="font-size:x-small;">{}</td>'.format(self.config["BACKUP"]["CLIENT" + str(i) + "_FOLDERS"].replace(',', ', '))
+                web += '<td><center><button id="backupbtn{}" type="button" class="btn btn-warning" onclick="doBackup({})">Backup</button></center></td></tr>'.format(i,i)
                 has_devices = True
             except TypeError:
                 break;
             i = i + 1
         if not has_devices:
-            web += '<tr><th rowspan="4">No backup devices configured</th></tr>'
+            web += '<tr><th rowspan="3">No backup devices configured</th></tr>'
         web += "</tbody></table>"
         return web
