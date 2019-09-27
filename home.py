@@ -346,10 +346,14 @@ class HomeServer(object):
             if args["preset"] is not None:
                 debug.write("Received change to preset [{}] request".format(args["preset"]), 0)
                 try:
+                    preset_colors = self.config["PRESETS"][args["preset"]].split(',')
+                    if len(preset_colors) != len(lm.devices):
+                        debug.write("Preset '{}' does not have the adequate number of states, {} expected.".format(args["preset"],len(lm.devices)),1)
+                        return
                     lm.set_colors(self.config["PRESETS"][args["preset"]].split(','))
                     args["auto_mode"] = self.config["PRESETS"].getboolean("AUTOMATIC_MODE")
                 except:
-                    debug.write("Preset {} not found in home.ini. Quitting.".format(args["preset"]), 3)
+                    debug.write("Preset '{}' not found in home.ini. Quitting.".format(args["preset"]), 3)
                     return                       
             if args["off"]:
                 debug.write("Received OFF change request", 0)

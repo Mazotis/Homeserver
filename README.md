@@ -49,9 +49,10 @@ git clone https://github.com/Mazotis/Homeserver
 ```
 4) Copy and start the systemd script
 ```
-sudo cp ./hosmeerver.service /etc/systemd/system
+cd Homeserver
+sudo cp ./homeserver.service /etc/systemd/system
 sudo systemctl enable homeserver
-sudo systemctl start hosemerver
+sudo systemctl start homeserver
 ```
 
 ### On a RPi3 or a linux-based bluetooth-enabled processor board (manual use)

@@ -115,6 +115,9 @@ def convert_to_web_rgb(color, input_type, device_luminosity=None):
                 return DEVICE_ON
             else:
                 return color[2:8]
+        elif len(color) <= 3:
+            #TODO Should we convert back and forth from (a)rgb to intensity like this?
+            return color
         debug.write("Unexpected state length, for conversion from argb to rgb. Got {}".format(color),1)
         return color
     if input_type == "255":
