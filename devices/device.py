@@ -9,6 +9,7 @@
 '''
 
 import time
+import datetime
 from devices.common import *
 from modules.convert import convert_color
 
@@ -29,12 +30,13 @@ class device(object):
         self.request_auto_mode = True
         self.auto_mode = True
         self.reset_mode = False
-        self.default_skip_time = False
         self.name = None
         self.color_type = None
+        self.start_event_time = None
         if config.has_option("DEVICE"+str(devid),"COLOR_TYPE"):
             self.color_type = config["DEVICE"+str(devid)]["COLOR_TYPE"]
         self.color_brightness = None
+        self.default_skip_time = False
         if config.has_option("DEVICE"+str(devid),"SKIPTIME"):
             self.default_skip_time = config["DEVICE"+str(devid)].getboolean("SKIPTIME")
         self.skip_time = self.default_skip_time
@@ -67,13 +69,10 @@ class device(object):
                         .format(self.device_type, self.device), 0)
             self.state = DEVICE_STANDBY
             return True
-        if not self.skip_time:
-            self.success = True
-            debug.write("Device ({}) {} skipped due to actual time."
-                        .format(self.device_type, self.device), 0)
-            return True
         if color == DEVICE_SKIP:
             self.success = True
+            return True
+        if not self.get_time_check():
             return True
         if not self.ignoremode:
             if not self.auto_mode and self.request_auto_mode and not self.reset_mode:
@@ -135,8 +134,19 @@ class device(object):
         """ Getter for the actual color """
         return self.state
 
-    def set_skip_time(self):
-        self.skip_time = True
+    def get_time_check(self, now_time=None):
+        if now_time is None:
+            now_time = datetime.datetime.now().time()
+        if self.start_event_time is not None and not self.skip_time and datetime.time(6, 00) < now_time < self.start_event_time:
+            self.success = True
+            debug.write("Device ({}) {} skipped due to actual time."
+                        .format(self.device_type, self.device), 0)
+            return False
+        return True
+
+    def set_event_time(self, event_time, skip_time = False):
+        self.start_event_time = event_time
+        self.skip_time = skip_time
         return
 
     def descriptions(self):

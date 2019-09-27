@@ -337,10 +337,10 @@ class HomeServer(object):
                     debug.write("Devid {} does not exist".format(args["set_mode_for_devid"]), 1)
                 return
 
-            for _dev, _Dev in getDevices(get_both_ulcase=True):
+            for _dev in getDevices(True):
                 if args[_dev] is not None:
                     debug.write("Received {} change request".format(_dev), 0)
-                    if not lm.set_typed_colors(args[_dev], _Dev):
+                    if not lm.set_typed_colors(args[_dev], _dev):
                         return
 
             if args["preset"] is not None:
@@ -448,10 +448,10 @@ class DeviceManager(object):
                 debug.write('Loaded {} devices'.format(i), 0)
                 break
             i = i + 1
-        self.skip_time = False
-        self.serverwide_skip_time = False
         self.lastupdate = None
-        self.get_event_time()
+        self.always_skip_time = False
+        self.skip_time = False
+        self.update_event_time()
         self.queue = queue.Queue()
         self.colors = ["-1"] * len(self.devices)
         self.delays = [0] * len(self.devices)
@@ -476,12 +476,10 @@ class DeviceManager(object):
         """ Enables skipping time check """
         if serverwide:
             debug.write("Skipping time check for all requests", 0)
-            self.serverwide_skip_time = True
+            self.always_skip_time = True
         else:
             debug.write("Skipping time check this time", 0)
             self.skip_time = True
-            for _dev in self.devices:
-                _dev.skip_time = True
 
     def set_colors(self, color):
         """ Setter function for color request. Required. """
@@ -521,18 +519,20 @@ class DeviceManager(object):
     def set_typed_colors(self, colorargs, atype):
         """ Gets devices of a specific  type for the light change """
         self.colors = ["-1"] * len(self.devices)
-        cvals = self._get_type_index(atype)
-        if len(colorargs) == 1 and cvals[0] > 1:
-            # Allow a single value to be repeated to n devices
-            debug.write("Expanding state {} to {} devices." \
-                                  .format(len(colorargs), cvals[0]), 0)
-            colorargs = [colorargs[0]] * cvals[0]
-        if cvals[0] != len(colorargs):
-            debug.write("Received state hexvalues length {} for {} devices. Quitting" \
-                                  .format(len(colorargs), cvals[0]), 2)
-            return False
-        self.colors[cvals[1]:cvals[1]+cvals[0]] = colorargs
+        device_indexes = [i for i,x in enumerate(self.devices) if x.__class__.__name__.lower() == atype.lower()]
 
+        if len(colorargs) == 1 and len(device_indexes) > 1:
+            debug.write("Expanding state {} to {} devices." \
+                                  .format(len(colorargs), len(device_indexes)), 0)
+            for i in device_indexes:
+                self.colors[i] = colorargs[0]
+        elif len(device_indexes) != len(colorargs):
+            debug.write("Received state hexvalues length {} for {} devices. Quitting" \
+                                  .format(len(colorargs), len(device_indexes)), 2)
+            return False
+        else:
+            for _cnt, i in enumerate(device_indexes):
+                self.colors[i] = colorargs[_cnt]
         return True
 
     def run(self, delay=None, colors=None, skiptime=None):
@@ -540,16 +540,15 @@ class DeviceManager(object):
         self.clean_delayed_changes()
         if delay is not None:
             debug.write("Delaying request for {} seconds".format(delay), 0)
+            #TODO handle time check skipping for delayed requests in a cleaner way
             _sched = threading.Timer(int(delay), self.run, (None,self.colors,self.skip_time,))
             _sched.start()
             self.scheduled_changes.append(_sched)
             self.skip_time = False
             return
-        if self.check_event_time() or skiptime:
-            if colors is not None:
-                self.colors = colors
-            if skiptime:
-                self.set_skip_time_check()
+        if colors is not None:
+            self.colors = colors
+        if self.check_event_time(skiptime or self.skip_time):
             self.queue.put(self.colors)
             #TODO Manage locking out when the run thread hangs
             debug.write("Locked status: {}".format(self.locked), 0)
@@ -646,7 +645,7 @@ class DeviceManager(object):
                 pass
         return weblist
 
-    def get_event_time(self):
+    def update_event_time(self):
         if self.lastupdate != datetime.date.today():
             self.lastupdate = datetime.date.today()
             if str(self.config['SERVER']['EVENT_HOUR']) != "auto":
@@ -655,28 +654,27 @@ class DeviceManager(object):
             else:
                 self.lastupdate = datetime.date.today()
                 self.starttime = self._update_sunset_time(self.config['SERVER']['EVENT_LOCALIZATION'])
-                if not self.serverwide_skip_time:
-                    debug.write("State change event time set as sunset time: {}".format(self.starttime), 0)
-        return self.starttime
+                debug.write("State change event time set as sunset time: {}".format(self.starttime), 0)
+        return
 
-    def check_event_time(self):
-        self.get_event_time()
-        if self.serverwide_skip_time:
-            for _dev in self.devices:
-                _dev.set_skip_time()
-            return True
-        if datetime.time(6, 00) < datetime.datetime.now().time() < self.starttime:
-            for _dev in self.devices:
-                if _dev.skip_time:
+    def check_event_time(self, skip_time=False):
+        now_time = datetime.datetime.now().time()
+        self.update_event_time()
+        for _dev in self.devices:
+            _dev.set_event_time(self.starttime)
+            if self.always_skip_time or skip_time:
+                _dev.set_event_time(self.starttime, True)
+            else:
+                _dev.set_event_time(self.starttime)
+        if not skip_time and datetime.time(6, 00) < now_time < self.starttime:
+            for _cnt,_dev in enumerate(self.devices):
+                if self.colors[_cnt] != DEVICE_SKIP and _dev.get_time_check(now_time):
                     debug.write("Not all devices will be changed. Device changes begins at {}"
                                 .format(self.starttime), 0)
                     return True
             debug.write("Too soon to change devices. Device changes begins at {}"
                         .format(self.starttime), 0)
             return False
-        else:
-            for _dev in self.devices:
-                _dev.set_skip_time()
         return True
 
     def set_lock(self, is_locked):
@@ -695,8 +693,8 @@ class DeviceManager(object):
                 states[_cnt] = dev.get_state()
             if webcolors:
                 states[_cnt] = convert_to_web_rgb(states[_cnt], dev.color_type, dev.color_brightness)
-        if not async:
-            debug.write("State status updated from devices get_state()", 0)
+        if not async and devid is None:
+            debug.write("All devices state status updated from devices get_state()", 0)
         if devid is not None:
             return states[devid]
         return states
@@ -781,6 +779,7 @@ class DeviceManager(object):
                     _sched = threading.Timer(int(_delay), self.run, (None, _delay_colors, self.skip_time,))
                     _sched.start()
                     self.scheduled_changes.append(_sched)
+                    self.skip_time = False
         return colors
 
     def _set_lights(self):
@@ -875,27 +874,11 @@ class DeviceManager(object):
         finally:
             self.reinit()
             self.set_lock(0)
-            self.skip_time = False
 
         debug.write("Change of device states completed.", 0)
 
     def _set_device(self, count, color, priority):
         return self.devices[count].pre_run(color, priority)
-
-    def _get_type_index(self, atype):
-        # TODO This should not depend on an ordered set of devices
-        i = 0
-        count = 0
-        firstindex = 0
-        for obj in self.devices:
-            if obj.device_type == atype:
-                if count == 0: 
-                    firstindex = i
-                count += 1
-            i += 1
-        if count == 0:
-            raise Exception('Invalid device type given. Quitting')
-        return [count, firstindex]
 
     def _update_sunset_time(self, localization):
         p1 = subprocess.Popen('./scripts/sunset.sh %s' % str(localization), stdout=subprocess.PIPE, \

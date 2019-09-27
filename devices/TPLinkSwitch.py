@@ -53,7 +53,7 @@ class TPLinkSwitch(device):
             if self.dimmable:
                 self.state = self.plug.brightness
             else:
-                self.state = DEVICE_OFF
+                self.state = DEVICE_ON
         return self.state
 
     def connect(self):
