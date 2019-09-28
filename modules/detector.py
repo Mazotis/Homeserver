@@ -76,7 +76,7 @@ class detector(Thread):
                                                                        self.DETECTOR_END_HOUR), 0, "DETECTOR")
 
     def detect_devices(self):
-        EVENT_TIME = self.lm.update_event_time()
+        EVENT_TIME = self.lm.starttime
         for _cnt, device in enumerate(self.config['DETECTOR']['TRACKED_IPS'].split(",")):
             #TODO Maintain the two pings requirement for status change ?
             if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
