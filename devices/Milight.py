@@ -44,7 +44,7 @@ class Milight(Bulb):
             quit()
         #TODO is this accurate enough?
         self.color_temp = int((self.color_temp-2000)*125/6500)
-        self.intensity = int(self.intensity)
+        self.intensity = int(self.convert(self.intensity))
         if self.intensity < 0 or self.intensity > 100:
             debug.write("Default bulb brightness should be between 0 and 100. Quitting.", 2, self.device_type)
             quit()

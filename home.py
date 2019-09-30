@@ -97,6 +97,7 @@ class HomeServer(object):
                             self.state_thread = threading.Thread(target=lm.get_state)
                             self.state_thread.start()
                         break
+                    #TODO how to deprecate this ? This requires another connection to allow new async requests from the webserver
                     if data.decode('utf-8') == "getstatepost":
                         ls_status = {}
                         while self.state_thread.is_alive():
@@ -424,6 +425,7 @@ class DeviceManager(object):
         debug.enable_debug()
         self.config = config
         self.devices = []
+        self.pseudodevices = {}
         debug.write("***********************************************************", 0)
         debug.write("***               HomeServer, by Mazotis                ***", 0)
         debug.write("***********************************************************", 0)
@@ -441,6 +443,7 @@ class DeviceManager(object):
                     _class = getattr(_module,self.config["DEVICE"+str(i)]["TYPE"])
                     _class = getattr(_class,self.config["DEVICE"+str(i)]["TYPE"])
                     self.devices.append(_class(i, self.config))
+                    self.get_and_link_pseudodevice(i)
                 else:
                     debug.write('Unsupported device type {}' \
                                           .format(self.config["DEVICE"+str(i)]["TYPE"]), 1)
@@ -655,11 +658,12 @@ class DeviceManager(object):
                 self.lastupdate = datetime.date.today()
                 self.starttime = self._update_sunset_time(self.config['SERVER']['EVENT_LOCALIZATION'])
                 debug.write("State change event time set as sunset time: {}".format(self.starttime), 0)
-        return
+        return self.starttime
 
     def check_event_time(self, skip_time=False):
         now_time = datetime.datetime.now().time()
         self.update_event_time()
+        self.skip_time = False
         for _dev in self.devices:
             _dev.set_event_time(self.starttime)
             if self.always_skip_time or skip_time:
@@ -709,7 +713,7 @@ class DeviceManager(object):
                     while True:
                         if cnt == 4:
                             break
-                        if device.run(_color, 3):
+                        if device.run(color, 3):
                             break
                         time.sleep(0.3)
                         cnt = cnt + 1
@@ -742,6 +746,13 @@ class DeviceManager(object):
         while i < len(self.devices):
             self.devices[i].post_run()
             i += 1
+
+    def get_and_link_pseudodevice(self, devid):
+        _pseudodev = self.devices[devid].has_pseudodevice
+        if _pseudodev is not None:
+            if _pseudodev not in self.pseudodevices:
+                self.pseudodevices[_pseudodev] = self.devices[devid].create_pseudodevice()
+            self.devices[devid].get_pseudodevice(self.pseudodevices[_pseudodev])
 
     def _decode_colors(self, colors):
         _has_delays = False
@@ -822,7 +833,6 @@ class DeviceManager(object):
                             if self.threaded:
                                 if not self.queue.empty():
                                     break
-
                                 self.light_threads[i] = self.light_pool.apply_async(self._set_device,
                                                                                     args=(i, _color, 
                                                                                           self.priority))
@@ -835,10 +845,10 @@ class DeviceManager(object):
                                 debug.write("Awaiting results", 0)
                                 for _cnt, _thread in enumerate(self.light_threads):
                                     if not self.queue.empty():
-                                        continue
+                                        break
                                     if _thread is not None:
                                         try:
-                                            if _thread.get(5) is not None:
+                                            if not _thread.ready() and _thread.get(5) is not None:
                                                 i = 0
                                         except:
                                             i = 0
@@ -848,7 +858,7 @@ class DeviceManager(object):
                             else:
                                 for _cnt, _dev in enumerate(self.devices):
                                     if not self.queue.empty():
-                                        continue
+                                        break
                                     self.states[_cnt] = self.get_state(_cnt)
                                     if self.devices[_cnt].convert(colors[_cnt]) != self.states[_cnt] and self.devices[_cnt].success != True:
                                         i = 0

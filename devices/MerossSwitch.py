@@ -16,10 +16,9 @@ class MerossSwitch(device):
     """ Methods for driving a Meross wifi switch """
     def __init__(self, devid, config):
         super().__init__(devid, config)
-        if meross is None:
-            self.meross = Meross(devid, config)
-        else:
-            self.meross = meross
+        self.device_id = devid
+        self.config = config
+        self.has_pseudodevice = 'Meross'
         self.device = config["DEVICE"+str(devid)]["ADDRESS"]
         self.device_type = "MerossSwitch"
         self.state = "0"
@@ -30,22 +29,42 @@ class MerossSwitch(device):
     def run(self, color, priority):
         """ Checks the request and trigger a light change if needed """
         if color == DEVICE_OFF:
-            self.meross.request(self.device, False)
+            debug.write("Turning Meross device {} OFF.".format(self.device), 0)
+            self.meross_dev.turn_off()
             self.state = "0"
             self.success = True
             return True
         elif color == DEVICE_ON:
-            self.meross.request(self.device, True)
+            debug.write("Turning Meross device {} ON.".format(self.device), 0)
+            self.meross_dev.turn_on()
             self.state = "1"
             self.success = True
             return True
         else:
             debug.write("Unknown state {} for device {}, falling back to OFF."
                         .format(color, self.device), 0, self.device_type)
-            self.meross.request(self.device, False)
+            self.meross_dev.turn_off()
             self.state = "0"
             self.success = True
             return True
 
+    def get_state(self):
+        #TODO Is this the proper limit for ON/OFF ?
+        if self.meross_dev.supports_electricity_reading():
+            if int(self.meross_dev.get_electricity()['current']) > 100:
+                self.state = "1"
+            else:
+                self.state = "0"
+        return self.state
+
+    def create_pseudodevice(self):
+        return Meross(self.device_id, self.config)
+
+    def get_pseudodevice(self, meross):
+        debug.write("Linking Meross {} to pseudodevice {}.".format(self.device, meross.email), 0, self.device_type)
+        self.meross = meross
+        self.meross_dev = self.meross.get_meross_device(self.device)
+
     def disconnect(self):
-        self.meross.disconnect()
+        pass
+        #self.meross.disconnect()

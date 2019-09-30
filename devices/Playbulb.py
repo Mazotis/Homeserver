@@ -46,7 +46,7 @@ class Playbulb(Bulb):
         if color == DEVICE_OFF:
             color = "00000000"
         elif color == DEVICE_ON:
-            color = self.intensity
+            color = self.convert(self.intensity)
         debug.write("Changing ({}) color to {}".format(self.description, color), 0, self.device_type)
         if not self._write(color): return False
         return True

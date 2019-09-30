@@ -3,7 +3,7 @@
     File name: Meross.py
     Author: Maxime Bergeron
     Date last modified: 19/02/2019
-    Python Version: 3.7
+    Python Version: 3.5
 
     The Meross device handler. Allows connections to Meross Cloud. Not a device per-se.
 '''
@@ -22,18 +22,11 @@ class Meross(object):
         meross = self
         debug.write("Created pseudo-device Meross with account {}.".format(self.email), 0)
 
-    def request(self, address, state):
+    def get_meross_device(self, address):
         self.connect()
         for _cnt, _dev in enumerate(self.meross_devices):
             if str(self.meross_data[_cnt]['all']['system']['hardware']['macAddress']) == address.lower():
-                if state:
-                    debug.write("Turning Meross device {} ON.".format(address), 0)
-                    _dev.turn_on()
-                    return
-                else:
-                    debug.write("Turning Meross device {} OFF.".format(address), 0)
-                    _dev.turn_off()
-                    return
+                return _dev
         debug.write("MerossSwitch device {} not found in cloud.".format(address), 1)
 
     def connect(self):
@@ -46,6 +39,8 @@ class Meross(object):
                 self.meross_data.append(_dev.get_sys_data())
 
     def disconnect(self):
-        if self.manager:
-            self.manager.stop()
-            self.manager = False
+        # For some reason, does not play well with disconnects
+        pass
+        #if self.manager is not False:
+        #    self.manager.stop()
+        #    self.manager = False

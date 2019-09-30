@@ -15,10 +15,9 @@ class DecoraSwitch(device):
     """ Methods for driving a Decora wifi switch """
     def __init__(self, devid, config):
         super().__init__(devid, config)
-        if decora is None:
-            self.decora = Decora(devid, config)
-        else:
-            self.decora = decora
+        self.device_id = devid
+        self.config = config
+        self.has_pseudodevice = 'Decora'
         self.device = config["DEVICE"+str(devid)]["DEVICE"]
         self.device_type = "DecoraSwitch"
         self.state = "0"
@@ -40,7 +39,7 @@ class DecoraSwitch(device):
                 _att['power'] = 'ON'
                 _att['brightness'] = int(self.intensity)
                 self.decora.request(self.device, _att)
-                self.state = self.intensity
+                self.state = self.convert(self.intensity)
                 self.success = True
                 return True
             else:
@@ -52,6 +51,13 @@ class DecoraSwitch(device):
         else:
             debug.write("Skipping device {} - handler connection failed.".format(self.device), 0, self.device_type)
             return True
+
+    def create_pseudodevice(self):
+        return Decora(self.device_id, self.config)
+
+    def get_pseudodevice(self, decora):
+        debug.write("Linking Decora {} to pseudodevice {}.".format(self.device, decora.email), 0, self.device_type)
+        self.decora = decora
 
     def disconnect(self):
         if not (self.decora.disabled):

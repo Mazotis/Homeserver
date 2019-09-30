@@ -86,7 +86,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 return
             debug.write("Running function '{}' on group(s) {}".format(func, changed_groups), 0, "IFTTT")
             if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
-                self.lm.set_mode(False, False)
+                self.lm.set_mode(False, True)
             self.lm.run()
 
             if "delay" in postvars and int(postvars['delay'][0]) != 0:
@@ -97,7 +97,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                     self.lm.set_colors([DEVICE_ON] * len(self.lm.devices))
                 self.lm.get_group(changed_groups)
                 if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
-                    self.lm.set_mode(False, False)
+                    self.lm.set_mode(False, True)
                 self.lm.run(int(postvars['delay'][0])*60)
 
 

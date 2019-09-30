@@ -33,7 +33,10 @@ class TPLinkSwitch(device):
 
     def run(self, color, priority):
         if color == DEVICE_ON:
-            self.plug.turn_on()
+            if self.dimmable:
+                self.plug.brightness = self.convert(self.intensity)
+            else:
+                self.plug.turn_on()
             self.state = DEVICE_ON
         elif color == DEVICE_OFF:
             self.plug.turn_off()

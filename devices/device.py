@@ -55,6 +55,7 @@ class device(object):
         self.last_action_timestamp = 0
         if config.has_option("DEVICE"+str(devid),"ACTION_DELAY"):
             self.action_delay = int(config["DEVICE"+str(devid)]["ACTION_DELAY"])
+        self.has_pseudodevice = None
 
     def pre_run(self, color, priority):
         if self.success:
@@ -155,4 +156,12 @@ class device(object):
 
     def disconnect(self):
         """ Disconnects the device """
+        pass
+
+    def create_pseudodevice(self):
+        """ Used to create shared pseudo-devices (non-state devices), for example linkers/connectors for a wide range of devices """
+        pass
+
+    def get_pseudodevice(self, pseudodevice):
+        """ Used to receive the shared pseudo-devices class from the devicemanager """
         pass

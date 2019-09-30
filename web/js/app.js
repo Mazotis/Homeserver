@@ -1,4 +1,6 @@
 lastupdate = 0
+var xhr
+var runningRequests = 0
 
 $(document).ready(function() {
     getResult();
@@ -12,6 +14,7 @@ $(document).ready(function() {
 })
 
 function getResult() {
+    runningRequests++
     $("#preloader").show()
     $.ajax({
         type: "POST",
@@ -68,8 +71,9 @@ function getResult() {
 }
 
 function getResultRefresh() {
+    runningRequests++
     $("#update-spin").show()
-    $.ajax({
+    xhr = $.ajax({
         type: "POST",
         url: ".",
         dataType: "text",
@@ -95,33 +99,39 @@ function getResultRefresh() {
 }
 
 function getResultPost() {
-    $("#update-spin").show()
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "5"
-            },
-        success: function(data){
-            var thedata = JSON.parse(decodeURIComponent(data))
-            has_errors = false
-            for (cnt in thedata.state) {
-                if ($("#card" + cnt).find("div.mb-3").attr("cstate") != thedata.state[cnt]) {
-                    $("#card" + cnt).find("div.mb-3").attr("cstate", thedata.state[cnt])
-                    has_errors = true
+    if (runningRequests == 1) {
+        $("#update-spin").show()
+        xhr = $.ajax({
+            type: "POST",
+            url: ".",
+            dataType: "text",
+            data: {
+                    request: "True",
+                    reqtype: "5"
+                },
+            success: function(data){
+                var thedata = JSON.parse(decodeURIComponent(data))
+                has_errors = false
+                for (cnt in thedata.state) {
+                    if ($("#card" + cnt).find("div.mb-3").attr("cstate") != thedata.state[cnt]) {
+                        $("#card" + cnt).find("div.mb-3").attr("cstate", thedata.state[cnt])
+                        has_errors = true
+                    }
                 }
+                if (has_errors) {
+                    computeCards()
+                }
+                runningRequests--
+                $("#update-spin").hide()
             }
-            if (has_errors) {
-                computeCards()
-            }
-            $("#update-spin").hide()
-        }
-    })        
+        })
+    } else {
+        runningRequests--
+    }  
 }
 
 function getOneResult(devid, last_state) {
+    runningRequests++
     $.ajax({
         type: "POST",
         url: ".",
@@ -158,10 +168,7 @@ function generateCard(devid, data, last_state = null) {
 
     $("#cardmodel").find("p.errortext").hide()
     //TODO - Find a way to determine if a change between two colors has succeded (as the reported state from the lightserver differs from the "real" selection)
-    if (last_state != data.state[devid] && !(last_state == 1 && data.state[devid] == "FFFFFF") 
-        && last_state != null && !(last_state.length == 6 && data.state[devid].length == 6 
-            && data.state[devid] != "000000" && data.state[devid] != "FFFFFF") &&
-            data.state[devid] != "-2") {
+    if (last_state == data.state[devid] && last_state != null) {
         $("#cardmodel").find("p.errortext").show()
     }
 
@@ -244,7 +251,7 @@ function computeCards() {
                 if (cinit != "1") {
                     $(this).find(".colorpick").on("change", function(ev) {
                         color = ev.currentTarget.firstElementChild.value.substr(1)
-                        sendPowerRequest(cid, color)
+                        sendPowerRequest(cid, color, cstate)
                     })
                 }
             }
@@ -256,7 +263,7 @@ function computeCards() {
                 if (cinit != "1") {
                     $(this).find(".sliderpick").on("change", function() {
                         color = $(this).find("input").val()
-                        sendPowerRequest(cid, color)
+                        sendPowerRequest(cid, color, cstate)
                     })
                     $(this).find(".sliderpick").on("input", function() {
                         color = $(this).find("input").val()
@@ -270,10 +277,10 @@ function computeCards() {
                     sendModeRequest(cid, cstate, $(this).val())
                 })
                 $(this).find(".offbuttons").on('click', function() {
-                    sendPowerRequest(cid, 0)
+                    sendPowerRequest(cid, 0, cstate)
                 })
                 $(this).find(".onbuttons").on('click', function() {
-                    sendPowerRequest(cid, 1)
+                    sendPowerRequest(cid, 1, cstate)
                 })
             }
         }
@@ -304,7 +311,8 @@ function computeCards() {
     })
 }
 
-function sendPowerRequest(devid, value) {
+function sendPowerRequest(devid, value, last_state) {
+    xhr.abort()
     $("#card" + devid).addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -318,12 +326,13 @@ function sendPowerRequest(devid, value) {
                 skiptime: $('input[name=skiptime2]').is(":checked")
             },
         success: function(data){
-            getOneResult(devid, value)
+            getOneResult(devid, last_state)
         }
     })
 }
 
 function sendGroupPowerRequest(group, value, devid) {
+    xhr.abort()
     $("#"+devid).addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -343,8 +352,9 @@ function sendGroupPowerRequest(group, value, devid) {
 }
 
 function sendModeRequest(devid, value, auto) {
+    xhr.abort()
     $("#card" + devid).addClass("disabledbutton")
-    $.ajax({
+    xhr = $.ajax({
         type: "POST",
         url: ".",
         dataType: "text",
@@ -361,6 +371,7 @@ function sendModeRequest(devid, value, auto) {
 }
 
 function sendAllModeAuto() {
+    xhr.abort()
     $(".dcard").addClass("disabledbutton")
     $.ajax({
         type: "POST",
