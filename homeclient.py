@@ -29,8 +29,6 @@ if __name__ == "__main__":
                         help='state values for the devuces (see list below)')
     for _dev in getDevices(True):
         parser.add_argument('--' + _dev, type=str, nargs="*", help='Change {} states only'.format(_dev))
-    parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1,
-                        help='Request priority from 1 to 3')
     parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
                         help='Apply state change actions from specified preset name defined in home.ini')
     parser.add_argument('--group', metavar='group', type=str, nargs="+", default=None,

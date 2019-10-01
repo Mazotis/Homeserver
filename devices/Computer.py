@@ -44,7 +44,7 @@ class Computer(device):
             return 0
         return self.state
         
-    def run(self, color, priority):
+    def run(self, color):
     	#TODO support windows ?
         if color == DEVICE_OFF:
             debug.write("Turning device {} OFF".format(self.device), 0, self.device_type)

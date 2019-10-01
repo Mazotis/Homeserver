@@ -114,7 +114,6 @@ class MyNewDevice(device):
         self.device = config["DEVICE"+str(devid)]["DEVICE"] # Value of the DEVICE configurable in home.ini for DEVICE# (where # is devid)
         # use the same approach for any required variable taken from the config file
         # self._connection is provided by device.py to handle your device connection - True or False
-        # self.priority is provided by device.py to give you the actual priority level of this device
         # self.auto_mode is provided by device.py to give you the AUTO mode status (True or False)
         self.state = 0 # You might want a variable to keep in memory the actual color/state of your bulb/device, in this case the initial value is 0
         self.device_type = "MyNewDevice" # Tells the homeserver the actual device type - inheritance safe
@@ -137,7 +136,7 @@ Bulb.py provides the device.py functions + additional features used in BLE light
         """ Getter for the device description """
         return "[{}] - {}".format(self.device_type, self.description)
         
-    def run(self, color, priority):
+    def run(self, color):
         """ Checks the request and trigger a device state change if needed """
         # Some code that can handle a state change request
         # EXAMPLE BELOW. Returning True completes the request. False reruns the request.

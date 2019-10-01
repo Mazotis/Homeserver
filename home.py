@@ -2,7 +2,7 @@
 '''
     File name: home.py
     Author: Maxime Bergeron
-    Date last modified: 23/09/2019
+    Date last modified: 01/10/2019
     Python Version: 3.5
 
     A python home control server
@@ -323,8 +323,6 @@ class HomeServer(object):
             debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting" \
                                   .format(len(args["hexvalues"]), len(lm.devices), sys.argv[0]), 2)
             return
-        if args["priority"]:
-            lm.priority = args["priority"]
         if args["hexvalues"]:
             debug.write("Received color hexvalues length {} for {} devices" \
                                   .format(len(args["hexvalues"]), len(lm.devices)), 0)
@@ -399,10 +397,6 @@ class HomeServer(object):
             args["notime"] = False
         if "delay" not in args:
             args["delay"] = None
-        if "priority" in args and args["priority"] is None:
-            args["priority"] = 1
-        if "priority" not in args:
-            args["priority"] = 1
         if "preset" not in args:
             args["preset"] = None
         if "group" not in args:
@@ -463,7 +457,6 @@ class DeviceManager(object):
         debug.write("Got initial device states {}".format(self.states), 0)
         self.set_lock(0)
         self.lockcount = 0
-        self.priority = 0
         self.threaded = False
         self.light_threads = [None] * len(self.devices)
         self.light_pool = None
@@ -794,8 +787,7 @@ class DeviceManager(object):
         return colors
 
     def _set_lights(self):
-        debug.write("Running a change of states (priority level: {})..." \
-                              .format(self.priority), 0)
+        debug.write("Running a change of states...", 0)
         try:
             self.lockcount = 0
             firstran = False
@@ -824,20 +816,18 @@ class DeviceManager(object):
                                 self.states[i] = self.get_state(i)
                                 if _color != self.states[i]:
                                     debug.write(("DEVICE: {}, REQUESTED STATE: {} "
-                                                  "FROM STATE: {}, PRIORITY: {}, AUTO: {}")
+                                                  "FROM STATE: {}, AUTO: {}")
                                                   .format(self.devices[i].device,
                                                           _color, self.states[i],
-                                                          self.devices[i].priority,
                                                           self.devices[i].auto_mode),
                                                   0)
                             if self.threaded:
                                 if not self.queue.empty():
                                     break
                                 self.light_threads[i] = self.light_pool.apply_async(self._set_device,
-                                                                                    args=(i, _color, 
-                                                                                          self.priority))
+                                                                                    args=(i, _color,))
                             else:
-                                self._set_device(i, _color, self.priority)
+                                self._set_device(i, _color)
                         i += 1
 
                         if i == len(self.devices):
@@ -887,8 +877,8 @@ class DeviceManager(object):
 
         debug.write("Change of device states completed.", 0)
 
-    def _set_device(self, count, color, priority):
-        return self.devices[count].pre_run(color, priority)
+    def _set_device(self, count, color):
+        return self.devices[count].pre_run(color)
 
     def _update_sunset_time(self, localization):
         p1 = subprocess.Popen('./scripts/sunset.sh %s' % str(localization), stdout=subprocess.PIPE, \
@@ -920,8 +910,6 @@ if __name__ == "__main__":
     for _dev in getDevices(True):
         parser.add_argument('--' + _dev, type=str, nargs="*", help='Change {} states only'.format(_dev))
 
-    parser.add_argument('--priority', metavar='prio', type=int, nargs="?", default=1,
-                        help='Request priority from 1 to 3')
     parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
                         help='Apply state change actions from specified preset name defined in home.ini')
     parser.add_argument('--group', metavar='group', type=str, nargs="+", default=None,

@@ -37,7 +37,7 @@ class HDMITv(device):
             return 0
         return self.state
         
-    def run(self, color, priority):
+    def run(self, color):
         if color == DEVICE_OFF:
             debug.write("Turning device {} OFF".format(self.device), 0, self.device_type)
             os.system("echo 'standby 0' | cec-client -s")

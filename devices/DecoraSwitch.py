@@ -25,7 +25,7 @@ class DecoraSwitch(device):
             self.color_type = "100"
         debug.write("Created device DecoraSwitch named {}.".format(self.device), 0, self.device_type)
 
-    def run(self, color, priority):
+    def run(self, color):
         """ Checks the request and trigger a light change if needed """
         if not (self.decora.disabled):
             _att = {}

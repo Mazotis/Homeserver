@@ -22,7 +22,6 @@ class device(object):
         self.group = []
         if config.has_option("DEVICE"+str(devid),"GROUP"):
             self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
-        self.priority = 0
         if config.has_option("DEVICE"+str(devid),"DEFAULT_INTENSITY"):
             self.intensity = config["DEVICE"+str(devid)]["DEFAULT_INTENSITY"]
         self.state = 0
@@ -57,7 +56,7 @@ class device(object):
             self.action_delay = int(config["DEVICE"+str(devid)]["ACTION_DELAY"])
         self.has_pseudodevice = None
 
-    def pre_run(self, color, priority):
+    def pre_run(self, color):
         if self.success:
             return True
         if self.color_type == "noop":
@@ -95,15 +94,6 @@ class device(object):
         else:
             debug.write("Skipping mode evaluation for {} device {}."
                         .format(self.device_type, self.device), 0)
-        if self.priority > priority:
-            debug.write("{} device {} is set with higher priority ({}), skipping."
-                                  .format(self.device_type, self.device, self.priority), 0)
-            self.success = True
-            return True
-        if priority == 3:
-            self.priority = 1
-        else:
-            self.priority = priority
         if self.state == color and color != self.convert(DEVICE_OFF):
             self.success = True
             debug.write("Device ({}) {} is already of the requested state, skipping."
@@ -117,7 +107,7 @@ class device(object):
 
         if self.action_delay != 0:
             self.last_action_timestamp = time.time()
-        return self.run(color, priority)
+        return self.run(color)
 
     def convert(self, color):
         if self.color_type is None:

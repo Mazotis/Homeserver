@@ -31,7 +31,7 @@ class TPLinkSwitch(device):
         self.connect()
         debug.write("Created device with IP {} and name {}.".format(self.ip, self.device), 0, self.device_type)
 
-    def run(self, color, priority):
+    def run(self, color):
         if color == DEVICE_ON:
             if self.dimmable:
                 self.plug.brightness = self.convert(self.intensity)
