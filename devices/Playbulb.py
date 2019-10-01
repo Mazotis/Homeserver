@@ -11,8 +11,8 @@
 import functools
 import bluepy.btle as ble
 import time
-from devices.common import *
-from devices.Bulb import Bulb
+from core.common import *
+from core.bulb import Bulb
 
 def connect_ble(_f):
     """ Wrapper for functions which requires an active BLE connection using bluepy """

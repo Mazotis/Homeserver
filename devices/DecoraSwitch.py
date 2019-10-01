@@ -7,9 +7,9 @@
 
     The DecoraSwitch for Leviton Decora Switches handler class
 '''
-from devices.common import *
-from devices.device import device
-from devices.Decora import Decora
+from core.common import *
+from core.device import device
+from core.decora import Decora
 
 class DecoraSwitch(device):
     """ Methods for driving a Decora wifi switch """

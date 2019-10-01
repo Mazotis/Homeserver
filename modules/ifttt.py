@@ -14,7 +14,7 @@ import ssl
 import time
 import unidecode
 import urllib.parse
-from devices.common import *
+from core.common import *
 from functools import partial
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread

@@ -9,8 +9,8 @@
 '''
 
 import subprocess
-from devices.common import *
-from devices.device import device
+from core.common import *
+from core.device import device
 
 class Computer(device):
     def __init__(self, devid, config):

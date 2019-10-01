@@ -19,7 +19,7 @@
 
 import colorsys
 import re
-from devices.common import *
+from core.common import *
 
 def convert_color(color, output_type=None):
     if output_type not in ["io","io-ops","255","100","rgb","argb","noop"]:

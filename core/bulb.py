@@ -9,8 +9,8 @@
 '''
 
 import bluepy.btle as ble
-from devices.common import *
-from devices.device import device
+from core.common import *
+from core.device import device
 
 class Bulb(device):
     """ Global bulb functions and variables """

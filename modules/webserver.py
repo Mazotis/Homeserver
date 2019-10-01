@@ -12,7 +12,7 @@ import requests
 import socket
 import socketserver
 import urllib.parse
-from devices.common import *
+from core.common import *
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, HTTPServer
 from io import BytesIO

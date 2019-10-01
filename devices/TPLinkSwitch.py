@@ -9,8 +9,8 @@
 '''
 
 from pyHS100 import SmartPlug
-from devices.common import *
-from devices.device import device
+from core.common import *
+from core.device import device
 
 class TPLinkSwitch(device):
     def __init__(self, devid, config):

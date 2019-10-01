@@ -11,7 +11,7 @@
 import json
 import requests
 import ssl
-from devices.common import *
+from core.common import *
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 

@@ -10,8 +10,8 @@
 
 import time
 import datetime
-from devices.common import *
-from modules.convert import convert_color
+from core.common import *
+from core.convert import convert_color
 
 class device(object):
     def __init__(self, devid, config):

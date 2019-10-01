@@ -15,7 +15,7 @@ import signal
 import subprocess
 import time
 from datetime import datetime, timedelta
-from devices.common import *
+from core.common import *
 from threading import Thread, Event
 
 class backup(Thread):

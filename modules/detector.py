@@ -11,7 +11,7 @@
 import datetime
 import os
 import requests
-from devices.common import *
+from core.common import *
 from threading import Thread, Event
 
 class detector(Thread):

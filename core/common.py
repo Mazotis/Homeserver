@@ -3,7 +3,7 @@
     File name: common.py
     Author: Maxime Bergeron
     Date last modified: 6/02/2019
-    Python Version: 3.7
+    Python Version: 3.5
 
     Commonly shared variables and functions
 '''
@@ -24,6 +24,8 @@ DEVICE_STANDBY = "-2"
 DEVICE_SKIP = "-1"
 DEVICE_OFF = "0"
 DEVICE_ON = "1"
+
+VERSION = "alpha"
 ###
 
 class DebugLog(object):
@@ -88,10 +90,8 @@ debug = DebugLog()
 
 def getDevices(to_lower=False):
     """ Getter for available device modules, same as __init__ """
-    modules = glob.glob(dirname(__file__)+"/*.py")
-    devices = [basename(f)[:-3] for f in modules if isfile(f) and not f.endswith('__init__.py') 
-            and not f.endswith('common.py') and not f.endswith('Bulb.py') and not f.endswith('Meross.py')
-            and not f.endswith('Decora.py') and not f.endswith('device.py')]
+    modules = glob.glob(dirname(__file__)+"/../devices/*.py")
+    devices = [basename(f)[:-3] for f in modules if isfile(f) and not f.endswith('__init__.py')]
     if to_lower:
         return [x.lower() for x in devices]
     else:
@@ -100,5 +100,5 @@ def getDevices(to_lower=False):
 def getModules():
     """ Getter for available server modules, same as __init__ """
     modules = glob.glob(dirname(__file__)+"/../modules/*.py")
-    devices = [basename(f)[:-3] for f in modules if isfile(f) and not f.endswith('convert.py')]
+    devices = [basename(f)[:-3] for f in modules if isfile(f)]
     return devices

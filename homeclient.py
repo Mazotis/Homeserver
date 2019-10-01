@@ -14,7 +14,7 @@ import json
 import os
 import configparser
 from argparse import RawTextHelpFormatter
-from devices.common import *
+from core.common import *
 from __main__ import *
 
 if __name__ == "__main__":

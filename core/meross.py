@@ -9,7 +9,7 @@
 '''
 
 from meross_iot.manager import MerossManager
-from devices.common import *
+from core.common import *
 
 class Meross(object):
     def __init__(self, devid, config):

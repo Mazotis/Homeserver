@@ -12,7 +12,7 @@ from decora_wifi import DecoraWiFiSession
 from decora_wifi.models.person import Person
 from decora_wifi.models.residential_account import ResidentialAccount
 from decora_wifi.models.residence import Residence
-from devices.common import *
+from core.common import *
 
 class Decora(object):
     def __init__(self, devid, config):

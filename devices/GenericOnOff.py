@@ -10,8 +10,8 @@
 
 import subprocess
 import time
-from devices.common import *
-from devices.device import device
+from core.common import *
+from core.device import device
 
 class GenericOnOff(device):
     def __init__(self, devid, config):

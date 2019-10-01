@@ -8,9 +8,9 @@
     The MerossSwitch for Meross Switches handler class
 '''
 
-from devices.common import *
-from devices.Meross import Meross
-from devices.device import device
+from core.common import *
+from core.meross import Meross
+from core.device import device
 
 class MerossSwitch(device):
     """ Methods for driving a Meross wifi switch """
