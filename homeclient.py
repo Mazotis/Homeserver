@@ -10,11 +10,12 @@
 import argparse
 import sys
 import socket
-import json
+import pickle
 import os
 import configparser
 from argparse import RawTextHelpFormatter
 from core.common import *
+from core.devicemanager import StateRequestObject
 from __main__ import *
 
 if __name__ == "__main__":
@@ -22,6 +23,7 @@ if __name__ == "__main__":
     debug.enable_debug()
     HOMECONFIG = configparser.ConfigParser()
     HOMECONFIG.readfp(open(os.path.dirname(os.path.realpath(__file__)) + '/home.ini'))
+    req = StateRequestObject()
 
     parser = argparse.ArgumentParser(description='Home server client script',
                                      formatter_class=RawTextHelpFormatter)
@@ -35,7 +37,7 @@ if __name__ == "__main__":
                         help='Apply state change actions on specified device group(s)')
     parser.add_argument('--notime', action='store_true', default=False,
                         help='Skip the time check and run the script anyways')
-    parser.add_argument('--delay', metavar='delay', type=int, nargs="?", default=None,
+    parser.add_argument('--delay', metavar='delay', type=int, nargs="?", default=0,
                         help='Run the request after a given number of seconds')
     parser.add_argument('--on', action='store_true', default=False, help='Turn everything on')
     parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')
@@ -113,13 +115,14 @@ if __name__ == "__main__":
         s.close()
 
     else:
+        req.parse_args(args)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((HOMECONFIG['SERVER']['HOST'], int(HOMECONFIG['SERVER']['PORT'])))
         #todo report connection errors or allow feedback response
         debug.write('Connecting with homeserver daemon', 0, "CLIENT")
-        debug.write('Sending request: ' + json.dumps(vars(args)), 0, "CLIENT")
+        debug.write('Sending request: {}'.format(req.get_request_string()), 0, "CLIENT")
         s.sendall("1024".encode('utf-8'))
-        s.sendall(json.dumps(vars(args)).encode('utf-8'))
+        s.sendall(pickle.dumps(req))
         s.close()
 
     sys.exit()
