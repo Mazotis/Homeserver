@@ -242,10 +242,9 @@ class HomeServer(object):
                             dm.set_light_stream(streaming_id, data.decode('utf-8'), True)
                             continue
                     try:
-
                         req = pickle.loads(data)
                     except:
-                        debug.write("Error - improperly formatted pickle. Got: {}".format(req), 2)
+                        debug.write("Error - improperly formatted pickle. Got: {}".format(pickle.loads(data)), 2)
                         break
                     debug.write('Change of lights requested with request: {}'.format(req.get_request_string()), 0)
                     if not req.validate_request(dm, self.config):

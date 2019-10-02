@@ -15,6 +15,7 @@ import time
 import unidecode
 import urllib.parse
 from core.common import *
+from core.devicemanager import StateRequestObject
 from functools import partial
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
@@ -59,15 +60,17 @@ class IFTTTServer(BaseHTTPRequestHandler):
 
         except KeyError:
             #TODO hash group requests somehow or require HTTPS?
+            req = StateRequestObject()
             func = postvars['function'][0]
+
             if func not in ["on", "off"]:
                 debug.write("Function {} not defined. Request aborted.", 1, "IFTTT")
                 return
             if func == "on":
-                self.lm.set_colors([DEVICE_ON] * len(self.lm.devices))
+                req.set_colors([DEVICE_ON] * len(self.lm.devices), len(self.lm.devices))
             elif func == "off":
-                self.lm.set_skip_time_check()
-                self.lm.set_colors([DEVICE_OFF] * len(self.lm.devices))
+                req.set_skip_time()
+                req.set_colors([DEVICE_OFF] * len(self.lm.devices), len(self.lm.devices))
 
             group = postvars['group'][0].split()
             group = [unidecode.unidecode(x) for x in group]
@@ -80,25 +83,26 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 if _group + "s" in groups:
                     changed_groups.append(_group + "s")
             if len(changed_groups) != 0:
-                self.lm.get_group(changed_groups)
+                req.group = changed_groups
             else:
                 debug.write("No devices belong to group {}. Request aborted.".format(group), 1, "IFTTT")
                 return
             debug.write("Running function '{}' on group(s) {}".format(func, changed_groups), 0, "IFTTT")
             if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
-                self.lm.set_mode(False, True)
-            self.lm.run()
+                req.reset_mode = True
+            self.lm.run(req)
 
             if "delay" in postvars and int(postvars['delay'][0]) != 0:
                 if func == "on":
-                    self.lm.set_colors([DEVICE_OFF] * len(self.lm.devices))
+                    req.set_colors([DEVICE_OFF] * len(self.lm.devices), len(self.lm.devices))
                 elif func == "off":
-                    self.lm.set_skip_time_check()
-                    self.lm.set_colors([DEVICE_ON] * len(self.lm.devices))
-                self.lm.get_group(changed_groups)
+                    req.set_skip_time()
+                    req.set_colors([DEVICE_ON] * len(self.lm.devices), len(self.lm.devices))
+                req.group = changed_groups
                 if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
-                    self.lm.set_mode(False, True)
-                self.lm.run(int(postvars['delay'][0])*60)
+                    req.reset_mode = True
+                req.delay = int(postvars['delay'][0])*60
+                self.lm.run(req)
 
 
         try: 
