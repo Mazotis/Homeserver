@@ -24,8 +24,10 @@ from core.devicemanager import DeviceManager, StateRequestObject
 from argparse import RawTextHelpFormatter, Namespace
 from __main__ import *
 
+
 class HomeServer(object):
     """ Handles server-side request reception and handling """
+
     def __init__(self, dm):
         self.config = configparser.ConfigParser()
         self.config.read('home.ini')
@@ -35,8 +37,10 @@ class HomeServer(object):
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.host, self.port))
         self.scheduled_disconnect = None
-        self.tcp_start_hour = datetime.datetime.strptime(self.config['SERVER']['TCP_START_HOUR'],'%H:%M').time()
-        self.tcp_end_hour = datetime.datetime.strptime(self.config['SERVER']['TCP_END_HOUR'],'%H:%M').time()
+        self.tcp_start_hour = datetime.datetime.strptime(
+            self.config['SERVER']['TCP_START_HOUR'], '%H:%M').time()
+        self.tcp_end_hour = datetime.datetime.strptime(
+            self.config['SERVER']['TCP_END_HOUR'], '%H:%M').time()
         self.conn_sockets = []
         self.state_thread = None
 
@@ -49,9 +53,11 @@ class HomeServer(object):
             self.sock.listen(5)
             while True:
                 client, address = self.sock.accept()
-                debug.write("Connected with {}:{}".format(address[0], address[1]), 0)
+                debug.write("Connected with {}:{}".format(
+                    address[0], address[1]), 0)
                 client.settimeout(10)
-                self.conn_sockets.append(threading.Thread(target=self.listen_client, args=(client, address)).start())
+                self.conn_sockets.append(threading.Thread(
+                    target=self.listen_client, args=(client, address)).start())
         except (KeyboardInterrupt, SystemExit):
             self.remove_server()
 
@@ -69,40 +75,46 @@ class HomeServer(object):
                 #debug.write("Set message size {}".format(msize), 0)
                 data = client.recv(msize)
                 if data:
-                    #TODO use the recv length to determine pickled vs non-pickled requests ?
+                    # TODO use the recv length to determine pickled vs non-pickled requests ?
                     if msize != 1024:
                         req = StateRequestObject()
                         if data.decode('utf-8') == "getstate":
                             ls_status = {}
-                            ls_status["state"] = dm.get_state(async=True, webcolors=True)
+                            ls_status["state"] = dm.get_state(
+                                async=True, webcolors=True)
                             ls_status["mode"] = dm.get_modes()
                             ls_status["type"] = dm.get_types()
                             ls_status["name"] = dm.get_names()
                             for op in ["skiptime", "forceoff", "ignoremode", "actiondelay"]:
                                 ls_status["op_" + op] = dm.get_option(op)
                             ls_status["icon"] = dm.get_icons()
-                            ls_status["description"] = dm.get_descriptions(True)
+                            ls_status["description"] = dm.get_descriptions(
+                                True)
                             ls_status["starttime"] = "{}".format(dm.starttime)
                             ls_status["groups"] = dm.get_all_groups()
                             ls_status["colortype"] = dm.get_colortypes()
                             ls_status["moduleweb"] = dm.get_module_web()
+                            ls_status["locked"] = dm.get_lock_status()
                             debug.write('Sending lightserver status', 0)
                             client.send(json.dumps(ls_status).encode('UTF-8'))
                             # Run the non-async state getter after ?
                             if self.state_thread is None or not self.state_thread.is_alive():
-                                self.state_thread = threading.Thread(target=dm.get_state)
+                                self.state_thread = threading.Thread(
+                                    target=dm.get_state)
                                 self.state_thread.start()
                             break
-                        #TODO how to deprecate this ? This requires another connection to allow new async requests from the webserver
+                        # TODO how to deprecate this ? This requires another connection to allow new async requests from the webserver
                         if data.decode('utf-8') == "getstatepost":
                             ls_status = {}
                             while self.state_thread.is_alive():
                                 time.sleep(0.2)
-                            ls_status["state"] = dm.get_state(async=True, webcolors=True)
-                            client.send(json.dumps(ls_status).encode('UTF-8')) 
+                            ls_status["state"] = dm.get_state(
+                                async=True, webcolors=True)
+                            client.send(json.dumps(ls_status).encode('UTF-8'))
                             break
                         if data.decode('utf-8') == "setstate":
-                            debug.write('Running a single device state change', 0)
+                            debug.write(
+                                'Running a single device state change', 0)
                             iddata = int(client.recv(3).decode("UTF-8"))
                             valdata = client.recv(8).decode("UTF-8")
                             try:
@@ -120,26 +132,31 @@ class HomeServer(object):
                             client.send("1".encode("UTF-8"))
                             break
                         if data.decode('utf-8') == "setmode":
-                            debug.write('Running a single device mode change', 0)
+                            debug.write(
+                                'Running a single device mode change', 0)
                             iddata = int(client.recv(3).decode("UTF-8"))
                             cmode = int(client.recv(1).decode("UTF-8"))
                             req.set_mode_for_devid = iddata
                             dm.run(req)
                             if cmode == 1:
                                 req.auto_mode = True
-                            debug.write('Device modes: {}'.format(dm.get_modes()), 0)
+                            debug.write('Device modes: {}'.format(
+                                dm.get_modes()), 0)
                             client.send("1".encode("UTF-8"))
                             break
                         if data.decode('utf-8') == "setallmode":
-                            debug.write('Running an all-devices mode change', 0)
+                            debug.write(
+                                'Running an all-devices mode change', 0)
                             req.force_auto_mode = True
                             dm.run(req)
-                            debug.write('Device modes: {}'.format(dm.get_modes()), 0)
+                            debug.write('Device modes: {}'.format(
+                                dm.get_modes()), 0)
                             client.send("1".encode("UTF-8"))
                             break
                         if data.decode('utf-8') == "setgroup":
                             debug.write('Running a group change of state', 0)
-                            group = str(client.recv(64).decode("UTF-8")).strip()
+                            group = str(client.recv(
+                                64).decode("UTF-8")).strip()
                             valdata = int(client.recv(2).decode("UTF-8"))
                             skiptime = int(client.recv(1).decode("UTF-8"))
                             _col = ["0"] * len(dm.devices)
@@ -152,10 +169,12 @@ class HomeServer(object):
                             dm.run(req)
                             client.send("1".encode("UTF-8"))
                             break
-                        #TODO Create some protocol to link webserver to modules directly ?
+                        # TODO Create some protocol to link webserver to modules directly ?
                         if data.decode('utf-8') == "getmodule":
-                            module = str(client.recv(64).decode("UTF-8")).replace("0", "")
-                            debug.write('Getting module "{}" web content'.format(module), 0)
+                            module = str(client.recv(64).decode(
+                                "UTF-8")).replace("0", "")
+                            debug.write(
+                                'Getting module "{}" web content'.format(module), 0)
                             content = None
                             for _mod in dm.modules:
                                 if _mod.__class__.__name__ == module:
@@ -174,6 +193,13 @@ class HomeServer(object):
                                     content = _mod.backup_queue.put(clientid)
                             client.send("1".encode("UTF-8"))
                             break
+                        if data.decode('utf-8') == "setlock":
+                            iddata = int(client.recv(3).decode("UTF-8"))
+                            lock_req = client.recv(1).decode("UTF-8")
+                            dm.devices[int(iddata)].lock_unlock_requests(
+                                int(lock_req))
+                            client.send("1".encode("UTF-8"))
+                            break
                         if data.decode('utf-8') == "stream":
                             debug.write('Starting streaming mode', 0)
                             streamingdev = True
@@ -189,83 +215,101 @@ class HomeServer(object):
                             streaming_id = None
                             break
                         if data.decode('utf-8')[:3] == "tcp":
-                            debug.write('Getting TCP request: {}'.format(data.decode('utf-8')), 0)
+                            debug.write('Getting TCP request: {}'.format(
+                                data.decode('utf-8')), 0)
                             if self.tcp_start_hour > datetime.datetime.now().time() or \
                                self.tcp_end_hour < datetime.datetime.now().time():
-                               debug.write('TCP requests disabled until {}'.format(self.tcp_start_hour), 0)
-                               break
+                                debug.write('TCP requests disabled until {}'.format(
+                                    self.tcp_start_hour), 0)
+                                break
                             if data.decode('utf-8')[3:] in self.config["TCP-PRESETS"]:
-                                debug.write("Running TCP preset {}".format(data.decode('utf-8')[3:]), 0)
+                                debug.write("Running TCP preset {}".format(
+                                    data.decode('utf-8')[3:]), 0)
                                 if self.config["TCP-PRESETS"].getboolean('AUTOMATIC_MODE'):
-                                    os.system("./homeclient.py --auto-mode " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
+                                    os.system(
+                                        "./homeclient.py --auto-mode " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
                                 else:
-                                    os.system("./homeclient.py " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
+                                    os.system(
+                                        "./homeclient.py " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
                             else:
-                                debug.write("TCP preset {} is not configured".format(data.decode('utf-8')[3:]), 1)
+                                debug.write("TCP preset {} is not configured".format(
+                                    data.decode('utf-8')[3:]), 1)
                             break
 
                         if data.decode('utf-8') == "sendloc":
-                            locationData = json.loads(client.recv(1024).decode("UTF-8"))
-                            debug.write('Recording a training location for room: {}'.format(locationData["room"]), 0)
+                            locationData = json.loads(
+                                client.recv(1024).decode("UTF-8"))
+                            debug.write('Recording a training location for room: {}'.format(
+                                locationData["room"]), 0)
                             with open(self.config['SERVER']['JOURNAL_DIR'] + "/dnn/train.log", "a") as jfile:
-                                jfile.write("{},{},{},{},{},{},{}\n".format(locationData["room"], locationData["r1_mean"], \
-                                    locationData["r1_rssi"],locationData["r2_mean"],locationData["r2_rssi"],locationData["r3_mean"] \
-                                    ,locationData["r3_rssi"]))
+                                jfile.write("{},{},{},{},{},{},{}\n".format(locationData["room"], locationData["r1_mean"],
+                                                                            locationData["r1_rssi"], locationData["r2_mean"], locationData["r2_rssi"], locationData["r3_mean"], locationData["r3_rssi"]))
                             break
                         if data.decode('utf-8') == "getloc":
                             ld = json.loads(client.recv(1024).decode("UTF-8"))
-                            debug.write('[WIFI-RTT] Evaluating location from:', 0)
-                            tf_str = '{},{},{},{},{},{}'.format(ld["r1_mean"], ld["r1_rssi"], ld["r2_mean"], ld["r2_rssi"], ld["r3_mean"], ld["r3_rssi"])
+                            debug.write(
+                                '[WIFI-RTT] Evaluating location from:', 0)
+                            tf_str = '{},{},{},{},{},{}'.format(
+                                ld["r1_mean"], ld["r1_rssi"], ld["r2_mean"], ld["r2_rssi"], ld["r3_mean"], ld["r3_rssi"])
                             debug.write('[WIFI-RTT] {}'.format(tf_str), 0)
-                            res = run_tensorflow(TfPredict=True, PredictList=tf_str)
-                            debug.write("[WIFI-RTT] Device found to be in room: {}".format(res), 0)
+                            res = run_tensorflow(
+                                TfPredict=True, PredictList=tf_str)
+                            debug.write(
+                                "[WIFI-RTT] Device found to be in room: {}".format(res), 0)
                             client.send(res.encode("UTF-8"))
                             break
                         if streamingdev:
                             if streaming_id is None:
                                 streaming_id = int(data.decode('utf-8'))
-                                debug.write('Set streaming devid to {}' \
-                                                      .format(streaming_id), 0)
+                                debug.write('Set streaming devid to {}'
+                                            .format(streaming_id), 0)
                                 continue
-                            debug.write("Sending request to devid {} for color: {}" \
-                                                  .format(streaming_id, data.decode('utf-8')), 0)
-                            dm.set_light_stream(streaming_id, data.decode('utf-8'), False)
+                            debug.write("Sending request to devid {} for color: {}"
+                                        .format(streaming_id, data.decode('utf-8')), 0)
+                            dm.set_light_stream(
+                                streaming_id, data.decode('utf-8'), False)
                             continue
                         if streaminggrp:
                             if streaming_id is None:
                                 streaming_id = data.decode('utf-8')
-                                debug.write('Set streaming group to {}' \
-                                                      .format(streaming_id), 0)
+                                debug.write('Set streaming group to {}'
+                                            .format(streaming_id), 0)
                                 continue
-                            debug.write("Sending request to group '{}' for color: {}" \
-                                                  .format(streaming_id, data.decode('utf-8')), 0)
-                            dm.set_light_stream(streaming_id, data.decode('utf-8'), True)
+                            debug.write("Sending request to group '{}' for color: {}"
+                                        .format(streaming_id, data.decode('utf-8')), 0)
+                            dm.set_light_stream(
+                                streaming_id, data.decode('utf-8'), True)
                             continue
                     try:
                         req = pickle.loads(data)
                     except:
-                        debug.write("Error - improperly formatted pickle. Got: {}".format(pickle.loads(data)), 2)
+                        debug.write(
+                            "Error - improperly formatted pickle. Got: {}".format(pickle.loads(data)), 2)
                         break
-                    debug.write('Change of lights requested with request: {}'.format(req.get_request_string()), 0)
+                    debug.write('Change of lights requested with request: {}'.format(
+                        req.get_request_string()), 0)
                     if not req.validate_request(dm, self.config):
-                        debug.write("Some errors in the request prevent a proper state change", 1)
+                        debug.write(
+                            "Some errors in the request prevent a proper state change", 1)
                     break
 
         except socket.timeout:
             pass
 
         except Exception as ex:
-            debug.write('Unhandled exception of type {}: {}, {}' \
-                                  .format(type(ex), ex, 
-                                          ''.join(traceback.format_tb(ex.__traceback__))
-                                         ), 2)
+            debug.write('Unhandled exception of type {}: {}, {}'
+                        .format(type(ex), ex,
+                                ''.join(traceback.format_tb(
+                                    ex.__traceback__))
+                                ), 2)
 
         finally:
             debug.write('Closing connection.', 0)
             dm.set_lock(0)
             dm.reinit()
             client.close()
-            self.scheduled_disconnect = threading.Timer(60, self.disconnect_devices, ())
+            self.scheduled_disconnect = threading.Timer(
+                60, self.disconnect_devices, ())
             self.scheduled_disconnect.start()
 
     def disconnect_devices(self):
@@ -295,6 +339,7 @@ class HomeServer(object):
 def runServer():
     HomeServer(dm).listen()
 
+
 """ Script executed directly """
 if __name__ == "__main__":
     HOMECONFIG = configparser.ConfigParser()
@@ -308,7 +353,8 @@ if __name__ == "__main__":
                         help='state values for the devices (see list below)')
 
     for _dev in getDevices(True):
-        parser.add_argument('--' + _dev, type=str, nargs="*", help='Change {} states only'.format(_dev))
+        parser.add_argument('--' + _dev, type=str, nargs="*",
+                            help='Change {} states only'.format(_dev))
 
     parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
                         help='Apply state change actions from specified preset name defined in home.ini')
@@ -318,10 +364,14 @@ if __name__ == "__main__":
                         help='Skip the time check and run the script anyways')
     parser.add_argument('--delay', metavar='delay', type=int, nargs="?", default=0,
                         help='Run the request after a given number of seconds')
-    parser.add_argument('--on', action='store_true', default=False, help='Turn everything on')
-    parser.add_argument('--off', action='store_true', default=False, help='Turn everything off')
-    parser.add_argument('--restart', action='store_true', default=False, help='Restart generics')
-    parser.add_argument('--toggle', action='store_true', default=False, help='Toggle all devices on/off')
+    parser.add_argument('--on', action='store_true',
+                        default=False, help='Turn everything on')
+    parser.add_argument('--off', action='store_true',
+                        default=False, help='Turn everything off')
+    parser.add_argument('--restart', action='store_true',
+                        default=False, help='Restart generics')
+    parser.add_argument('--toggle', action='store_true',
+                        default=False, help='Toggle all devices on/off')
     parser.add_argument('--server', action='store_true', default=False,
                         help='Start as a socket server daemon')
     parser.add_argument('--threaded', action='store_true', default=False,
@@ -341,7 +391,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    #TODO add back device state change  request validation or just ignore?
+    # TODO add back device state change  request validation or just ignore?
     if args.server and (args.on or args.off or args.toggle or args.stream_dev
                         or args.stream_group or args.preset or args.restart):
         debug.write("You cannot start the daemon and send arguments at the same time. \
@@ -349,31 +399,34 @@ if __name__ == "__main__":
         sys.exit()
 
     if args.stream_dev and args.stream_group:
-        debug.write("You cannot stream data to both devices and groups. Quitting.", 2)
+        debug.write(
+            "You cannot stream data to both devices and groups. Quitting.", 2)
         sys.exit()
 
     if args.reset_mode and args.auto_mode:
-        debug.write("You should not set the mode to AUTO then reset it back to AUTO. Quitting.", 2)
+        debug.write(
+            "You should not set the mode to AUTO then reset it back to AUTO. Quitting.", 2)
         sys.exit()
 
     if args.server:
         loaded_modules = HOMECONFIG['SERVER']['MODULES'].split(",")
-        #TODO put that check in some module?
+        # TODO put that check in some module?
         if all(x in loaded_modules for x in ['ifttt', 'dialogflow']):
-            debug.write("You cannot load ifttt and dialogflow at the same time. Quitting.", 2)
+            debug.write(
+                "You cannot load ifttt and dialogflow at the same time. Quitting.", 2)
             sys.exit()
 
-        for _cnt,_mod in enumerate(loaded_modules):
+        for _cnt, _mod in enumerate(loaded_modules):
             if _mod in getModules():
                 _module = __import__("modules." + _mod)
-                #TODO Needed twice ? looks unpythonic
-                _class = getattr(_module,_mod)
-                _class = getattr(_class,_mod)
+                # TODO Needed twice ? looks unpythonic
+                _class = getattr(_module, _mod)
+                _class = getattr(_class, _mod)
                 dm.modules.append(_class(HOMECONFIG, dm))
                 dm.modules[_cnt].start()
             else:
-                debug.write('Unsupported module {}' \
-                                      .format(_mod), 1)
+                debug.write('Unsupported module {}'
+                            .format(_mod), 1)
 
         if HOMECONFIG['SERVER'].getboolean('ENABLE_WIFI_RTT'):
             from dnn.dnn import run_tensorflow
@@ -396,7 +449,8 @@ if __name__ == "__main__":
     elif args.stream_dev or args.stream_group:
         colorval = ""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((HOMECONFIG['SERVER']['HOST'], int(HOMECONFIG['SERVER'].getint('PORT'))))
+        s.connect((HOMECONFIG['SERVER']['HOST'], int(
+            HOMECONFIG['SERVER'].getint('PORT'))))
         if args.stream_dev:
             s.sendall("0006".encode('utf-8'))
             s.sendall("stream".encode('utf-8'))
@@ -409,11 +463,11 @@ if __name__ == "__main__":
             s.sendall(args.stream_group.encode('utf-8'))
         while colorval != "quit":
             if args.stream_dev:
-                colorval = input("Set device {} to state value ('quit' to exit): " \
-                                  .format(args.stream_dev))
+                colorval = input("Set device {} to state value ('quit' to exit): "
+                                 .format(args.stream_dev))
             else:
-                colorval = input("Set group '{}' to state value ('quit' to exit): " \
-                                  .format(args.stream_group))
+                colorval = input("Set group '{}' to state value ('quit' to exit): "
+                                 .format(args.stream_group))
             try:
                 if colorval == "quit":
                     s.sendall("0008".encode('utf-8'))
@@ -425,7 +479,8 @@ if __name__ == "__main__":
                 if colorval != "quit":
                     s.close()
                     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.connect((HOMECONFIG['SERVER']['HOST'], int(HOMECONFIG['SERVER'].getint('PORT'))))
+                    s.connect((HOMECONFIG['SERVER']['HOST'], int(
+                        HOMECONFIG['SERVER'].getint('PORT'))))
                     if args.stream_dev:
                         s.sendall("0006".encode('utf-8'))
                         s.sendall("stream".encode('utf-8'))
@@ -434,7 +489,8 @@ if __name__ == "__main__":
                     else:
                         s.sendall("0011".encode('utf-8'))
                         s.sendall("streamgroup".encode('utf-8'))
-                        s.sendall(('%04d' % len(args.stream_group)).encode('utf-8'))
+                        s.sendall(
+                            ('%04d' % len(args.stream_group)).encode('utf-8'))
                         s.sendall(args.stream_group.encode('utf-8'))
                     s.sendall(('%04d' % len(colorval)).encode('utf-8'))
                     s.sendall(colorval.encode('utf-8'))
@@ -444,10 +500,12 @@ if __name__ == "__main__":
     else:
         req.parse_args(args)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((HOMECONFIG['SERVER']['HOST'], int(HOMECONFIG['SERVER'].getint('PORT'))))
-        #TODO report connection errors or allow feedback response
+        s.connect((HOMECONFIG['SERVER']['HOST'], int(
+            HOMECONFIG['SERVER'].getint('PORT'))))
+        # TODO report connection errors or allow feedback response
         debug.write('Connecting with homeserver daemon', 0)
-        debug.write('Sending request: {}'.format(req.get_request_string()), 0, "CLIENT")
+        debug.write('Sending request: {}'.format(
+            req.get_request_string()), 0, "CLIENT")
         s.sendall("1024".encode('utf-8'))
         s.sendall(pickle.dumps(req))
         s.close()

@@ -18,35 +18,44 @@ from core.convert import convert_to_web_rgb
 from multiprocessing.pool import ThreadPool
 from threading import Timer
 
+
 class DeviceManager(object):
     """ Methods for instanciating and managing devices """
+
     def __init__(self, config=None):
         debug.get_set_lock()
         debug.enable_debug()
         self.config = config
         self.devices = []
         self.pseudodevices = {}
-        debug.write("***********************************************************", 0)
-        debug.write("***               HomeServer, by Mazotis                ***", 0)
-        debug.write("***********************************************************", 0)
+        debug.write(
+            "***********************************************************", 0)
+        debug.write(
+            "***               HomeServer, by Mazotis                ***", 0)
+        debug.write(
+            "***********************************************************", 0)
         debug.write("Version: {}".format(VERSION), 0)
         debug.write("Compiled devices: {}".format(", ".join(getDevices())), 0)
-        debug.write("Compiled modules: {}".format(", ".join(getModules())), 0)        
-        debug.write("***********************************************************", 0)
+        debug.write("Compiled modules: {}".format(", ".join(getModules())), 0)
+        debug.write(
+            "***********************************************************", 0)
         debug.write("", 0)
         i = 0
         while True:
             try:
-                if self.config["DEVICE"+str(i)]["TYPE"] in getDevices():
-                    _module = __import__("devices." + self.config["DEVICE"+str(i)]["TYPE"])
-                    #TODO Needed twice ? looks unpythonic
-                    _class = getattr(_module,self.config["DEVICE"+str(i)]["TYPE"])
-                    _class = getattr(_class,self.config["DEVICE"+str(i)]["TYPE"])
+                if self.config["DEVICE" + str(i)]["TYPE"] in getDevices():
+                    _module = __import__(
+                        "devices." + self.config["DEVICE" + str(i)]["TYPE"])
+                    # TODO Needed twice ? looks unpythonic
+                    _class = getattr(
+                        _module, self.config["DEVICE" + str(i)]["TYPE"])
+                    _class = getattr(
+                        _class, self.config["DEVICE" + str(i)]["TYPE"])
                     self.devices.append(_class(i, self.config))
                     self.get_and_link_pseudodevice(i)
                 else:
-                    debug.write('Unsupported device type {}' \
-                                          .format(self.config["DEVICE"+str(i)]["TYPE"]), 1)
+                    debug.write('Unsupported device type {}'
+                                .format(self.config["DEVICE" + str(i)]["TYPE"]), 1)
             except KeyError:
                 debug.write('Loaded {} devices'.format(i), 0)
                 break
@@ -94,7 +103,7 @@ class DeviceManager(object):
         for _cnt, device in enumerate(self.devices):
             if group is not None and set(group).issubset(device.group):
                 continue
-            debug.write("Skipping device {} as it does not belong in the {} group(s)" \
+            debug.write("Skipping device {} as it does not belong in the {} group(s)"
                         .format(device.device, group), 0)
             self.colors[_cnt] = DEVICE_SKIP
 
@@ -105,22 +114,23 @@ class DeviceManager(object):
         for color in self.get_state():
             if color != DEVICE_OFF:
                 colors = [DEVICE_OFF] * len(dm.devices)
-            i = i+1
+            i = i + 1
         return colors
 
     def set_typed_colors(self, colorargs, atype):
         """ Gets devices of a specific  type for the light change """
         self.colors = ["-1"] * len(self.devices)
-        device_indexes = [i for i,x in enumerate(self.devices) if x.__class__.__name__.lower() == atype.lower()]
+        device_indexes = [i for i, x in enumerate(
+            self.devices) if x.__class__.__name__.lower() == atype.lower()]
 
         if len(colorargs) == 1 and len(device_indexes) > 1:
-            debug.write("Expanding state {} to {} devices." \
-                                  .format(len(colorargs), len(device_indexes)), 0)
+            debug.write("Expanding state {} to {} devices."
+                        .format(len(colorargs), len(device_indexes)), 0)
             for i in device_indexes:
                 self.colors[i] = colorargs[0]
         elif len(device_indexes) != len(colorargs):
-            debug.write("Received state hexvalues length {} for {} devices. Quitting" \
-                                  .format(len(colorargs), len(device_indexes)), 2)
+            debug.write("Received state hexvalues length {} for {} devices. Quitting"
+                        .format(len(colorargs), len(device_indexes)), 2)
             return False
         else:
             for _cnt, i in enumerate(device_indexes):
@@ -134,16 +144,19 @@ class DeviceManager(object):
         self.colors = request.colors
         self.skip_time = request.skip_time
         if request.auto_mode or request.reset_mode or request.force_auto_mode or request.set_mode_for_devid is not None:
-            self.set_mode(request.auto_mode, request.reset_mode, request.set_mode_for_devid, request.force_auto_mode)
+            self.set_mode(request.auto_mode, request.reset_mode,
+                          request.set_mode_for_devid, request.force_auto_mode)
         if request.device_type is not None:
-            self.set_typed_colors(request.device_type_args, request.device_type)
+            self.set_typed_colors(
+                request.device_type_args, request.device_type)
         if request.group is not None:
             self.get_group(request.group)
 
         if self.colors is not None:
             if request.delay is not 0:
                 delay = request.delay
-                debug.write("Delaying request for {} seconds".format(request.delay), 0)
+                debug.write(
+                    "Delaying request for {} seconds".format(request.delay), 0)
                 request.delay = 0
                 _sched = Timer(int(delay), self.run, (request,))
                 _sched.start()
@@ -151,7 +164,7 @@ class DeviceManager(object):
                 return
             if self.check_event_time(request.skip_time or self.always_skip_time):
                 self.queue.put(self.colors)
-                #TODO Manage locking out when the run thread hangs
+                # TODO Manage locking out when the run thread hangs
                 debug.write("Locked status: {}".format(self.locked), 0)
                 if not self.locked or self.lockcount == 2:
                     self._set_lights()
@@ -168,7 +181,7 @@ class DeviceManager(object):
             self.all_groups = _groups
         return self.all_groups
 
-    def get_descriptions(self, as_list = False):
+    def get_descriptions(self, as_list=False):
         """ Getter for configured devices descriptions """
         desclist = []
         desctext = ""
@@ -246,16 +259,28 @@ class DeviceManager(object):
                 pass
         return weblist
 
+    def get_lock_status(self):
+        locklist = []
+        for obj in self.devices:
+            if obj.request_locked:
+                locklist.append("1")
+            else:
+                locklist.append("0")
+        return locklist
+
     def update_event_time(self):
         if self.lastupdate != datetime.date.today():
             self.lastupdate = datetime.date.today()
             if str(self.config['SERVER']['EVENT_HOUR']) != "auto":
                 self.lastupdate = datetime.date.today()
-                self.starttime = datetime.datetime.strptime(self.config['SERVER']['EVENT_HOUR'],'%H:%M').time()
+                self.starttime = datetime.datetime.strptime(
+                    self.config['SERVER']['EVENT_HOUR'], '%H:%M').time()
             else:
                 self.lastupdate = datetime.date.today()
-                self.starttime = self._update_sunset_time(self.config['SERVER']['EVENT_LOCALIZATION'])
-                debug.write("State change event time set as sunset time: {}".format(self.starttime), 0)
+                self.starttime = self._update_sunset_time(
+                    self.config['SERVER']['EVENT_LOCALIZATION'])
+                debug.write("State change event time set as sunset time: {}".format(
+                    self.starttime), 0)
         return self.starttime
 
     def check_event_time(self, skip_time=False):
@@ -268,7 +293,7 @@ class DeviceManager(object):
             else:
                 _dev.set_event_time(self.starttime)
         if not skip_time and datetime.time(6, 00) < now_time < self.starttime:
-            for _cnt,_dev in enumerate(self.devices):
+            for _cnt, _dev in enumerate(self.devices):
                 if self.colors[_cnt] != DEVICE_SKIP and _dev.get_time_check(now_time):
                     debug.write("Not all devices will be changed. Device changes begins at {}"
                                 .format(self.starttime), 0)
@@ -293,9 +318,11 @@ class DeviceManager(object):
             else:
                 states[_cnt] = dev.get_state()
             if webcolors:
-                states[_cnt] = convert_to_web_rgb(states[_cnt], dev.color_type, dev.color_brightness)
+                states[_cnt] = convert_to_web_rgb(
+                    states[_cnt], dev.color_type, dev.color_brightness)
         if not async and devid is None:
-            debug.write("All devices state status updated from devices get_state()", 0)
+            debug.write(
+                "All devices state status updated from devices get_state()", 0)
         if devid is not None:
             return states[devid]
         return states
@@ -348,8 +375,10 @@ class DeviceManager(object):
         _pseudodev = self.devices[devid].has_pseudodevice
         if _pseudodev is not None:
             if _pseudodev not in self.pseudodevices:
-                self.pseudodevices[_pseudodev] = self.devices[devid].create_pseudodevice()
-            self.devices[devid].get_pseudodevice(self.pseudodevices[_pseudodev])
+                self.pseudodevices[_pseudodev] = self.devices[devid].create_pseudodevice(
+                )
+            self.devices[devid].get_pseudodevice(
+                self.pseudodevices[_pseudodev])
 
     def _decode_colors(self, colors):
         _has_delays = False
@@ -373,7 +402,7 @@ class DeviceManager(object):
                 if _delay != 0 and _delay not in _delay_list:
                     _delay_list.append(_delay)
                     _delay_colors = [DEVICE_SKIP] * len(self.devices)
-                    for _acnt,_adelay in enumerate(self.delays):
+                    for _acnt, _adelay in enumerate(self.delays):
                         if _adelay == _delay:
                             #debug.write("COLORS: {} DELAY COLOR: {}".format(colors, _delay_colors), 0)
                             if _adelay < 0:
@@ -387,7 +416,8 @@ class DeviceManager(object):
                     req.set_colors(_delay_colors, len(self.devices))
                     if self.skip_time:
                         req.set_skip_time()
-                    debug.write("Scheduling device state change ({}) after {} seconds".format(_delay_colors, _delay), 0)
+                    debug.write("Scheduling device state change ({}) after {} seconds".format(
+                        _delay_colors, _delay), 0)
                     _sched = Timer(int(_delay), self.run, (req,))
                     _sched.start()
                     self.scheduled_changes.append(_sched)
@@ -404,11 +434,12 @@ class DeviceManager(object):
                     if firstran:
                         debug.write("Getting remainder of queue", 0)
                         self.reinit()
-                    colors = self._decode_colors(self.queue.get()) #TODO Check performance
+                    colors = self._decode_colors(
+                        self.queue.get())  # TODO Check performance
                     if all(c == DEVICE_SKIP for c in colors):
                         debug.write("All device requests skipped", 0)
-                        return                
-                    debug.write("Changing states to {} from state {}" \
+                        return
+                    debug.write("Changing states to {} from state {}"
                                 .format(colors, self.states), 0)
                     self.set_lock(1)
                     i = 0
@@ -423,11 +454,11 @@ class DeviceManager(object):
                                 self.states[i] = self.get_state(i)
                                 if _color != self.states[i]:
                                     debug.write(("DEVICE: {}, REQUESTED STATE: {} "
-                                                  "FROM STATE: {}, AUTO: {}")
-                                                  .format(self.devices[i].device,
-                                                          _color, self.states[i],
-                                                          self.devices[i].auto_mode),
-                                                  0)
+                                                 "FROM STATE: {}, AUTO: {}")
+                                                .format(self.devices[i].device,
+                                                        _color, self.states[i],
+                                                        self.devices[i].auto_mode),
+                                                0)
                             if self.threaded:
                                 if not self.queue.empty():
                                     break
@@ -475,8 +506,8 @@ class DeviceManager(object):
 
         except Exception as ex:
             debug.write('Unhandled exception of type {}: {}, {}'
-                                  .format(type(ex), ex, 
-                                          ''.join(traceback.format_tb(ex.__traceback__))), 2)
+                        .format(type(ex), ex,
+                                ''.join(traceback.format_tb(ex.__traceback__))), 2)
 
         finally:
             self.reinit()
@@ -488,20 +519,23 @@ class DeviceManager(object):
         return self.devices[count].pre_run(color)
 
     def _update_sunset_time(self, localization):
-        p1 = subprocess.Popen('./scripts/sunset.sh %s' % str(localization), stdout=subprocess.PIPE, \
+        p1 = subprocess.Popen('./scripts/sunset.sh %s' % str(localization), stdout=subprocess.PIPE,
                               shell=True)
-        (output,_) = p1.communicate()
+        (output, _) = p1.communicate()
         p1.wait()
         try:
-            _time = datetime.datetime.strptime(output.rstrip().decode('UTF-8'),'%H:%M').time()
+            _time = datetime.datetime.strptime(
+                output.rstrip().decode('UTF-8'), '%H:%M').time()
         except ValueError:
-            debug.write("Connection error to the sunset time server. Falling back to 18:00.", 1)             
-            _time = datetime.datetime.strptime("18:00",'%H:%M').time()
+            debug.write(
+                "Connection error to the sunset time server. Falling back to 18:00.", 1)
+            _time = datetime.datetime.strptime("18:00", '%H:%M').time()
         return _time
 
 
 class StateRequestObject(object):
     """ Methods for properly handling devicemanager state change requests """
+
     def __init__(self):
         self.hexvalues = []
         self.off = False
@@ -540,8 +574,10 @@ class StateRequestObject(object):
                 setattr(self, _arg, vars(args)[_arg])
         for _dev in getDevices(True):
             if type(getattr(self, _dev, None)) == "str":
-                debug.write('Converting values to lists for {}'.format(_dev), 0)
-                setattr(self, _dev, str(getattr(self, _dev, None).replace("'", "").split(',')))
+                debug.write(
+                    'Converting values to lists for {}'.format(_dev), 0)
+                setattr(self, _dev, str(
+                    getattr(self, _dev, None).replace("'", "").split(',')))
 
     def get_request_string(self):
         _str = ""
@@ -564,7 +600,7 @@ class StateRequestObject(object):
     def validate_request(self, dm, config):
         debug.write("Validating arguments", 0)
         if self.reset_location_data:
-            #TODO eventually add training data cleanup
+            # TODO eventually add training data cleanup
             os.remove("../dnn/train.log")
             debug.write("Purged location and RTT data", 0)
 
@@ -580,21 +616,23 @@ class StateRequestObject(object):
             return False
 
         if len(self.hexvalues) != len(dm.devices) and not any([self.notime, self.off, self.on,
-                                                                  self.toggle, self.preset, self.restart,
-                                                                  has_device_requests]):
-            debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting" \
-                                  .format(len(self.hexvalues), len(dm.devices), sys.argv[0]), 2)
+                                                               self.toggle, self.preset, self.restart,
+                                                               has_device_requests]):
+            debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting"
+                        .format(len(self.hexvalues), len(dm.devices), sys.argv[0]), 2)
             return False
         if self.hexvalues:
-            debug.write("Received color hexvalues length {} for {} devices" \
-                                  .format(len(self.hexvalues), len(dm.devices)), 0)
+            debug.write("Received color hexvalues length {} for {} devices"
+                        .format(len(self.hexvalues), len(dm.devices)), 0)
             self.set_colors(self.hexvalues, len(dm.devices))
         else:
             if self.set_mode_for_devid is not None:
                 try:
-                    debug.write("Received mode change request for devid {}".format(self.set_mode_for_devid), 0)
+                    debug.write("Received mode change request for devid {}".format(
+                        self.set_mode_for_devid), 0)
                 except KeyError:
-                    debug.write("Devid {} does not exist".format(self.set_mode_for_devid), 1)
+                    debug.write("Devid {} does not exist".format(
+                        self.set_mode_for_devid), 1)
                 return False
 
             for _dev in getDevices(True):
@@ -604,20 +642,26 @@ class StateRequestObject(object):
                     self.device_type_args = getattr(self, _dev, None)
 
             if self.preset is not None:
-                debug.write("Received change to preset [{}] request".format(self.preset), 0)
+                debug.write(
+                    "Received change to preset [{}] request".format(self.preset), 0)
                 try:
                     preset_colors = config["PRESETS"][self.preset].split(',')
                     if len(preset_colors) != len(dm.devices):
-                        debug.write("Preset '{}' does not have the adequate number of states, {} expected.".format(self.preset,len(dm.devices)),1)
+                        debug.write("Preset '{}' does not have the adequate number of states, {} expected.".format(
+                            self.preset, len(dm.devices)), 1)
                         return False
-                    self.set_colors(config["PRESETS"][self.preset].split(','), len(dm.devices))
-                    self.auto_mode = config["PRESETS"].getboolean("AUTOMATIC_MODE")
+                    self.set_colors(
+                        config["PRESETS"][self.preset].split(','), len(dm.devices))
+                    self.auto_mode = config["PRESETS"].getboolean(
+                        "AUTOMATIC_MODE")
                 except:
-                    debug.write("Preset '{}' not found in home.ini. Quitting.".format(self.preset), 3)
+                    debug.write(
+                        "Preset '{}' not found in home.ini. Quitting.".format(self.preset), 3)
                     return False
             if self.off:
                 debug.write("Received OFF change request", 0)
-                self.set_colors([DEVICE_OFF] * len(dm.devices), len(dm.devices))
+                self.set_colors(
+                    [DEVICE_OFF] * len(dm.devices), len(dm.devices))
             if self.on:
                 debug.write("Received ON change request", 0)
                 self.set_colors([DEVICE_ON] * len(dm.devices), len(dm.devices))

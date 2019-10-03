@@ -26,6 +26,13 @@
         overflow: hidden;
         text-overflow: ellipsis;
     }
+    .lock-btn {
+        position:absolute;
+        line-height:inherit;
+        right:10px;
+        text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+        cursor:pointer;
+    }
     </style>
     <div class="navbar bg-info">
         <div class="navbar-inner noselect-nooverflow" style="width:100%;">
@@ -111,7 +118,6 @@
                     <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> Auto</label>
                     <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> Manual</label>
                 </div>
-            <p class="errortext card-text" style="display:none;margin-top:5px;">No changes occured, maybe you should set the Time check option</p>
             </div>
             <div class="card-footer noselect-nooverflow">
                 <center>

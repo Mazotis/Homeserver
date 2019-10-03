@@ -18,6 +18,7 @@ from http.server import SimpleHTTPRequestHandler, HTTPServer
 from io import BytesIO
 from threading import Thread
 
+
 class WebServerHandler(SimpleHTTPRequestHandler):
     def __init__(self, lmhost, lmport, *args, **kwargs):
         self.lmhost = lmhost
@@ -34,7 +35,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
-        postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1)
+        postvars = urllib.parse.parse_qs(
+            self.rfile.read(content_length), keep_blank_values=1)
         request = bool(postvars[b'request'][0].decode('utf-8'))
         reqtype = int(postvars[b'reqtype'][0].decode('utf-8'))
         self._set_response()
@@ -54,7 +56,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
             if reqtype == 2:
                 devid = str(postvars[b'devid'][0].decode('utf-8'))
                 value = str(postvars[b'value'][0].decode('utf-8'))
-                skiptime = postvars[b'skiptime'][0].decode('utf-8') in ['true', True]
+                skiptime = postvars[b'skiptime'][0].decode(
+                    'utf-8') in ['true', True]
                 try:
                     s.sendall("0008".encode('utf-8'))
                     s.sendall("setstate".encode('utf-8'))
@@ -88,7 +91,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
             if reqtype == 4:
                 group = str(postvars[b'group'][0].decode('utf-8'))
                 value = str(postvars[b'value'][0].decode('utf-8'))
-                skiptime = postvars[b'skiptime'][0].decode('utf-8') in ['true', True]
+                skiptime = postvars[b'skiptime'][0].decode(
+                    'utf-8') in ['true', True]
                 try:
                     s.sendall("0008".encode('utf-8'))
                     s.sendall("setgroup".encode('utf-8'))
@@ -143,7 +147,19 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         response.write(data)
                 finally:
                     s.close()
-
+            if reqtype == 9:
+                lock = postvars[b'lock'][0].decode('utf-8')
+                devid = str(postvars[b'devid'][0].decode('utf-8'))
+                try:
+                    s.sendall("0007".encode('utf-8'))
+                    s.sendall("setlock".encode('utf-8'))
+                    s.sendall(devid.zfill(3).encode('utf-8'))
+                    s.sendall(lock.zfill(1).encode('utf-8'))
+                    data = s.recv(1)
+                    if data:
+                        response.write(data)
+                finally:
+                    s.close()
         else:
             response.write("No request".encode("UTF-8"))
         self.wfile.write(response.getvalue())
@@ -157,9 +173,11 @@ class webserver(Thread):
         self.running = True
 
     def run(self):
-        debug.write("Starting control webserver on port {}".format(self.port), 0, "WEBSERVER")
+        debug.write("Starting control webserver on port {}".format(
+            self.port), 0, "WEBSERVER")
         socketserver.TCPServer.allow_reuse_address = True
-        _handler = partial(WebServerHandler, self.config['SERVER']['HOST'], int(self.config['SERVER'].getint('PORT')))
+        _handler = partial(WebServerHandler, self.config['SERVER']['HOST'], int(
+            self.config['SERVER'].getint('PORT')))
         httpd = socketserver.TCPServer(("", self.port), _handler)
 
         try:

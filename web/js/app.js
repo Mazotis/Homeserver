@@ -162,15 +162,10 @@ function generateCard(devid, data, last_state = null) {
     $("#cardmodel").find("div.mb-3").attr("cactiondelay", data.op_actiondelay[devid])
     $("#cardmodel").find("div.mb-3").attr("cicon", data.icon[devid])
     $("#cardmodel").find("div.mb-3").attr("ccolortype", data.colortype[devid])
+    $("#cardmodel").find("div.mb-3").attr("clocked", data.locked[devid])
     $("#cardmodel").find(".card-title").text(data.name[devid])
     $("#cardmodel").find(".text-muted").text(data.type[devid])
     $("#cardmodel").find("p.c-desc").text(data.description[devid])
-
-    $("#cardmodel").find("p.errortext").hide()
-    //TODO - Find a way to determine if a change between two colors has succeded (as the reported state from the lightserver differs from the "real" selection)
-    if (last_state == data.state[devid] && last_state != null) {
-        $("#cardmodel").find("p.errortext").show()
-    }
 
     html = $("#cardmodel").html()
 
@@ -179,7 +174,7 @@ function generateCard(devid, data, last_state = null) {
 
 function computeCards() {
     $(".dcard .card").each(function() {
-        var cstate, cid, cmode, ccolortype, cinit
+        var cstate, cid, cmode, ccolortype, cinit, clocked
         cinit = $(this).attr("cinit")
         cstate = $(this).attr("cstate")
         cid = $(this).attr("cid")
@@ -190,6 +185,7 @@ function computeCards() {
         cactiondelay = $(this).attr("cactiondelay")
         cicon = $(this).attr("cicon")
         ccolortype = $(this).attr("ccolortype")
+        clocked = $(this).attr("clocked")
 
         $(this).find(".card-header").removeClass("bg-danger")
         $(this).find(".card-header").removeClass("bg-warning")
@@ -218,6 +214,14 @@ function computeCards() {
             $(this).find(".btn-group").hide()
             $(this).find(".noop").show()
         } else {
+            if (clocked == "1") {
+                $(this).find(".card-body").hide()
+                $(this).find(".card-footer center").append('<i class="fas fa-lock text-white lock-btn" onclick="setLockDevice(0,' + cid + ',' + cstate +')" title="Unlock device"></i>')
+            } else {
+                $(this).find(".card-body").show()
+                $(this).find(".card-footer center").append('<i class="fas fa-unlock text-white lock-btn" onclick="setLockDevice(1,' + cid + ',' + cstate +')" title="Lock device in this state"></i>')
+            }
+
             if (cmode == "0") {
                 $(this).find(".autobtn").removeClass('active')
                 $(this).find(".manbtn").addClass('active')
@@ -385,6 +389,27 @@ function sendAllModeAuto() {
             getResult()
         }
     })
+}
+
+function setLockDevice(lock, devid, last_state) {
+    $("#"+devid).addClass("disabledbutton")
+    $.ajax({
+        type: "POST",
+        url: ".",
+        dataType: "text",
+        data: {
+                request: "True",
+                reqtype: "9",
+                lock: lock,
+                devid: devid
+            },
+        success: function(data){
+            getOneResult(devid, last_state)
+        },
+        error: function(data){
+            console.log(data)
+        }
+    })    
 }
 
 function getContent(amodule) {

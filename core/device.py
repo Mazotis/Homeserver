@@ -13,17 +13,18 @@ import datetime
 from core.common import *
 from core.convert import convert_color
 
+
 class device(object):
     def __init__(self, devid, config):
         self.devid = devid
-        self.description = config["DEVICE"+str(devid)]["DESCRIPTION"]
+        self.description = config["DEVICE" + str(devid)]["DESCRIPTION"]
         self.success = False
         self._connection = None
         self.group = []
-        if config.has_option("DEVICE"+str(devid),"GROUP"):
-            self.group = config["DEVICE"+str(devid)]["GROUP"].split(',')
-        if config.has_option("DEVICE"+str(devid),"DEFAULT_INTENSITY"):
-            self.intensity = config["DEVICE"+str(devid)]["DEFAULT_INTENSITY"]
+        if config.has_option("DEVICE" + str(devid), "GROUP"):
+            self.group = config["DEVICE" + str(devid)]["GROUP"].split(',')
+        if config.has_option("DEVICE" + str(devid), "DEFAULT_INTENSITY"):
+            self.intensity = config["DEVICE" + str(devid)]["DEFAULT_INTENSITY"]
         self.state = 0
         self.device_type = None
         self.request_auto_mode = True
@@ -32,34 +33,39 @@ class device(object):
         self.name = None
         self.color_type = None
         self.start_event_time = None
-        if config.has_option("DEVICE"+str(devid),"COLOR_TYPE"):
-            self.color_type = config["DEVICE"+str(devid)]["COLOR_TYPE"]
+        if config.has_option("DEVICE" + str(devid), "COLOR_TYPE"):
+            self.color_type = config["DEVICE" + str(devid)]["COLOR_TYPE"]
         self.color_brightness = None
         self.default_skip_time = False
-        if config.has_option("DEVICE"+str(devid),"SKIPTIME"):
-            self.default_skip_time = config["DEVICE"+str(devid)].getboolean("SKIPTIME")
+        if config.has_option("DEVICE" + str(devid), "SKIPTIME"):
+            self.default_skip_time = config["DEVICE" +
+                                            str(devid)].getboolean("SKIPTIME")
         self.skip_time = self.default_skip_time
         self.forceoff = True
-        if config.has_option("DEVICE"+str(devid),"FORCEOFF"):
-            self.forceoff = config["DEVICE"+str(devid)].getboolean("FORCEOFF")
+        if config.has_option("DEVICE" + str(devid), "FORCEOFF"):
+            self.forceoff = config["DEVICE" +
+                                   str(devid)].getboolean("FORCEOFF")
         self.ignoremode = False
-        if config.has_option("DEVICE"+str(devid),"IGNOREMODE"):
-            self.ignoremode = config["DEVICE"+str(devid)].getboolean("IGNOREMODE")
-        if config.has_option("DEVICE"+str(devid),"NAME"):
-            self.name = config["DEVICE"+str(devid)]["NAME"]
+        if config.has_option("DEVICE" + str(devid), "IGNOREMODE"):
+            self.ignoremode = config["DEVICE" +
+                                     str(devid)].getboolean("IGNOREMODE")
+        if config.has_option("DEVICE" + str(devid), "NAME"):
+            self.name = config["DEVICE" + str(devid)]["NAME"]
         self.icon = None
-        if config.has_option("DEVICE"+str(devid),"ICON"):
-            self.icon = config["DEVICE"+str(devid)]["ICON"]
+        if config.has_option("DEVICE" + str(devid), "ICON"):
+            self.icon = config["DEVICE" + str(devid)]["ICON"]
         self.action_delay = 0
         self.last_action_timestamp = 0
-        if config.has_option("DEVICE"+str(devid),"ACTION_DELAY"):
-            self.action_delay = int(config["DEVICE"+str(devid)]["ACTION_DELAY"])
+        if config.has_option("DEVICE" + str(devid), "ACTION_DELAY"):
+            self.action_delay = int(
+                config["DEVICE" + str(devid)]["ACTION_DELAY"])
         self.has_pseudodevice = None
+        self.request_locked = False
 
     def pre_run(self, color):
         if self.success:
             return True
-        if self.color_type == "noop":
+        if self.color_type == "noop" or self.request_locked:
             debug.write("Device ({}) {} does not handle requests."
                         .format(self.device_type, self.device), 0)
             self.success = True
@@ -111,7 +117,7 @@ class device(object):
 
     def convert(self, color):
         if self.color_type is None:
-            debug.write("Device {} must declare a state type. Quitting.",2)
+            debug.write("Device {} must declare a state type. Quitting.", 2)
             quit()
         return convert_color(color, self.color_type)
 
@@ -135,7 +141,13 @@ class device(object):
             return False
         return True
 
-    def set_event_time(self, event_time, skip_time = False):
+    def lock_unlock_requests(self, is_locked):
+        debug.write("Device ({}) {} is set to locked = {}."
+                    .format(self.device_type, self.device, bool(is_locked)), 0)
+        self.request_locked = bool(is_locked)
+        return
+
+    def set_event_time(self, event_time, skip_time=False):
         self.start_event_time = event_time
         self.skip_time = skip_time
         return
