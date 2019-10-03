@@ -14,7 +14,7 @@ import time
 import traceback
 import queue
 from core.common import *
-from core.convert import convert_to_web_rgb
+from core.convert import convert_to_web_rgb, convert_color
 from multiprocessing.pool import ThreadPool
 from threading import Timer
 
@@ -307,14 +307,17 @@ class DeviceManager(object):
         """ Locks the light change request """
         self.locked = is_locked
 
-    def get_state(self, devid=None, async=False, webcolors=False):
+    def get_state(self, devid=None, async=False, webcolors=False, intensity=False):
         """ Getter for configured devices actual colors """
         states = [None] * len(self.devices)
         for _cnt, dev in enumerate(self.devices):
             if devid is not None and devid != _cnt:
                 continue
             if async:
-                states[_cnt] = dev.state
+                if intensity and self.devices[_cnt].color_type in ["argb", "rgb", "255"]:
+                    states[_cnt] = convert_color(dev.state, "100")
+                else:
+                    states[_cnt] = dev.state
             else:
                 states[_cnt] = dev.get_state()
             if webcolors:
@@ -384,18 +387,19 @@ class DeviceManager(object):
         _has_delays = False
         self.delays = [0] * len(self.devices)
         for _cnt, _col in enumerate(colors):
-            if re.match("[0-9a-fA-F]+del[0-9]+", _col) is not None:
-                """ This is a delayed change (delay then action) """
-                _vals = _col.split("del")
-                colors[_cnt] = _vals[0]
-                self.delays[_cnt] = int(_vals[1])
-                _has_delays = True
-            if re.match("[0-9a-fA-F]+for[0-9]+", _col) is not None:
-                """ This is a for-delay change (action, delay then off)"""
-                _vals = _col.split("for")
-                colors[_cnt] = _vals[0]
-                self.delays[_cnt] = -int(_vals[1])
-                _has_delays = True
+            if type(_col) is not tuple:
+                if re.match("[0-9a-fA-F]+del[0-9]+", str(_col)) is not None:
+                    """ This is a delayed change (delay then action) """
+                    _vals = _col.split("del")
+                    colors[_cnt] = _vals[0]
+                    self.delays[_cnt] = int(_vals[1])
+                    _has_delays = True
+                if re.match("[0-9a-fA-F]+for[0-9]+", str(_col)) is not None:
+                    """ This is a for-delay change (action, delay then off)"""
+                    _vals = _col.split("for")
+                    colors[_cnt] = _vals[0]
+                    self.delays[_cnt] = -int(_vals[1])
+                    _has_delays = True
         if _has_delays:
             _delay_list = []
             for _delay in self.delays:

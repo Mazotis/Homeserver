@@ -82,6 +82,8 @@ class HomeServer(object):
                             ls_status = {}
                             ls_status["state"] = dm.get_state(
                                 async=True, webcolors=True)
+                            ls_status["intensity"] = dm.get_state(
+                                async=True, intensity=True)
                             ls_status["mode"] = dm.get_modes()
                             ls_status["type"] = dm.get_types()
                             ls_status["name"] = dm.get_names()
@@ -110,6 +112,8 @@ class HomeServer(object):
                                 time.sleep(0.2)
                             ls_status["state"] = dm.get_state(
                                 async=True, webcolors=True)
+                            ls_status["intensity"] = dm.get_state(
+                                async=True, intensity=True)
                             client.send(json.dumps(ls_status).encode('UTF-8'))
                             break
                         if data.decode('utf-8') == "setstate":
@@ -117,14 +121,17 @@ class HomeServer(object):
                                 'Running a single device state change', 0)
                             iddata = int(client.recv(3).decode("UTF-8"))
                             valdata = client.recv(8).decode("UTF-8")
+                            isintensity = client.recv(1).decode("UTF-8")
+                            skiptime = int(client.recv(1).decode("UTF-8"))
+                            _col = ["-1"] * len(dm.devices)
                             try:
                                 valdata = int(valdata)
+                                if isintensity == "1" and dm.devices[iddata].color_type == "255":
+                                    valdata = (None, valdata)
                             except ValueError:
                                 # Must be hexadecimal
                                 valdata = valdata[2:9]
-                            skiptime = int(client.recv(1).decode("UTF-8"))
-                            _col = ["-1"] * len(dm.devices)
-                            _col[iddata] = str(valdata)
+                            _col[iddata] = valdata
                             req.set_colors(_col, len(dm.devices))
                             if skiptime == 1:
                                 req.set_skip_time()

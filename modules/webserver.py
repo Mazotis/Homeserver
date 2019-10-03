@@ -2,7 +2,7 @@
 '''
     File name: webserver.py
     Author: Maxime Bergeron
-    Date last modified: 17/09/2019
+    Date last modified: 03/10/2019
     Python Version: 3.5
 
     The web server interface module for the homeserver
@@ -56,6 +56,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
             if reqtype == 2:
                 devid = str(postvars[b'devid'][0].decode('utf-8'))
                 value = str(postvars[b'value'][0].decode('utf-8'))
+                isintensity = str(postvars[b'isintensity'][0].decode('utf-8'))
                 skiptime = postvars[b'skiptime'][0].decode(
                     'utf-8') in ['true', True]
                 try:
@@ -63,6 +64,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     s.sendall("setstate".encode('utf-8'))
                     s.sendall(devid.zfill(3).encode('utf-8'))
                     s.sendall(value.zfill(8).encode('utf-8'))
+                    s.sendall(isintensity.encode('utf-8'))
                     if skiptime:
                         s.sendall("1".encode('utf-8'))
                     else:

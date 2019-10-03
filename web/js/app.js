@@ -10,8 +10,8 @@ $(document).ready(function() {
             lastupdate = new Date()
             getResultRefresh()
         }
-    } 
-})
+    }
+});
 
 function getResult() {
     runningRequests++
@@ -115,6 +115,7 @@ function getResultPost() {
                 for (cnt in thedata.state) {
                     if ($("#card" + cnt).find("div.mb-3").attr("cstate") != thedata.state[cnt]) {
                         $("#card" + cnt).find("div.mb-3").attr("cstate", thedata.state[cnt])
+                        $("#card" + cnt).find("div.mb-3").attr("cintensity", thedata.intensity[cnt])
                         has_errors = true
                     }
                 }
@@ -154,6 +155,7 @@ function generateCard(devid, data, last_state = null) {
     var mode
     data.mode[devid] ? mode = 1 : mode = 0
     $("#cardmodel").find("div.mb-3").attr("cstate", data.state[devid])
+    $("#cardmodel").find("div.mb-3").attr("cintensity", data.intensity[devid])
     $("#cardmodel").find("div.mb-3").attr("cid", devid)
     $("#cardmodel").find("div.mb-3").attr("cmode", mode)
     $("#cardmodel").find("div.mb-3").attr("cskiptime", data.op_skiptime[devid])
@@ -174,9 +176,10 @@ function generateCard(devid, data, last_state = null) {
 
 function computeCards() {
     $(".dcard .card").each(function() {
-        var cstate, cid, cmode, ccolortype, cinit, clocked
+        var cstate, cintensity, cid, cmode, ccolortype, cinit, clocked
         cinit = $(this).attr("cinit")
         cstate = $(this).attr("cstate")
+        cintensity = $(this).attr("cintensity")
         cid = $(this).attr("cid")
         cmode = $(this).attr("cmode")
         cforceoff = $(this).attr("cforceoff")
@@ -187,6 +190,7 @@ function computeCards() {
         ccolortype = $(this).attr("ccolortype")
         clocked = $(this).attr("clocked")
 
+        $(this).find(".sliderpick").hide()
         $(this).find(".card-header").removeClass("bg-danger")
         $(this).find(".card-header").removeClass("bg-warning")
         $(this).find(".card-header").removeClass("bg-success")
@@ -251,7 +255,7 @@ function computeCards() {
                 if (cstate.length == 6) {
                     $(this).find(".colorpick input").attr("value", "#" + cstate)
                 }
-                $(this).find(".colorpick").show()
+                $(this).find(".colorpick").css("display", "inline-block")
                 if (cinit != "1") {
                     $(this).find(".colorpick").on("change", function(ev) {
                         color = ev.currentTarget.firstElementChild.value.substr(1)
@@ -260,19 +264,20 @@ function computeCards() {
                 }
             }
 
-            if (["100"].includes(ccolortype)) {
-                $(this).find(".slider").attr("value", cstate)
-                $(this).find(".slider-text").html(cstate)
+            if (["100", "255", "argb", "rgb"].includes(ccolortype)) {
                 $(this).find(".sliderpick").show()
+                $(this).find(".btn-group-lg").hide()
                 if (cinit != "1") {
-                    $(this).find(".sliderpick").on("change", function() {
-                        color = $(this).find("input").val()
-                        sendPowerRequest(cid, color, cstate)
-                    })
-                    $(this).find(".sliderpick").on("input", function() {
-                        color = $(this).find("input").val()
-                        $(this).find(".slider-text").html(color)
-                    })
+                    $(this).find(".slider").roundSlider({
+                        sliderType: "min-range",
+                        handleShape: "round",
+                        width: 30,
+                        value: parseInt(cintensity),
+                        editableTooltip: false,
+                        change: function(event) {
+                            sendPowerRequest(cid, event.value, cstate, 1)
+                        }
+                    });
                 }
             }
 
@@ -315,8 +320,9 @@ function computeCards() {
     })
 }
 
-function sendPowerRequest(devid, value, last_state) {
+function sendPowerRequest(devid, value, last_state, is_intensity=0) {
     xhr.abort()
+    $("#update-spin").hide()
     $("#card" + devid).addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -327,6 +333,7 @@ function sendPowerRequest(devid, value, last_state) {
                 reqtype: "2",
                 devid: devid,
                 value: value,
+                isintensity: is_intensity,
                 skiptime: $('input[name=skiptime2]').is(":checked")
             },
         success: function(data){
@@ -337,6 +344,7 @@ function sendPowerRequest(devid, value, last_state) {
 
 function sendGroupPowerRequest(group, value, devid) {
     xhr.abort()
+    $("#update-spin").hide()
     $("#"+devid).addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -357,6 +365,7 @@ function sendGroupPowerRequest(group, value, devid) {
 
 function sendModeRequest(devid, value, auto) {
     xhr.abort()
+    $("#update-spin").hide()
     $("#card" + devid).addClass("disabledbutton")
     xhr = $.ajax({
         type: "POST",
@@ -376,6 +385,7 @@ function sendModeRequest(devid, value, auto) {
 
 function sendAllModeAuto() {
     xhr.abort()
+    $("#update-spin").hide()
     $(".dcard").addClass("disabledbutton")
     $.ajax({
         type: "POST",
