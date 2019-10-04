@@ -15,6 +15,7 @@ from core.common import *
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 
+
 class DFServer(BaseHTTPRequestHandler):
     def _set_response(self):
         self.send_response(200)
@@ -35,11 +36,14 @@ class DFServer(BaseHTTPRequestHandler):
         action = request['queryResult']['parameters']['LightserverAction']
         groups = request['queryResult']['parameters']['LightserverGroups']
         if config['DIALOGFLOW'].getboolean('AUTOMATIC_MODE'):
-            request = "./homeclient.py --{} --auto-mode --notime --group {}".format(action, ' '.join(groups))
+            request = "./homeclient.py --{} --auto-mode --notime --group {}".format(
+                action, ' '.join(groups))
         else:
-            request = "./homeclient.py --{} --notime --group {}".format(action, ' '.join(groups))
+            request = "./homeclient.py --{} --notime --group {}".format(
+                action, ' '.join(groups))
 
-        debug.write('Running detected request: {}'.format(request), 0, "DIALOGFLOW")
+        debug.write('Running detected request: {}'.format(
+            request), 0, "DIALOGFLOW")
         os.system(request)
 
 
@@ -52,12 +56,12 @@ class dialogflow(Thread):
         self.running = True
 
     def run(self):
-        debug.write('Getting lightserver POST requests on port {}' \
+        debug.write('Getting lightserver POST requests on port {}'
                     .format(self.port), 0, "DIALOGFLOW")
         httpd = HTTPServer(('', self.port), DFServer)
-        httpd.socket = ssl.wrap_socket(httpd.socket, 
-                keyfile=self.key, 
-                certfile=self.cert, server_side=True)
+        httpd.socket = ssl.wrap_socket(httpd.socket,
+                                       keyfile=self.key,
+                                       certfile=self.cert, server_side=True)
         try:
             while self.running:
                 httpd.handle_request()
@@ -71,9 +75,10 @@ class dialogflow(Thread):
         self.running = False
         # Needs a last call to shut down properly
         try:
-            _r = requests.get("http://localhost:{}/".format(self.port))
+            requests.get("http://localhost:{}/".format(self.port))
         except requests.exceptions.ConnectionError:
             pass
+
 
 def run(config, lm):
     runDFServer(config)

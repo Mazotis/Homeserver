@@ -14,7 +14,7 @@ import socketserver
 import urllib.parse
 from core.common import *
 from functools import partial
-from http.server import SimpleHTTPRequestHandler, HTTPServer
+from http.server import SimpleHTTPRequestHandler
 from io import BytesIO
 from threading import Thread
 
@@ -195,6 +195,6 @@ class webserver(Thread):
         self.running = False
         # Needs a last call to shut down properly
         try:
-            _r = requests.get("http://localhost:{}/".format(self.port))
+            requests.get("http://localhost:{}/".format(self.port))
         except requests.exceptions.ConnectionError:
             pass

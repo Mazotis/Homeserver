@@ -12,19 +12,22 @@ from core.common import *
 from core.meross import Meross
 from core.device import device
 
+
 class MerossSwitch(device):
     """ Methods for driving a Meross wifi switch """
+
     def __init__(self, devid, config):
         super().__init__(devid, config)
         self.device_id = devid
         self.config = config
         self.has_pseudodevice = 'Meross'
-        self.device = config["DEVICE"+str(devid)]["ADDRESS"]
+        self.device = config["DEVICE" + str(devid)]["ADDRESS"]
         self.device_type = "MerossSwitch"
         self.state = "0"
         if self.color_type is None:
             self.color_type = "io"
-        debug.write("Created device MerossSwitch with MAC {}.".format(self.device), 0, self.device_type)
+        debug.write("Created device MerossSwitch with MAC {}.".format(
+            self.device), 0, self.device_type)
 
     def run(self, color):
         """ Checks the request and trigger a light change if needed """
@@ -49,7 +52,7 @@ class MerossSwitch(device):
             return True
 
     def get_state(self):
-        #TODO Is this the proper limit for ON/OFF ?
+        # TODO Is this the proper limit for ON/OFF ?
         if self.meross_dev.supports_electricity_reading():
             if int(self.meross_dev.get_electricity()['current']) > 100:
                 self.state = "1"
@@ -61,10 +64,11 @@ class MerossSwitch(device):
         return Meross(self.device_id, self.config)
 
     def get_pseudodevice(self, meross):
-        debug.write("Linking Meross {} to pseudodevice {}.".format(self.device, meross.email), 0, self.device_type)
+        debug.write("Linking Meross {} to pseudodevice {}.".format(
+            self.device, meross.email), 0, self.device_type)
         self.meross = meross
         self.meross_dev = self.meross.get_meross_device(self.device)
 
     def disconnect(self):
         pass
-        #self.meross.disconnect()
+        # self.meross.disconnect()

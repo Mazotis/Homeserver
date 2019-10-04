@@ -160,6 +160,9 @@ def convert_to_web_rgb(color, input_type, device_luminosity=None):
             debug.write(
                 "Conversion from HLS {}-{} to RGB {}".format(color[0], color[1], color_rgb), 0)
         else:
+            if device_luminosity is None:
+                # TODO check if this needs to handle other cases
+                return color
             color_hls = colorsys.hls_to_rgb(
                 int(color) / 255, int(device_luminosity) / 100, 1.0)
             color_rgb = "{:02x}".format(int(color_hls[0] * 255)) + "{:02x}".format(

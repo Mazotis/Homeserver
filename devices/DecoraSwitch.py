@@ -11,19 +11,22 @@ from core.common import *
 from core.device import device
 from core.decora import Decora
 
+
 class DecoraSwitch(device):
     """ Methods for driving a Decora wifi switch """
+
     def __init__(self, devid, config):
         super().__init__(devid, config)
         self.device_id = devid
         self.config = config
         self.has_pseudodevice = 'Decora'
-        self.device = config["DEVICE"+str(devid)]["DEVICE"]
+        self.device = config["DEVICE" + str(devid)]["DEVICE"]
         self.device_type = "DecoraSwitch"
         self.state = "0"
         if self.color_type is None:
             self.color_type = "100"
-        debug.write("Created device DecoraSwitch named {}.".format(self.device), 0, self.device_type)
+        debug.write("Created device DecoraSwitch named {}.".format(
+            self.device), 0, self.device_type)
 
     def run(self, color):
         """ Checks the request and trigger a light change if needed """
@@ -49,14 +52,16 @@ class DecoraSwitch(device):
                 self.success = True
                 return True
         else:
-            debug.write("Skipping device {} - handler connection failed.".format(self.device), 0, self.device_type)
+            debug.write(
+                "Skipping device {} - handler connection failed.".format(self.device), 0, self.device_type)
             return True
 
     def create_pseudodevice(self):
         return Decora(self.device_id, self.config)
 
     def get_pseudodevice(self, decora):
-        debug.write("Linking Decora {} to pseudodevice {}.".format(self.device, decora.email), 0, self.device_type)
+        debug.write("Linking Decora {} to pseudodevice {}.".format(
+            self.device, decora.email), 0, self.device_type)
         self.decora = decora
 
     def disconnect(self):

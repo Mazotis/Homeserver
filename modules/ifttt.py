@@ -20,6 +20,7 @@ from functools import partial
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 
+
 class IFTTTServer(BaseHTTPRequestHandler):
     def __init__(self, config, lm, *args, **kwargs):
         self.config = config
@@ -38,91 +39,102 @@ class IFTTTServer(BaseHTTPRequestHandler):
         """ Receives and handles POST request """
         SALT = self.config["IFTTT"]["SALT"]
         debug.write('Getting request', 0, "IFTTT")
-        #content_length = int(self.headers['Content-Length']) # <--- Gets the size of data
-        #postvars = urllib.parse.parse_qs(self.rfile.read(content_length), keep_blank_values=1, encoding='utf-8')
         content_length = int(self.headers['Content-Length'])
-        postvars = urllib.parse.parse_qs(self.rfile.read(content_length).decode('UTF-8'), keep_blank_values=1)
+        postvars = urllib.parse.parse_qs(self.rfile.read(
+            content_length).decode('UTF-8'), keep_blank_values=1)
         self._set_response()
 
         try:
-            #TODO rewrite this more elegantly
-            #TODO link directly to the LM server ?
+            # TODO rewrite this more elegantly
+            # TODO link directly to the LM server ?
             _hash = postvars['hash'][0]
             action = postvars['action'][0]
             if _hash != hashlib.sha512(bytes(SALT.encode('utf-8') + action.encode('utf-8'))).hexdigest():
-                debug.write('Unauthorized action {}. Hash verification failed.'.format(action), 1, "IFTTT")
+                debug.write('Unauthorized action {}. Hash verification failed.'.format(
+                    action), 1, "IFTTT")
 
             if action in self.config["IFTTT"]:
-                debug.write('Running action : {}'.format(self.config["IFTTT"][action]), 0, "IFTTT")
+                debug.write('Running action : {}'.format(
+                    self.config["IFTTT"][action]), 0, "IFTTT")
                 os.system("./homeclient.py " + self.config["IFTTT"][action])
             else:
                 debug.write('Unknown action: {}'.format(action), 1, "IFTTT")
 
         except KeyError:
-            #TODO hash group requests somehow or require HTTPS?
+            # TODO hash group requests somehow or require HTTPS?
             req = StateRequestObject()
             func = postvars['function'][0]
 
             if func not in ["on", "off"]:
-                debug.write("Function {} not defined. Request aborted.", 1, "IFTTT")
+                debug.write(
+                    "Function {} not defined. Request aborted.", 1, "IFTTT")
                 return
             if func == "on":
-                req.set_colors([DEVICE_ON] * len(self.lm.devices), len(self.lm.devices))
+                req.set_colors(
+                    [DEVICE_ON] * len(self.lm.devices), len(self.lm.devices))
             elif func == "off":
                 req.set_skip_time()
-                req.set_colors([DEVICE_OFF] * len(self.lm.devices), len(self.lm.devices))
+                req.set_colors(
+                    [DEVICE_OFF] * len(self.lm.devices), len(self.lm.devices))
 
             group = postvars['group'][0].split()
             group = [unidecode.unidecode(x) for x in group]
             groups = self.lm.get_all_groups()
-            changed_groups = [] 
+            changed_groups = []
             for _group in group:
                 if _group in groups:
                     changed_groups.append(_group)
-                #TODO add a proper pluralization and support for latin characters ?
+                # TODO add a proper pluralization and support for latin characters ?
                 if _group + "s" in groups:
                     changed_groups.append(_group + "s")
             if len(changed_groups) != 0:
                 req.group = changed_groups
             else:
-                debug.write("No devices belong to group {}. Request aborted.".format(group), 1, "IFTTT")
+                debug.write("No devices belong to group {}. Request aborted.".format(
+                    group), 1, "IFTTT")
                 return
-            debug.write("Running function '{}' on group(s) {}".format(func, changed_groups), 0, "IFTTT")
+            debug.write("Running function '{}' on group(s) {}".format(
+                func, changed_groups), 0, "IFTTT")
             if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
                 req.reset_mode = True
             self.lm.run(req)
 
             if "delay" in postvars and int(postvars['delay'][0]) != 0:
                 if func == "on":
-                    req.set_colors([DEVICE_OFF] * len(self.lm.devices), len(self.lm.devices))
+                    req.set_colors(
+                        [DEVICE_OFF] * len(self.lm.devices), len(self.lm.devices))
                 elif func == "off":
                     req.set_skip_time()
-                    req.set_colors([DEVICE_ON] * len(self.lm.devices), len(self.lm.devices))
+                    req.set_colors(
+                        [DEVICE_ON] * len(self.lm.devices), len(self.lm.devices))
                 req.group = changed_groups
                 if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
                     req.reset_mode = True
-                req.delay = int(postvars['delay'][0])*60
+                req.delay = int(postvars['delay'][0]) * 60
                 self.lm.run(req)
 
-
-        try: 
-            #TODO rewrite this more elegantly
+        try:
+            # TODO rewrite this more elegantly
             post_action = postvars['postaction'][0]
-            delay = int(postvars['delay'][0])*60-5
+            delay = int(postvars['delay'][0]) * 60 - 5
 
             if delay != 0:
-                debug.write('Will run action {} in {} seconds'.format(post_action, delay+5), 0, "IFTTT")
+                debug.write('Will run action {} in {} seconds'.format(
+                    post_action, delay + 5), 0, "IFTTT")
                 time.sleep(5)
                 if post_action in self.config["IFTTT"]:
                     if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
-                        os.system("./homeclient.py --delay {} {}".format(delay, self.config["IFTTT"][post_action]))
+                        os.system(
+                            "./homeclient.py --delay {} {}".format(delay, self.config["IFTTT"][post_action]))
                     else:
-                        os.system("./homeclient.py --delay {} --auto-mode {}".format(delay, self.config["IFTTT"][post_action]))
+                        os.system("./homeclient.py --delay {} --auto-mode {}".format(
+                            delay, self.config["IFTTT"][post_action]))
                 else:
                     #
                     # Complex delayed actions should be hardcoded here if needed
                     #
-                    debug.write('Unknown action: {}'.format(post_action), 1, "IFTTT")
+                    debug.write('Unknown action: {}'.format(
+                        post_action), 1, "IFTTT")
         except KeyError:
             pass
 
@@ -140,14 +152,14 @@ class ifttt(Thread):
         self.running = True
 
     def run(self):
-        debug.write('Getting lightserver POST requests on port {} using {} protocol' \
+        debug.write('Getting lightserver POST requests on port {} using {} protocol'
                     .format(self.port, self.protocol), 0, "IFTTT")
         IFTTTServerPartial = partial(IFTTTServer, self.config, self.lm)
         httpd = HTTPServer(('', self.port), IFTTTServerPartial)
         if self.protocol == "https":
-            httpd.socket = ssl.wrap_socket(httpd.socket, 
-                keyfile=self.key, 
-                certfile=self.cert, server_side=True)
+            httpd.socket = ssl.wrap_socket(httpd.socket,
+                                           keyfile=self.key,
+                                           certfile=self.cert, server_side=True)
         try:
             while self.running:
                 httpd.handle_request()
@@ -161,9 +173,10 @@ class ifttt(Thread):
         self.running = False
         # Needs a last call to shut down properly
         try:
-            _r = requests.get("http://localhost:{}/".format(self.port))
+            requests.get("http://localhost:{}/".format(self.port))
         except requests.exceptions.ConnectionError:
             pass
+
 
 def run(config, lm):
     runIFTTTServer(config, lm)

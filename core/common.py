@@ -16,7 +16,6 @@ import datetime
 import random
 import socket
 import sys
-import time
 from os.path import dirname, basename, isfile
 
 # CONSTANTS
@@ -27,6 +26,7 @@ DEVICE_ON = "1"
 
 VERSION = "alpha"
 ###
+
 
 class DebugLog(object):
     def __init__(self):
@@ -44,9 +44,10 @@ class DebugLog(object):
             # Server not yet initialized. Create log files
             for n in reversed(range(0, self.config['SERVER'].getint("MAX_DEBUG_FILES"))):
                 if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/home." + str(n) + ".log"):
-                    os.remove(self.config['SERVER']['JOURNAL_DIR'] + "/home." + str(n) + ".log")
-                if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/home." + str(n-1) +".log"):
-                    os.rename(self.config['SERVER']['JOURNAL_DIR'] + "/home." + str(n-1) + ".log",
+                    os.remove(
+                        self.config['SERVER']['JOURNAL_DIR'] + "/home." + str(n) + ".log")
+                if os.path.isfile(self.config['SERVER']['JOURNAL_DIR'] + "/home." + str(n - 1) + ".log"):
+                    os.rename(self.config['SERVER']['JOURNAL_DIR'] + "/home." + str(n - 1) + ".log",
                               self.config['SERVER']['JOURNAL_DIR'] + "/home." + str(n) + ".log")
 
     def get_set_lock(self, get=False):
@@ -63,42 +64,46 @@ class DebugLog(object):
                 print("Server is already running. Shutting down.")
                 sys.exit()
 
-    def write(self, msg, level, devicetype = None):
+    def write(self, msg, level, devicetype=None):
         if self.debug_enabled:
             if devicetype is not None:
                 if devicetype in self.device_colors.keys():
                     _dcolor = self.device_colors[devicetype]
                 else:
-                    _dcolor = "\033[38;5;" + str(random.randint(100,230)) + "m"
+                    _dcolor = "\033[38;5;" + \
+                        str(random.randint(100, 230)) + "m"
                     self.device_colors[devicetype] = _dcolor
 
-                _cdebugtext = "({}) - [{}{}\033[0m] {}[{}] {}\033[0m".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), 
-                                                self.COLOR_LEVELS[level], self.LEVELS[level], _dcolor, devicetype, msg)
+                _cdebugtext = "({}) - [{}{}\033[0m] {}[{}] {}\033[0m".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                                                             self.COLOR_LEVELS[level], self.LEVELS[level], _dcolor, devicetype, msg)
             else:
-                _cdebugtext = "({}) - [{}{}\033[0m] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), 
-                                                self.COLOR_LEVELS[level], self.LEVELS[level], msg)
-            _debugtext = "({}) - [{}] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"), 
-                                                self.LEVELS[level], msg)
+                _cdebugtext = "({}) - [{}{}\033[0m] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                                               self.COLOR_LEVELS[level], self.LEVELS[level], msg)
+            _debugtext = "({}) - [{}] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                                 self.LEVELS[level], msg)
             print(_cdebugtext)
             if ast.literal_eval(self.config['SERVER']['JOURNALING']):
                 with open(self.config['SERVER']['JOURNAL_DIR'] + "/home.0.log", "a") as jfile:
                     jfile.write(_debugtext + "\n")
 
+
 decora = None
 meross = None
 debug = DebugLog()
 
+
 def getDevices(to_lower=False):
     """ Getter for available device modules, same as __init__ """
-    modules = glob.glob(dirname(__file__)+"/../devices/*.py")
+    modules = glob.glob(dirname(__file__) + "/../devices/*.py")
     devices = [basename(f)[:-3] for f in modules if isfile(f) and not f.endswith('__init__.py')]
     if to_lower:
         return [x.lower() for x in devices]
     else:
         return devices
 
+
 def getModules():
     """ Getter for available server modules, same as __init__ """
-    modules = glob.glob(dirname(__file__)+"/../modules/*.py")
+    modules = glob.glob(dirname(__file__) + "/../modules/*.py")
     devices = [basename(f)[:-3] for f in modules if isfile(f)]
     return devices

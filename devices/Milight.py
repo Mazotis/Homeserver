@@ -130,10 +130,8 @@ class Milight(Bulb):
         ON (value3 = 1)/OFF (value3 = 2): value1 = 32, value2 = 161
         CHANGE COLOR: value1 = 45, value2 = 161, value3 = 4, value4 = colorid
         """
-        packet = self._create_command("[" + str(value1) + ", " + str(value2) + ", " + str(id1)
-                                      + ", " + str(id2) + ", " +
-                                      str(value5) + ", " + str(value3)
-                                      + ", " + str(value4) + ", " + str(value6) + ", 0, 0, 0]")
+        packet = self._create_command("[" + str(value1) + ", " + str(value2) + ", " + str(id1) + ", " + str(
+            id2) + ", " + str(value5) + ", " + str(value3) + ", " + str(value4) + ", " + str(value6) + ", 0, 0, 0]")
         return packet
 
     @connect_ble

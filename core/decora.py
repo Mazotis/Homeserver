@@ -14,19 +14,20 @@ from decora_wifi.models.residential_account import ResidentialAccount
 from decora_wifi.models.residence import Residence
 from core.common import *
 
+
 class Decora(object):
     def __init__(self, devid, config):
-        #TODO Support multiple MyLeviton accounts at the same time ?
-        self.email = config["DEVICE"+str(devid)]["EMAIL"]
-        self.password = config["DEVICE"+str(devid)]["PASSWORD"]
+        # TODO Support multiple MyLeviton accounts at the same time ?
+        self.email = config["DEVICE" + str(devid)]["EMAIL"]
+        self.password = config["DEVICE" + str(devid)]["PASSWORD"]
         self.residences = None
         self._connected = False
         self.disabled = False
         self.connect()
-        decora = self
-        debug.write("Created pseudo-device Decora with account {}.".format(self.email), 0)
+        debug.write(
+            "Created pseudo-device Decora with account {}.".format(self.email), 0)
 
-    def get_switch(self, name = None):
+    def get_switch(self, name=None):
         self.session.login(self.email, self.password)
         if self.residences is None:
             self._initialize()
@@ -48,9 +49,10 @@ class Decora(object):
             self.session = DecoraWiFiSession()
             self.get_switch()
             self.disabled = False
-        except:
-            #TODO catch all exceptions ?
-            debug.write("Cannot login to decora account {}, disabling devices.".format(self.email), 1)
+        except Exception as ex:
+            # TODO catch all exceptions ?
+            debug.write(
+                "Unhandled exception {}. Cannot login to decora account {}, disabling devices.".format(ex, self.email), 1)
             self.disabled = True
             return
         self._connected = True
@@ -64,7 +66,8 @@ class Decora(object):
         self.residences = []
         for permission in perms:
             if permission.residentialAccountId is not None:
-                acct = ResidentialAccount(self.session, permission.residentialAccountId)
+                acct = ResidentialAccount(
+                    self.session, permission.residentialAccountId)
                 for res in acct.get_residences():
                     self.residences.append(res)
             elif permission.residenceId is not None:
@@ -72,4 +75,5 @@ class Decora(object):
                 self.residences.append(res)
         for residence in self.residences:
             for switch in residence.get_iot_switches():
-                debug.write("Decora account {} got switch: {}".format(self.email, switch.name), 0)
+                debug.write("Decora account {} got switch: {}".format(
+                    self.email, switch.name), 0)

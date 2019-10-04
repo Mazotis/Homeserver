@@ -5,7 +5,7 @@
     Date last modified: 30/07/2019
     Python Version: 3.7
 
-    A generic bash function On/Off device handler class 
+    A generic bash function On/Off device handler class
 '''
 
 import subprocess
@@ -13,15 +13,17 @@ import time
 from core.common import *
 from core.device import device
 
+
 class GenericOnOff(device):
     def __init__(self, devid, config):
         super().__init__(devid, config)
-        self.config = config["DEVICE"+str(devid)]
+        self.config = config["DEVICE" + str(devid)]
         self.device = self.config["DEVICE"]
         self.device_type = "GenericOnOff"
         if self.color_type is None:
             self.color_type = "io-ops"
-        debug.write("Created generic On/Off device named: {}".format(self.device), 0, self.device_type)
+        debug.write(
+            "Created generic On/Off device named: {}".format(self.device), 0, self.device_type)
 
     def get_state(self):
         if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
@@ -29,7 +31,7 @@ class GenericOnOff(device):
             return self.state
         if self.config["STATE"] and not self.success:
             try:
-                _stdout = subprocess.check_output(self.config["STATE"], 
+                _stdout = subprocess.check_output(self.config["STATE"],
                                                   shell=True).decode('UTF-8')
             except subprocess.CalledProcessError:
                 self.state = 0
@@ -40,20 +42,23 @@ class GenericOnOff(device):
             self.state = 0
             return 0
         return self.state
-        
+
     def run(self, color):
         if color == DEVICE_OFF and self.config["OFF"]:
-            debug.write("Turning device {} OFF".format(self.device), 0, self.device_type)
+            debug.write("Turning device {} OFF".format(
+                self.device), 0, self.device_type)
             os.system(self.config["OFF"])
             self.success = True
             self.state = 0
             return True
         elif color == DEVICE_ON and self.config["ON"]:
-            debug.write("Turning device {} ON".format(self.device), 0, self.device_type)
+            debug.write("Turning device {} ON".format(
+                self.device), 0, self.device_type)
             os.system(self.config["ON"])
             self.success = True
             self.state = 1
             return True
-        debug.write("Request for state {} cannot be handled for device {}".format(color, self.device), 1, self.device_type)
+        debug.write("Request for state {} cannot be handled for device {}".format(
+            color, self.device), 1, self.device_type)
         self.success = True
-        return True        
+        return True

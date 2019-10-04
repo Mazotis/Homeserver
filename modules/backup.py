@@ -13,7 +13,6 @@ import queue
 import shlex
 import signal
 import subprocess
-import time
 from datetime import datetime, timedelta
 from core.common import *
 from threading import Thread, Event
@@ -153,7 +152,7 @@ class backup(Thread):
                             command, _folder, destination)
                     else:
                         if self.backup_server != "local":
-                            command = "/usr/bin/ssh -t {}@{} '{} {} {}'".format(
+                            command = "/usr/bin/ssh -T {}@{} '{} {} {}'".format(
                                 client.user, client.ip, command, _folder, destination)
                         else:
                             command = "{} {}@{}:{} {}".format(
@@ -165,8 +164,8 @@ class backup(Thread):
                         command), 0, "BACKUP")
 
                     # TODO handle keyboardinterrupts properly ?
-                    self.rsync = subprocess.Popen(shlex.split(command + " > /dev/null"), stdout=None,
-                                                  preexec_fn=os.setsid)
+                    self.rsync = subprocess.Popen(shlex.split(command), stdout=None,
+                                                  preexec_fn=os.setsid, stdin=None)
                     self.rsync.wait()
                     self.rsync = None
                     if not self.running:
@@ -182,7 +181,7 @@ class backup(Thread):
                     self.lm.set_mode(False, False)
                     self.lm.run()
 
-            except KeyError as ex:
+            except KeyError:
                 debug.write('Backups are done', 0, "BACKUP")
                 break
 

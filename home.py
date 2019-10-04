@@ -13,7 +13,6 @@ import datetime
 import json
 import os
 import pickle
-import queue
 import sys
 import socket
 import threading
@@ -21,7 +20,7 @@ import time
 import traceback
 from core.common import *
 from core.devicemanager import DeviceManager, StateRequestObject
-from argparse import RawTextHelpFormatter, Namespace
+from argparse import RawTextHelpFormatter
 from __main__ import *
 
 
@@ -76,7 +75,7 @@ class HomeServer(object):
                 data = client.recv(msize)
                 if data:
                     # TODO use the recv length to determine pickled vs non-pickled requests ?
-                    if msize != 1024:
+                    if msize != 2048:
                         req = StateRequestObject()
                         if data.decode('utf-8') == "getstate":
                             ls_status = {}
@@ -291,7 +290,7 @@ class HomeServer(object):
                         req = pickle.loads(data)
                     except:
                         debug.write(
-                            "Error - improperly formatted pickle. Got: {}".format(pickle.loads(data)), 2)
+                            "Error - improperly formatted pickle. Got: {}".format(data), 2)
                         break
                     debug.write('Change of lights requested with request: {}'.format(
                         req.get_request_string()), 0)
@@ -513,7 +512,7 @@ if __name__ == "__main__":
         debug.write('Connecting with homeserver daemon', 0)
         debug.write('Sending request: {}'.format(
             req.get_request_string()), 0, "CLIENT")
-        s.sendall("1024".encode('utf-8'))
+        s.sendall("2048".encode('utf-8'))
         s.sendall(pickle.dumps(req))
         s.close()
 

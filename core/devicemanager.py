@@ -89,22 +89,22 @@ class DeviceManager(object):
         self.always_skip_time = True
 
     def set_mode(self, auto_mode, reset_mode, device_id, force_auto_mode=False):
-        for _cnt, device in enumerate(self.devices):
-            if self.colors is not None and self.colors[_cnt] != DEVICE_SKIP:
-                self.devices[_cnt].request_auto_mode = auto_mode
-                self.devices[_cnt].reset_mode = reset_mode
+        for _device, _color in zip(self.devices, self.colors):
+            if self.colors is not None and _color != DEVICE_SKIP:
+                _device.request_auto_mode = auto_mode
+                _device.reset_mode = reset_mode
             if force_auto_mode:
-                self.devices[_cnt].auto_mode = True
+                _device.auto_mode = True
         if device_id is not None:
             self.devices[device_id].auto_mode = auto_mode
 
     def get_group(self, group):
         """ Gets devices from a specific group for the light change """
-        for _cnt, device in enumerate(self.devices):
-            if group is not None and set(group).issubset(device.group):
+        for _cnt, _device in enumerate(self.devices):
+            if group is not None and set(group).issubset(_device.group):
                 continue
             debug.write("Skipping device {} as it does not belong in the {} group(s)"
-                        .format(device.device, group), 0)
+                        .format(_device.device, group), 0)
             self.colors[_cnt] = DEVICE_SKIP
 
     def get_toggle(self):
@@ -293,8 +293,8 @@ class DeviceManager(object):
             else:
                 _dev.set_event_time(self.starttime)
         if not skip_time and datetime.time(6, 00) < now_time < self.starttime:
-            for _cnt, _dev in enumerate(self.devices):
-                if self.colors[_cnt] != DEVICE_SKIP and _dev.get_time_check(now_time):
+            for _device, _color in zip(self.devices, self.colors):
+                if _color != DEVICE_SKIP and _device.get_time_check(now_time):
                     debug.write("Not all devices will be changed. Device changes begins at {}"
                                 .format(self.starttime), 0)
                     return True
@@ -408,7 +408,6 @@ class DeviceManager(object):
                     _delay_colors = [DEVICE_SKIP] * len(self.devices)
                     for _acnt, _adelay in enumerate(self.delays):
                         if _adelay == _delay:
-                            #debug.write("COLORS: {} DELAY COLOR: {}".format(colors, _delay_colors), 0)
                             if _adelay < 0:
                                 _delay_colors[_acnt] = DEVICE_OFF
                                 _delay = -_delay
@@ -475,7 +474,7 @@ class DeviceManager(object):
                         if i == len(self.devices):
                             if self.threaded:
                                 debug.write("Awaiting results", 0)
-                                for _cnt, _thread in enumerate(self.light_threads):
+                                for _thread in self.light_threads:
                                     if not self.queue.empty():
                                         break
                                     if _thread is not None:
@@ -492,7 +491,7 @@ class DeviceManager(object):
                                     if not self.queue.empty():
                                         break
                                     self.states[_cnt] = self.get_state(_cnt)
-                                    if self.devices[_cnt].convert(colors[_cnt]) != self.states[_cnt] and self.devices[_cnt].success != True:
+                                    if self.devices[_cnt].convert(colors[_cnt]) != self.states[_cnt] and not self.devices[_cnt].success:
                                         i = 0
                                 tries = tries + 1
                                 if tries == 5:
@@ -658,7 +657,7 @@ class StateRequestObject(object):
                         config["PRESETS"][self.preset].split(','), len(dm.devices))
                     self.auto_mode = config["PRESETS"].getboolean(
                         "AUTOMATIC_MODE")
-                except:
+                except KeyError:
                     debug.write(
                         "Preset '{}' not found in home.ini. Quitting.".format(self.preset), 3)
                     return False
