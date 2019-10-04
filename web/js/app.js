@@ -89,6 +89,10 @@ function getResultRefresh() {
                     $("#card" + cnt).find("div.mb-3").attr("cstate", thedata.state[cnt])
                     has_errors = true
                 }
+                if ($("#card" + cnt).find("div.mb-3").attr("cintensity") != thedata.intensity[cnt]) {
+                    $("#card" + cnt).find("div.mb-3").attr("cintensity", thedata.intensity[cnt])
+                    has_errors = true
+                }
             }
             if (has_errors) {
                 computeCards()
@@ -115,6 +119,9 @@ function getResultPost() {
                 for (cnt in thedata.state) {
                     if ($("#card" + cnt).find("div.mb-3").attr("cstate") != thedata.state[cnt]) {
                         $("#card" + cnt).find("div.mb-3").attr("cstate", thedata.state[cnt])
+                        has_errors = true
+                    }
+                    if ($("#card" + cnt).find("div.mb-3").attr("cintensity") != thedata.intensity[cnt]) {
                         $("#card" + cnt).find("div.mb-3").attr("cintensity", thedata.intensity[cnt])
                         has_errors = true
                     }
@@ -280,6 +287,8 @@ function computeCards() {
                     });
                 }
             }
+
+            $(this).find(".slider").roundSlider("setValue", parseInt(cintensity))
 
             if (cinit != "1") {
                 $(this).find(".radiomode :input").on('change', function() {
