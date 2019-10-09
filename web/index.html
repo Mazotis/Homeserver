@@ -68,6 +68,23 @@
         position: absolute;
         transform: translate(-49%, 43%);
     }
+    @media (max-width: 770px) {
+        .dcard-columns {
+            column-count: 2 !important;
+        }
+        .card-columns .card {
+            display: inline-block;
+            width:100%;
+        }
+        .gcard-columns {
+            column-count: 2 !important;
+        }
+    }
+    @media (min-width: 770px) {
+        .gcard-columns {
+            column-count: 4 !important;
+        }
+    }
     </style>
     <div class="navbar bg-info">
         <div class="navbar-inner noselect-nooverflow" style="width:100%;">
@@ -133,7 +150,7 @@
             </div>
             <h5 class="card-title noselect-nooverflow" style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"></h5>
             <small class="text-muted noselect-nooverflow"></small>
-            <div class="card-body noselect-nooverflow" style="padding-top: none;">
+            <div class="card-body noselect-nooverflow" style="padding-top: 0;">
                 <p class="card-text c-desc"></p>
                 <div class="btn-group btn-group-lg" role="group" style="margin-bottom:10px;">
                     <button type="button" class="btn btn-danger offbuttons">OFF</button>
@@ -149,7 +166,6 @@
                         </span>
                     </center>
                 </div>
-                <br>
                 <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons">
                     <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> Auto</label>
                     <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> Manual</label>
@@ -169,9 +185,9 @@
     <div id="groupcardmodel" style="display:none;">
         <div class="card text-center bg-light mb-3">
             <h5 class="card-header noselect-nooverflow" style="font-weight:bold;"></h5>
-            <div class="card-body noselect-nooverflow">
+            <div class="noselect-nooverflow">
                 <center>
-                    <div class="btn-group btn-group-sm" role="group">
+                    <div class="btn-group btn-group-sm" role="group" style="padding:5px;">
                         <button type="button" class="btn btn-danger goffbuttons">OFF</button>
                         <button type="button" class="btn btn-success gonbuttons">ON</button>
                     </div>

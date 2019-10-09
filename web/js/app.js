@@ -1,6 +1,7 @@
 lastupdate = 0
 var xhr
 var runningRequests = 0
+var deduceAbortableRequest = false
 
 $(document).ready(function() {
     getResult();
@@ -12,6 +13,14 @@ $(document).ready(function() {
         }
     }
 });
+
+function abortPendingRequests() {
+    xhr.abort()
+    if (deduceAbortableRequest && runningRequests > 0) {
+        runningRequests--
+    }
+    $("#update-spin").hide()
+}
 
 function getResult() {
     runningRequests++
@@ -30,30 +39,32 @@ function getResult() {
             var cnt = 0
             $('#suntime').html(thedata.starttime)
 
-            var ghtml = '<div class="row"><div class="col-sm-3">'
+            //var ghtml = '<div class="row"><div class="col-sm-3">'
+            var ghtml = '<div class="card-columns gcard-columns">'
             for (group in thedata.groups) {
                 $("#groups").html("")
-                if (cnt % Math.round(thedata.groups.length/4) === 0 && cnt != 0) {
-                    ghtml += '</div><div class="col-sm-3">'
-                }
+                //if (cnt % Math.round(thedata.groups.length/4) === 0 && cnt != 0) {
+                //    ghtml += '</div><div class="col-sm-3">'
+                //}
                 $("#groupcardmodel").find(".card-header").text(thedata.groups[group].charAt(0).toUpperCase() + thedata.groups[group].substr(1).toLowerCase())
                 ghtml += '<div class="gcard" id="gcard' + cnt + '">' + $("#groupcardmodel").html() + '</div>'
                 cnt = cnt + 1
             }
-            ghtml += '</div></div>'
+            ghtml += '</div>'
             $("#groups").html(ghtml)
 
             cnt = 0
-            var html = '<div class="row"><div id="update-spin" class="col-12"><center><h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;Updating device status...</h5></center></div><div class="col-sm-4">'
+            //var html = '<div class="row"><div id="update-spin" class="col-12"><center><h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;Updating device status...</h5></center></div><div class="col-sm-4">'
+            var html = '<div id="update-spin" class="col-12"><center><h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;Updating device status...</h5></center></div><div class="card-columns dcard-columns">'
             for (_ in thedata.state) {
-                if (cnt % Math.round(thedata.state.length/3) === 0 && cnt != 0) {
-                    html += '</div><div class="col-sm-4">'
-                }
+                //if (cnt % Math.round(thedata.state.length/3) === 0 && cnt != 0) {
+                //    html += '</div><div class="col-sm-4">'
+                //}
                 html += '<div class="dcard" id="card' + cnt + '">' + generateCard(cnt, thedata) + '</div>'
                 cnt = cnt + 1
             }
 
-            html += '</div></div></div><hr>'
+            html += '</div></div><hr>'
 
             for (_mod in thedata.moduleweb) {
                 if (thedata.moduleweb[_mod] != "none") {
@@ -73,6 +84,8 @@ function getResult() {
 function getResultRefresh() {
     runningRequests++
     $("#update-spin").show()
+    deduceAbortableRequest = true
+
     xhr = $.ajax({
         type: "POST",
         url: ".",
@@ -85,12 +98,17 @@ function getResultRefresh() {
             var thedata = JSON.parse(decodeURIComponent(data))
             has_errors = false
             for (cnt in thedata.state) {
+                thedata.mode[cnt] ? mode = 1 : mode = 0
                 if ($("#card" + cnt).find("div.mb-3").attr("cstate") != thedata.state[cnt]) {
                     $("#card" + cnt).find("div.mb-3").attr("cstate", thedata.state[cnt])
                     has_errors = true
                 }
                 if ($("#card" + cnt).find("div.mb-3").attr("cintensity") != thedata.intensity[cnt]) {
                     $("#card" + cnt).find("div.mb-3").attr("cintensity", thedata.intensity[cnt])
+                    has_errors = true
+                }
+                if ($("#card" + cnt).find("div.mb-3").attr("cmode") != mode) {
+                    $("#card" + cnt).find("div.mb-3").attr("cmode", mode)
                     has_errors = true
                 }
             }
@@ -134,6 +152,7 @@ function getResultPost() {
             }
         })
     } else {
+        deduceAbortableRequest = false
         runningRequests--
     }  
 }
@@ -330,8 +349,7 @@ function computeCards() {
 }
 
 function sendPowerRequest(devid, value, last_state, is_intensity=0) {
-    xhr.abort()
-    $("#update-spin").hide()
+    abortPendingRequests()
     $("#card" + devid).addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -352,8 +370,7 @@ function sendPowerRequest(devid, value, last_state, is_intensity=0) {
 }
 
 function sendGroupPowerRequest(group, value, devid) {
-    xhr.abort()
-    $("#update-spin").hide()
+    abortPendingRequests()
     $("#"+devid).addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -373,10 +390,9 @@ function sendGroupPowerRequest(group, value, devid) {
 }
 
 function sendModeRequest(devid, value, auto) {
-    xhr.abort()
-    $("#update-spin").hide()
+    abortPendingRequests()
     $("#card" + devid).addClass("disabledbutton")
-    xhr = $.ajax({
+    $.ajax({
         type: "POST",
         url: ".",
         dataType: "text",
@@ -393,8 +409,7 @@ function sendModeRequest(devid, value, auto) {
 }
 
 function sendAllModeAuto() {
-    xhr.abort()
-    $("#update-spin").hide()
+    abortPendingRequests()
     $(".dcard").addClass("disabledbutton")
     $.ajax({
         type: "POST",

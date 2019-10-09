@@ -40,6 +40,26 @@ class DeviceManager(object):
         debug.write(
             "***********************************************************", 0)
         debug.write("", 0)
+        self.get_devices_list()
+        self.lastupdate = None
+        self.always_skip_time = False
+        self.update_event_time()
+        self.queue = queue.Queue()
+        self.colors = [DEVICE_SKIP] * len(self.devices)
+        self.delays = [0] * len(self.devices)
+        self.scheduled_changes = []
+        self.states = self.get_state()
+        self.skip_time = False
+        debug.write("Got initial device states {}".format(self.states), 0)
+        self.set_lock(0)
+        self.lockcount = 0
+        self.threaded = False
+        self.light_threads = [None] * len(self.devices)
+        self.light_pool = None
+        self.all_groups = None
+        self.modules = []
+
+    def get_devices_list(self):
         i = 0
         while True:
             try:
@@ -60,23 +80,6 @@ class DeviceManager(object):
                 debug.write('Loaded {} devices'.format(i), 0)
                 break
             i = i + 1
-        self.lastupdate = None
-        self.always_skip_time = False
-        self.update_event_time()
-        self.queue = queue.Queue()
-        self.colors = ["-1"] * len(self.devices)
-        self.delays = [0] * len(self.devices)
-        self.scheduled_changes = []
-        self.states = self.get_state()
-        self.skip_time = False
-        debug.write("Got initial device states {}".format(self.states), 0)
-        self.set_lock(0)
-        self.lockcount = 0
-        self.threaded = False
-        self.light_threads = [None] * len(self.devices)
-        self.light_pool = None
-        self.all_groups = None
-        self.modules = []
 
     def start_threaded(self):
         """ Enables multithreaded light change requests """
@@ -119,7 +122,7 @@ class DeviceManager(object):
 
     def set_typed_colors(self, colorargs, atype):
         """ Gets devices of a specific  type for the light change """
-        self.colors = ["-1"] * len(self.devices)
+        self.colors = [DEVICE_SKIP] * len(self.devices)
         device_indexes = [i for i, x in enumerate(
             self.devices) if x.__class__.__name__.lower() == atype.lower()]
 
@@ -141,11 +144,13 @@ class DeviceManager(object):
         """ Validates the request and runs the light change """
         self.clean_delayed_changes()
 
-        self.colors = request.colors
+        if request.colors is not None:
+            self.colors = request.colors
+        else:
+            self.colors = [DEVICE_SKIP] * len(self.devices)
         self.skip_time = request.skip_time
-        if request.auto_mode or request.reset_mode or request.force_auto_mode or request.set_mode_for_devid is not None:
-            self.set_mode(request.auto_mode, request.reset_mode,
-                          request.set_mode_for_devid, request.force_auto_mode)
+        self.set_mode(request.auto_mode, request.reset_mode,
+                      request.set_mode_for_devid, request.force_auto_mode)
         if request.device_type is not None:
             self.set_typed_colors(
                 request.device_type_args, request.device_type)
@@ -418,7 +423,7 @@ class DeviceManager(object):
                     req = StateRequestObject()
                     req.set_colors(_delay_colors, len(self.devices))
                     if self.skip_time:
-                        req.set_skip_time()
+                        req.skip_time = True
                     debug.write("Scheduling device state change ({}) after {} seconds".format(
                         _delay_colors, _delay), 0)
                     _sched = Timer(int(_delay), self.run, (req,))
@@ -428,100 +433,95 @@ class DeviceManager(object):
 
     def _set_lights(self):
         debug.write("Running a change of states...", 0)
+        self.lockcount = 0
+        firstran = False
         try:
-            self.lockcount = 0
-            firstran = False
-            try:
-                while not self.queue.empty():
-                    colors = None
-                    if firstran:
-                        debug.write("Getting remainder of queue", 0)
-                        self.reinit()
-                    colors = self._decode_colors(
-                        self.queue.get())  # TODO Check performance
-                    if all(c == DEVICE_SKIP for c in colors):
-                        debug.write("All device requests skipped", 0)
-                        return
-                    debug.write("Changing states to {} from state {}"
-                                .format(colors, self.states), 0)
-                    self.set_lock(1)
-                    i = 0
-                    tries = 0
-                    firstran = True
+            while not self.queue.empty():
+                colors = None
+                if firstran:
+                    debug.write("Getting remainder of queue", 0)
+                    self.reinit()
+                colors = self._decode_colors(
+                    self.queue.get())  # TODO Check performance
+                if all(c == DEVICE_SKIP for c in colors):
+                    debug.write("All device requests skipped", 0)
+                    break
+                debug.write("Changing states to {} from state {}"
+                            .format(colors, self.states), 0)
+                self.set_lock(1)
+                i = 0
+                tries = 0
+                firstran = True
 
-                    while i < len(self.devices):
-                        if not self.devices[i].success:
-                            _color = self.devices[i].convert(colors[i])
+                while i < len(self.devices):
+                    if not self.devices[i].success:
+                        _color = self.devices[i].convert(colors[i])
 
-                            if _color != DEVICE_SKIP:
-                                self.states[i] = self.get_state(i)
-                                if _color != self.states[i]:
-                                    debug.write(("DEVICE: {}, REQUESTED STATE: {} "
-                                                 "FROM STATE: {}, AUTO: {}")
-                                                .format(self.devices[i].device,
-                                                        _color, self.states[i],
-                                                        self.devices[i].auto_mode),
-                                                0)
-                            if self.threaded:
+                        if _color != DEVICE_SKIP:
+                            self.states[i] = self.get_state(i)
+                            if _color != self.states[i]:
+                                debug.write(("Device '{}', change {} => "
+                                             "{} (Automatic mode: {})")
+                                            .format(self.devices[i].name,
+                                                    self.states[i], _color,
+                                                    self.devices[i].auto_mode),
+                                            0)
+                        if self.threaded:
+                            if not self.queue.empty():
+                                break
+                            self.light_threads[i] = self.light_pool.apply_async(self._set_device,
+                                                                                args=(i, _color,))
+                        else:
+                            self._set_device(i, _color)
+                    i += 1
+
+                    if i == len(self.devices):
+                        if self.threaded:
+                            debug.write("Awaiting results", 0)
+                            for _thread in self.light_threads:
                                 if not self.queue.empty():
                                     break
-                                self.light_threads[i] = self.light_pool.apply_async(self._set_device,
-                                                                                    args=(i, _color,))
-                            else:
-                                self._set_device(i, _color)
-                        i += 1
-
-                        if i == len(self.devices):
-                            if self.threaded:
-                                debug.write("Awaiting results", 0)
-                                for _thread in self.light_threads:
-                                    if not self.queue.empty():
-                                        break
-                                    if _thread is not None:
-                                        try:
-                                            if not _thread.ready() and _thread.get(5) is not None:
-                                                i = 0
-                                        except:
+                                if _thread is not None:
+                                    try:
+                                        if not _thread.ready() and _thread.get(5) is not None:
                                             i = 0
-                                tries = tries + 1
-                                if tries == 5:
-                                    break
-                            else:
-                                for _cnt, _dev in enumerate(self.devices):
-                                    if not self.queue.empty():
-                                        break
-                                    self.states[_cnt] = self.get_state(_cnt)
-                                    if self.devices[_cnt].convert(colors[_cnt]) != self.states[_cnt] and not self.devices[_cnt].success:
+                                    except:
+                                        # TODO is this still necessary ?
                                         i = 0
-                                tries = tries + 1
-                                if tries == 5:
+                            tries = tries + 1
+                            if tries == 5:
+                                break
+                        else:
+                            for _cnt, _dev in enumerate(self.devices):
+                                if not self.queue.empty():
                                     break
+                                self.states[_cnt] = self.get_state(_cnt)
+                                if self.devices[_cnt].convert(colors[_cnt]) != self.states[_cnt] and not self.devices[_cnt].success:
+                                    i = 0
+                            tries = tries + 1
+                            if tries == 5:
+                                break
 
-            except queue.Empty:
-                debug.write("Nothing in queue", 0)
-                pass
-
-            finally:
-                debug.write("Clearing up device change queues.", 0)
-                if colors:
-                    self.queue.task_done()
-                self.states = self.get_state()
-
-        except Exception as ex:
-            debug.write('Unhandled exception of type {}: {}, {}'
-                        .format(type(ex), ex,
-                                ''.join(traceback.format_tb(ex.__traceback__))), 2)
+        except queue.Empty:
+            debug.write("Nothing in queue", 0)
+            pass
 
         finally:
+            debug.write("Clearing up device change queues.", 0)
+            if colors:
+                self.queue.task_done()
             self.reinit()
             self.set_lock(0)
+            if firstran:
+                self.states = self.get_state()
 
         debug.write("Change of device states completed.", 0)
 
     def _set_device(self, count, color):
         return self.devices[count].pre_run(color)
 
-    def _update_sunset_time(self, localization):
+    @staticmethod
+    def _update_sunset_time(localization):
         p1 = subprocess.Popen('./scripts/sunset.sh %s' % str(localization), stdout=subprocess.PIPE,
                               shell=True)
         (output, _) = p1.communicate()
@@ -596,9 +596,6 @@ class StateRequestObject(object):
         for i, _color in enumerate(colors):
             if self.colors[i] != _color:
                 self.colors[i] = _color
-
-    def set_skip_time(self):
-        self.skip_time = True
 
     def validate_request(self, dm, config):
         debug.write("Validating arguments", 0)
@@ -676,7 +673,7 @@ class StateRequestObject(object):
                 debug.write("Received TOGGLE change request", 0)
                 self.set_colors(dm.get_toggle(), len(dm.devices))
         if self.notime or self.off:
-            self.set_skip_time()
+            self.skip_time = True
         debug.write("Arguments are OK", 0)
         dm.run(self)
         return True

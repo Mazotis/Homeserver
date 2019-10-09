@@ -143,9 +143,9 @@ class HomeServer(object):
                             iddata = int(client.recv(3).decode("UTF-8"))
                             cmode = int(client.recv(1).decode("UTF-8"))
                             req.set_mode_for_devid = iddata
-                            dm.run(req)
                             if cmode == 1:
                                 req.auto_mode = True
+                            dm.run(req)
                             debug.write('Device modes: {}'.format(
                                 dm.get_modes()), 0)
                             client.send("1".encode("UTF-8"))

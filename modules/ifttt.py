@@ -25,6 +25,10 @@ class IFTTTServer(BaseHTTPRequestHandler):
     def __init__(self, config, lm, *args, **kwargs):
         self.config = config
         self.lm = lm
+        self.priority_groups = []
+        if self.config.has_option("IFTTT", "PRIORITY_GROUPS"):
+            self.priority_groups = self.config["IFTTT"]["PRIORITY_GROUPS"].split(
+                ",")
         super().__init__(*args, **kwargs)
 
     def _set_response(self):
@@ -73,7 +77,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 req.set_colors(
                     [DEVICE_ON] * len(self.lm.devices), len(self.lm.devices))
             elif func == "off":
-                req.set_skip_time()
+                req.skip_time = True
                 req.set_colors(
                     [DEVICE_OFF] * len(self.lm.devices), len(self.lm.devices))
 
@@ -81,8 +85,11 @@ class IFTTTServer(BaseHTTPRequestHandler):
             group = [unidecode.unidecode(x) for x in group]
             groups = self.lm.get_all_groups()
             changed_groups = []
+            has_priority_group = False
             for _group in group:
                 if _group in groups:
+                    if _group in self.priority_groups:
+                        has_priority_group = True
                     changed_groups.append(_group)
                 # TODO add a proper pluralization and support for latin characters ?
                 if _group + "s" in groups:
@@ -95,7 +102,11 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 return
             debug.write("Running function '{}' on group(s) {}".format(
                 func, changed_groups), 0, "IFTTT")
-            if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
+            if self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
+                req.auto_mode = True
+            elif not has_priority_group:
+                debug.write(
+                    "No-priority groups called. Setting back to AUTO mode.", 0, "IFTTT")
                 req.reset_mode = True
             self.lm.run(req)
 
@@ -104,12 +115,9 @@ class IFTTTServer(BaseHTTPRequestHandler):
                     req.set_colors(
                         [DEVICE_OFF] * len(self.lm.devices), len(self.lm.devices))
                 elif func == "off":
-                    req.set_skip_time()
+                    req.skip_time = True
                     req.set_colors(
                         [DEVICE_ON] * len(self.lm.devices), len(self.lm.devices))
-                req.group = changed_groups
-                if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
-                    req.reset_mode = True
                 req.delay = int(postvars['delay'][0]) * 60
                 self.lm.run(req)
 
