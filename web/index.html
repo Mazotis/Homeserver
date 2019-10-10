@@ -62,11 +62,11 @@
         display:none;
         overflow:hidden; 
         border-radius:100%; 
-        width:90px; 
-        height:90px;
+        width:70px; 
+        height:70px;
         z-index:5;
         position: absolute;
-        transform: translate(-49%, 43%);
+        transform: translate(-50%, 50%);
     }
     @media (max-width: 770px) {
         .dcard-columns {
@@ -79,10 +79,16 @@
         .gcard-columns {
             column-count: 2 !important;
         }
+        .rcard .card-columns {
+            column-count: 2 !important;
+        }
     }
     @media (min-width: 770px) {
         .gcard-columns {
             column-count: 4 !important;
+        }
+        .rcolumns {
+            column-count: 2 !important;
         }
     }
     </style>
@@ -103,6 +109,19 @@
                         </div>
                     </div>
                 </center>
+                <div id="update-spin" class="col-12">
+                    <center>
+                        <h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;Updating device status...</h5>
+                    </center>
+                </div>
+                <div id="rooms-section" style="display:none;">
+                    <h4>Rooms</h4>
+                    <div id="open-rcard">
+                    </div>
+                    <div class="card-columns rcolumns">
+                    </div>
+                </div>
+                <h4>Devices</h4>
                 <div id="resultid"></div>
                 <div class="row">
                     <div class="col-sm-12">
@@ -142,15 +161,15 @@
         </div>
     </div>
     <div id="cardmodel" style="display:none;">
-        <div class="card text-center mb-3" cstate="" cid="" cmode="" cskiptime="" cforceoff="" cignoremode="" cicon="" ccolortype="">
+        <div class="dcard card text-center mb-3">
             <div class="card-header text-white" style="padding:5px;min-height: 30px;">
                 <center>
                     <i class="iconi"></i>
                 </center>
             </div>
-            <h5 class="card-title noselect-nooverflow" style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"></h5>
-            <small class="text-muted noselect-nooverflow"></small>
-            <div class="card-body noselect-nooverflow" style="padding-top: 0;">
+            <div class="card-body noselect-nooverflow" style="padding-top:0; padding:0.25rem;">
+                <h5 class="card-title noselect-nooverflow" style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"></h5>
+                <small class="text-muted noselect-nooverflow"></small>
                 <p class="card-text c-desc"></p>
                 <div class="btn-group btn-group-lg" role="group" style="margin-bottom:10px;">
                     <button type="button" class="btn btn-danger offbuttons">OFF</button>

@@ -2,7 +2,7 @@
 '''
     File name: webserver.py
     Author: Maxime Bergeron
-    Date last modified: 03/10/2019
+    Date last modified: 10/10/2019
     Python Version: 3.5
 
     The web server interface module for the homeserver
@@ -20,9 +20,10 @@ from threading import Thread
 
 
 class WebServerHandler(SimpleHTTPRequestHandler):
-    def __init__(self, lmhost, lmport, *args, **kwargs):
-        self.lmhost = lmhost
-        self.lmport = lmport
+    def __init__(self, config, *args, **kwargs):
+        self.config = config
+        self.dm_host = self.config['SERVER']['HOST']
+        self.dm_port = self.config['SERVER'].getint('PORT')
         super().__init__(*args, **kwargs)
 
     def translate_path(self, path):
@@ -43,7 +44,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
         response = BytesIO()
         if request:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            s.connect((self.lmhost, self.lmport))
+            s.connect((self.dm_host, self.dm_port))
             if reqtype == 1:
                 try:
                     s.sendall("0008".encode('utf-8'))
@@ -178,8 +179,7 @@ class webserver(Thread):
         debug.write("Starting control webserver on port {}".format(
             self.port), 0, "WEBSERVER")
         socketserver.TCPServer.allow_reuse_address = True
-        _handler = partial(WebServerHandler, self.config['SERVER']['HOST'], int(
-            self.config['SERVER'].getint('PORT')))
+        _handler = partial(WebServerHandler, self.config)
         httpd = socketserver.TCPServer(("", self.port), _handler)
 
         try:

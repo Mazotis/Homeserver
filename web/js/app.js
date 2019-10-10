@@ -2,6 +2,7 @@ lastupdate = 0
 var xhr
 var runningRequests = 0
 var deduceAbortableRequest = false
+var hasRoomGroups = false
 
 $(document).ready(function() {
     getResult();
@@ -42,12 +43,22 @@ function getResult() {
             //var ghtml = '<div class="row"><div class="col-sm-3">'
             var ghtml = '<div class="card-columns gcard-columns">'
             for (group in thedata.groups) {
-                $("#groups").html("")
-                //if (cnt % Math.round(thedata.groups.length/4) === 0 && cnt != 0) {
-                //    ghtml += '</div><div class="col-sm-3">'
-                //}
-                $("#groupcardmodel").find(".card-header").text(thedata.groups[group].charAt(0).toUpperCase() + thedata.groups[group].substr(1).toLowerCase())
-                ghtml += '<div class="gcard" id="gcard' + cnt + '">' + $("#groupcardmodel").html() + '</div>'
+                var skip_group = false
+                if (thedata.roomgroups != "") {
+                    hasRoomGroups = true
+                    var rgroups = thedata.roomgroups.split(",")
+                    for (grp in rgroups) {
+                        if (rgroups[grp] == thedata.groups[group]) {
+                            skip_group = true
+                        }
+                    }
+                }
+
+                if (skip_group == false) {
+                    $("#groups").html("")
+                    $("#groupcardmodel").find(".card-header").text(thedata.groups[group].charAt(0).toUpperCase() + thedata.groups[group].substr(1).toLowerCase())
+                    ghtml += '<div class="gcard" id="gcard' + cnt + '">' + $("#groupcardmodel").html() + '</div>'
+                }
                 cnt = cnt + 1
             }
             ghtml += '</div>'
@@ -55,13 +66,24 @@ function getResult() {
 
             cnt = 0
             //var html = '<div class="row"><div id="update-spin" class="col-12"><center><h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;Updating device status...</h5></center></div><div class="col-sm-4">'
-            var html = '<div id="update-spin" class="col-12"><center><h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;Updating device status...</h5></center></div><div class="card-columns dcard-columns">'
+            var html = '<div class="card-columns dcard-columns">'
             for (_ in thedata.state) {
-                //if (cnt % Math.round(thedata.state.length/3) === 0 && cnt != 0) {
-                //    html += '</div><div class="col-sm-4">'
-                //}
-                html += '<div class="dcard" id="card' + cnt + '">' + generateCard(cnt, thedata) + '</div>'
+                html += generateCard(cnt, thedata)
                 cnt = cnt + 1
+            }
+
+            $("#cardmodel").remove()
+
+            if (hasRoomGroups) {
+                var rhtml = ''
+                var rgroups = thedata.roomgroups.split(",")
+
+                $("#rooms-section").show()
+                for (cnt in rgroups) {
+                    rhtml += '<div class="card rcard mb-3" id="rcard-' + rgroups[cnt] + '"><h4 class="card-header title-header bg-danger text-white">' + rgroups[cnt].charAt(0).toUpperCase() + rgroups[cnt].substr(1).toLowerCase() + '</h4><div class="card-body d-body card-columns" style="display:none;"></div><h5 class="card-header bg-danger d-count text-white"><div class="btn-group btn-group-sm" role="group" style="float:right;"><button type="button" class="btn btn-danger goffbuttons">OFF</button><button type="button" class="btn btn-success gonbuttons">ON</button></div></h5></div>'
+                }
+
+                $(".rcolumns").html(rhtml)
             }
 
             html += '</div></div><hr>'
@@ -99,16 +121,16 @@ function getResultRefresh() {
             has_errors = false
             for (cnt in thedata.state) {
                 thedata.mode[cnt] ? mode = 1 : mode = 0
-                if ($("#card" + cnt).find("div.mb-3").attr("cstate") != thedata.state[cnt]) {
-                    $("#card" + cnt).find("div.mb-3").attr("cstate", thedata.state[cnt])
+                if ($(".card[cid=" + cnt + "]").attr("cstate") != thedata.state[cnt]) {
+                    $(".card[cid=" + cnt + "]").attr("cstate", thedata.state[cnt])
                     has_errors = true
                 }
-                if ($("#card" + cnt).find("div.mb-3").attr("cintensity") != thedata.intensity[cnt]) {
-                    $("#card" + cnt).find("div.mb-3").attr("cintensity", thedata.intensity[cnt])
+                if ($(".card[cid=" + cnt + "]").attr("cintensity") != thedata.intensity[cnt]) {
+                    $(".card[cid=" + cnt + "]").attr("cintensity", thedata.intensity[cnt])
                     has_errors = true
                 }
-                if ($("#card" + cnt).find("div.mb-3").attr("cmode") != mode) {
-                    $("#card" + cnt).find("div.mb-3").attr("cmode", mode)
+                if ($(".card[cid=" + cnt + "]").attr("cmode") != mode) {
+                    $(".card[cid=" + cnt + "]").attr("cmode", mode)
                     has_errors = true
                 }
             }
@@ -122,6 +144,7 @@ function getResultRefresh() {
 
 function getResultPost() {
     if (runningRequests == 1) {
+        deduceAbortableRequest = true
         $("#update-spin").show()
         xhr = $.ajax({
             type: "POST",
@@ -135,12 +158,17 @@ function getResultPost() {
                 var thedata = JSON.parse(decodeURIComponent(data))
                 has_errors = false
                 for (cnt in thedata.state) {
-                    if ($("#card" + cnt).find("div.mb-3").attr("cstate") != thedata.state[cnt]) {
-                        $("#card" + cnt).find("div.mb-3").attr("cstate", thedata.state[cnt])
+                    thedata.mode[cnt] ? mode = 1 : mode = 0
+                    if ($(".card[cid=" + cnt + "]").attr("cstate") != thedata.state[cnt]) {
+                        $(".card[cid=" + cnt + "]").attr("cstate", thedata.state[cnt])
                         has_errors = true
                     }
-                    if ($("#card" + cnt).find("div.mb-3").attr("cintensity") != thedata.intensity[cnt]) {
-                        $("#card" + cnt).find("div.mb-3").attr("cintensity", thedata.intensity[cnt])
+                    if ($(".card[cid=" + cnt + "]").attr("cintensity") != thedata.intensity[cnt]) {
+                        $(".card[cid=" + cnt + "]").attr("cintensity", thedata.intensity[cnt])
+                        has_errors = true
+                    }
+                    if ($(".card[cid=" + cnt + "]").attr("cmode") != mode) {
+                        $(".card[cid=" + cnt + "]").attr("cmode", mode)
                         has_errors = true
                     }
                 }
@@ -169,40 +197,46 @@ function getOneResult(devid, last_state) {
             },
         success: function(data){
             var thedata = JSON.parse(decodeURIComponent(data))
-            $("#card" + devid).html(generateCard(devid, thedata, last_state))
+            generateCard(devid, thedata, last_state, $(".card[cid=" + devid + "]"))
             computeCards()
-            $("#card" + devid).removeClass("disabledbutton")
+            $(".card[cid=" + devid + "]").removeClass("disabledbutton")
             getResultPost()
         }
     })
 }
 
-function generateCard(devid, data, last_state = null) {
+function generateCard(devid, data, last_state = null, a_this = null) {
     var mode
     data.mode[devid] ? mode = 1 : mode = 0
-    $("#cardmodel").find("div.mb-3").attr("cstate", data.state[devid])
-    $("#cardmodel").find("div.mb-3").attr("cintensity", data.intensity[devid])
-    $("#cardmodel").find("div.mb-3").attr("cid", devid)
-    $("#cardmodel").find("div.mb-3").attr("cmode", mode)
-    $("#cardmodel").find("div.mb-3").attr("cskiptime", data.op_skiptime[devid])
-    $("#cardmodel").find("div.mb-3").attr("cforceoff", data.op_forceoff[devid])
-    $("#cardmodel").find("div.mb-3").attr("cignoremode", data.op_ignoremode[devid])
-    $("#cardmodel").find("div.mb-3").attr("cactiondelay", data.op_actiondelay[devid])
-    $("#cardmodel").find("div.mb-3").attr("cicon", data.icon[devid])
-    $("#cardmodel").find("div.mb-3").attr("ccolortype", data.colortype[devid])
-    $("#cardmodel").find("div.mb-3").attr("clocked", data.locked[devid])
-    $("#cardmodel").find(".card-title").text(data.name[devid])
-    $("#cardmodel").find(".text-muted").text(data.type[devid])
-    $("#cardmodel").find("p.c-desc").text(data.description[devid])
+    if (a_this != null) {
+        card = $(a_this)
+    } else {
+        card = $("#cardmodel").find("div.mb-3")
+    }
+    card.attr("cstate", data.state[devid])
+    card.attr("cintensity", data.intensity[devid])
+    card.attr("cid", devid)
+    card.attr("cmode", mode)
+    card.attr("cskiptime", data.op_skiptime[devid])
+    card.attr("cforceoff", data.op_forceoff[devid])
+    card.attr("cignoremode", data.op_ignoremode[devid])
+    card.attr("cactiondelay", data.op_actiondelay[devid])
+    card.attr("cicon", data.icon[devid])
+    card.attr("ccolortype", data.colortype[devid])
+    card.attr("clocked", data.locked[devid])
+    card.attr("croom", data.deviceroom[devid])
+    card.find(".card-title").text(data.name[devid])
+    card.find(".text-muted").text(data.type[devid])
+    card.find("p.c-desc").text(data.description[devid])
 
-    html = $("#cardmodel").html()
+    html = card.parent().html()
 
     return html
 }
 
 function computeCards() {
-    $(".dcard .card").each(function() {
-        var cstate, cintensity, cid, cmode, ccolortype, cinit, clocked
+    $(".dcard").each(function() {
+        var cstate, cintensity, cid, cmode, ccolortype, cinit, clocked, croom
         cinit = $(this).attr("cinit")
         cstate = $(this).attr("cstate")
         cintensity = $(this).attr("cintensity")
@@ -215,6 +249,7 @@ function computeCards() {
         cicon = $(this).attr("cicon")
         ccolortype = $(this).attr("ccolortype")
         clocked = $(this).attr("clocked")
+        croom = $(this).attr("croom")
 
         $(this).find(".sliderpick").hide()
         $(this).find(".card-header").removeClass("bg-danger")
@@ -298,6 +333,7 @@ function computeCards() {
                         sliderType: "min-range",
                         handleShape: "round",
                         width: 30,
+                        radius: 70,
                         value: parseInt(cintensity),
                         editableTooltip: false,
                         change: function(event) {
@@ -319,6 +355,10 @@ function computeCards() {
                 $(this).find(".onbuttons").on('click', function() {
                     sendPowerRequest(cid, 1, cstate)
                 })
+
+                if (croom != "") {
+                    $(this).prependTo($("#rcard-" + croom + " > .card-body"))
+                }
             }
         }
 
@@ -346,11 +386,82 @@ function computeCards() {
 
         $(this).attr("cinit", "1")
     })
+
+    $(".rcard").each(function() {
+        var cinit, cgroup, hasoffdevices, hasondevices
+        cinit = $(this).attr("cinit")
+        cgroup = $(this).find("h4.card-header").text()
+        hasoffdevices = hasondevices = false
+
+        $(this).find(".card").each(function() {
+            if (parseInt($(this).attr("cstate")) == 0) {
+                hasoffdevices = true
+            } else {
+                hasondevices = true
+            }
+        })
+
+        $(this).removeClass("border-danger")
+        $(this).removeClass("border-warning")
+        $(this).removeClass("border-success")
+        $(this).find(".title-header").removeClass("bg-danger")
+        $(this).find(".title-header").removeClass("bg-warning")
+        $(this).find(".title-header").removeClass("bg-success")
+        $(this).find(".d-count").removeClass("bg-danger")
+        $(this).find(".d-count").removeClass("bg-warning")
+        $(this).find(".d-count").removeClass("bg-success")
+        if (hasoffdevices == false) {
+            $(this).addClass("border-success")
+            $(this).find(".title-header").addClass("bg-success")
+            $(this).find(".d-count").addClass("bg-success")
+        } else if (hasondevices == false) {
+            $(this).addClass("border-danger")
+            $(this).find(".title-header").addClass("bg-danger")
+            $(this).find(".d-count").addClass("bg-danger")
+        } else {
+            $(this).addClass("border-warning")
+            $(this).find(".title-header").addClass("bg-warning")
+            $(this).find(".d-count").addClass("bg-warning")
+        }
+
+        if (cinit != "1") {
+            $(this).find(".title-header").on("click", function() {
+                if ($(this).parent().find(".card-body").css("display") == "none") {
+                    $("#open-rcard").find(".card-body").hide("fast")
+                    $("#open-rcard").children().prependTo(".rcolumns")
+                    $(this).parent().prependTo("#open-rcard")
+                    $(this).parent().find(".card-body").show("fast")
+                    $([document.documentElement, document.body]).animate({
+                        scrollTop: $(this).offset().top
+                    }, 500);
+                } else {
+                    $(this).parent().prependTo(".rcolumns")
+                    $(this).parent().find(".card-body").hide("fast")
+                }
+            })
+
+            var devlen = $(this).find(".card").length
+            if (devlen in [0, 1]) {
+                $(this).find(".d-count").prepend(devlen + " device")
+            } else {
+                $(this).find(".d-count").prepend(devlen + " devices")
+            }
+
+            $(this).find(".goffbuttons").on('click', function() {
+                sendGroupPowerRequest(cgroup, 0, "rcard-" + cgroup.toLowerCase())
+            })
+            $(this).find(".gonbuttons").on('click', function() {
+                sendGroupPowerRequest(cgroup, 1, "rcard-" + cgroup.toLowerCase())
+            })
+        }
+
+        $(this).attr("cinit", "1")
+    })
 }
 
 function sendPowerRequest(devid, value, last_state, is_intensity=0) {
     abortPendingRequests()
-    $("#card" + devid).addClass("disabledbutton")
+    $(".card[cid=" + devid + "]").addClass("disabledbutton")
     $.ajax({
         type: "POST",
         url: ".",
@@ -372,6 +483,7 @@ function sendPowerRequest(devid, value, last_state, is_intensity=0) {
 function sendGroupPowerRequest(group, value, devid) {
     abortPendingRequests()
     $("#"+devid).addClass("disabledbutton")
+    runningRequests++
     $.ajax({
         type: "POST",
         url: ".",
@@ -385,13 +497,14 @@ function sendGroupPowerRequest(group, value, devid) {
             },
         success: function(data){
             $("#"+devid).removeClass("disabledbutton")
+            getResultPost()
         }
     })
 }
 
 function sendModeRequest(devid, value, auto) {
     abortPendingRequests()
-    $("#card" + devid).addClass("disabledbutton")
+    $(".card[cid=" + devid + "]").addClass("disabledbutton")
     $.ajax({
         type: "POST",
         url: ".",

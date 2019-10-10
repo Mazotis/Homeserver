@@ -2,7 +2,7 @@
 '''
     File name: home.py
     Author: Maxime Bergeron
-    Date last modified: 01/10/2019
+    Date last modified: 10/10/2019
     Python Version: 3.5
 
     A python home control server
@@ -96,6 +96,10 @@ class HomeServer(object):
                             ls_status["colortype"] = dm.get_colortypes()
                             ls_status["moduleweb"] = dm.get_module_web()
                             ls_status["locked"] = dm.get_lock_status()
+                            ls_status["roomgroups"] = ""
+                            if self.config.has_option("WEBSERVER", "ROOM_GROUPS"):
+                                ls_status["roomgroups"] = self.config["WEBSERVER"]["ROOM_GROUPS"]
+                            ls_status["deviceroom"] = dm.get_room_for_devices()
                             debug.write('Sending lightserver status', 0)
                             client.send(json.dumps(ls_status).encode('UTF-8'))
                             # Run the non-async state getter after ?
@@ -113,6 +117,7 @@ class HomeServer(object):
                                 async=True, webcolors=True)
                             ls_status["intensity"] = dm.get_state(
                                 async=True, intensity=True)
+                            ls_status["mode"] = dm.get_modes()
                             client.send(json.dumps(ls_status).encode('UTF-8'))
                             break
                         if data.decode('utf-8') == "setstate":
@@ -133,7 +138,7 @@ class HomeServer(object):
                             _col[iddata] = valdata
                             req.set_colors(_col, len(dm.devices))
                             if skiptime == 1:
-                                req.set_skip_time()
+                                req.skip_time = True
                             dm.run(req)
                             client.send("1".encode("UTF-8"))
                             break
@@ -167,7 +172,7 @@ class HomeServer(object):
                             skiptime = int(client.recv(1).decode("UTF-8"))
                             _col = ["0"] * len(dm.devices)
                             if skiptime == 1:
-                                req.set_skip_time()
+                                req.skip_time = True
                             if valdata == 1:
                                 _col = ["1"] * len(dm.devices)
                             req.set_colors(_col, len(dm.devices))

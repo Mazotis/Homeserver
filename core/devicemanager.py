@@ -11,7 +11,6 @@ import datetime
 import re
 import subprocess
 import time
-import traceback
 import queue
 from core.common import *
 from core.convert import convert_to_web_rgb, convert_color
@@ -272,6 +271,21 @@ class DeviceManager(object):
             else:
                 locklist.append("0")
         return locklist
+
+    def get_room_for_devices(self):
+        if self.config.has_option("WEBSERVER", "ROOM_GROUPS"):
+            devrooms = []
+            room_groups = self.config["WEBSERVER"]["ROOM_GROUPS"].split(",")
+            for obj in self.devices:
+                for group in obj.group:
+                    if group in room_groups:
+                        devrooms.append(group)
+                        break
+                else:
+                    devrooms.append("")
+        else:
+            devrooms = [""] * len(self.devices)
+        return devrooms
 
     def update_event_time(self):
         if self.lastupdate != datetime.date.today():
