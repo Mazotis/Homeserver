@@ -32,7 +32,6 @@ class backup(Thread):
         self.running = True
         self.rsync = None
         self.web = "backup.html"
-        self.webcontent = self.get_web()
         self.backup_queue = queue.Queue()
 
     def run(self):

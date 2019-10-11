@@ -3,6 +3,7 @@ var xhr
 var runningRequests = 0
 var deduceAbortableRequest = false
 var hasRoomGroups = false
+var modulesToRefresh = new Array()
 
 $(document).ready(function() {
     getResult();
@@ -13,6 +14,14 @@ $(document).ready(function() {
             getResultRefresh()
         }
     }
+
+    $(".hidemode-toggles input:radio").on('change', function() {
+        if ($(this).val() == "0") {
+            $(".radiomode").css("display", "none")
+        } else {
+            $(".radiomode").css("display", "inline-flex")
+        }
+    })
 });
 
 function abortPendingRequests() {
@@ -57,7 +66,7 @@ function getResult() {
                 if (skip_group == false) {
                     $("#groups").html("")
                     $("#groupcardmodel").find(".card-header").text(thedata.groups[group].charAt(0).toUpperCase() + thedata.groups[group].substr(1).toLowerCase())
-                    ghtml += '<div class="gcard" id="gcard' + cnt + '">' + $("#groupcardmodel").html() + '</div>'
+                    ghtml += '<div class="gcard noselect-nooverflow" id="gcard' + cnt + '">' + $("#groupcardmodel").html() + '</div>'
                 }
                 cnt = cnt + 1
             }
@@ -80,7 +89,7 @@ function getResult() {
 
                 $("#rooms-section").show()
                 for (cnt in rgroups) {
-                    rhtml += '<div class="card rcard mb-3" id="rcard-' + rgroups[cnt] + '"><h4 class="card-header title-header bg-danger text-white">' + rgroups[cnt].charAt(0).toUpperCase() + rgroups[cnt].substr(1).toLowerCase() + '</h4><div class="card-body d-body card-columns" style="display:none;"></div><h5 class="card-header bg-danger d-count text-white"><div class="btn-group btn-group-sm" role="group" style="float:right;"><button type="button" class="btn btn-danger goffbuttons">OFF</button><button type="button" class="btn btn-success gonbuttons">ON</button></div></h5></div>'
+                    rhtml += '<div class="card rcard mb-3 noselect-nooverflow" id="rcard-' + rgroups[cnt] + '"><h4 class="card-header title-header bg-danger text-white" style="font-weight:bold;">' + rgroups[cnt].charAt(0).toUpperCase() + rgroups[cnt].substr(1).toLowerCase() + '</h4><div class="card-body d-body card-columns" style="display:none;"></div><h5 class="card-header bg-danger d-count text-white title-footer"><div class="btn-group btn-group-sm" role="group" style="float:right;"><button type="button" class="btn btn-danger goffbuttons">OFF</button><button type="button" class="btn btn-success gonbuttons">ON</button></div></h5></div>'
                 }
 
                 $(".rcolumns").html(rhtml)
@@ -90,9 +99,15 @@ function getResult() {
 
             for (_mod in thedata.moduleweb) {
                 if (thedata.moduleweb[_mod] != "none") {
-                    $.get("/modules/" + thedata.moduleweb[_mod], function(htmlpage) {
-                        $("#resultid").append(htmlpage)
-                    });
+                    if (thedata.moduleweb[_mod] == "detector.html") {
+                        $.get("/modules/" + thedata.moduleweb[_mod], function(htmlpage) {
+                            $("#detector-module-location").append(htmlpage)
+                        });
+                    } else {
+                        $.get("/modules/" + thedata.moduleweb[_mod], function(htmlpage) {
+                            $("#resultid").append(htmlpage)
+                        });
+                    }
                 }
             }
 
@@ -105,6 +120,7 @@ function getResult() {
 
 function getResultRefresh() {
     runningRequests++
+    $("#spin-text").html("Running requests and getting cached state status...")
     $("#update-spin").show()
     deduceAbortableRequest = true
 
@@ -119,6 +135,11 @@ function getResultRefresh() {
         success: function(data){
             var thedata = JSON.parse(decodeURIComponent(data))
             has_errors = false
+            var i;
+            for (i = 0; i < modulesToRefresh.length; i++) { 
+                console.log("called getcontent for " + modulesToRefresh[i])
+                getContent(modulesToRefresh[i]);
+            }
             for (cnt in thedata.state) {
                 thedata.mode[cnt] ? mode = 1 : mode = 0
                 if ($(".card[cid=" + cnt + "]").attr("cstate") != thedata.state[cnt]) {
@@ -145,6 +166,7 @@ function getResultRefresh() {
 function getResultPost() {
     if (runningRequests == 1) {
         deduceAbortableRequest = true
+        $("#spin-text").html("Querying device state...")
         $("#update-spin").show()
         xhr = $.ajax({
             type: "POST",
@@ -329,7 +351,8 @@ function computeCards() {
                 $(this).find(".sliderpick").show()
                 $(this).find(".btn-group-lg").hide()
                 if (cinit != "1") {
-                    $(this).find(".slider").roundSlider({
+                    var slider = $(this).find(".slider")
+                    slider.roundSlider({
                         sliderType: "min-range",
                         handleShape: "round",
                         width: 30,
@@ -340,10 +363,36 @@ function computeCards() {
                             sendPowerRequest(cid, event.value, cstate, 1)
                         }
                     });
+
+                    var isDragging = false;
+                    $(this).find(".rs-handle").mousedown(function() {
+                        $(window).mousemove(function() {
+                            isDragging = true;
+                            $(window).unbind("mousemove");
+                        });
+                    }).mouseup(function() {
+                        var wasDragging = isDragging;
+                        isDragging = false;
+                        $(window).unbind("mousemove");
+                        if (!wasDragging) {
+                            var sliderVal = slider.roundSlider("getValue")
+                            if (parseInt(sliderVal) == 0) {
+                                sendPowerRequest(cid, 1, cstate, 1)
+                            } else {
+                                sendPowerRequest(cid, 0, cstate, 1)
+                            }
+                        }
+                    });
                 }
             }
 
             $(this).find(".slider").roundSlider("setValue", parseInt(cintensity))
+            var sliderVal = $(this).find(".slider").roundSlider("getValue")
+            if (parseInt(sliderVal) == 0) {
+                $(this).find(".rs-handle").css("border", "5px solid #dc3545")
+            } else {
+                $(this).find(".rs-handle").css("border", "5px solid #28a745")
+            }
 
             if (cinit != "1") {
                 $(this).find(".radiomode :input").on('change', function() {
@@ -434,10 +483,19 @@ function computeCards() {
                     $([document.documentElement, document.body]).animate({
                         scrollTop: $(this).offset().top
                     }, 500);
+                    $("#open-rcard").find(".title-header").addClass("open-rcard-header")
+                    $("#open-rcard").find(".title-footer").addClass("open-rcard-header")
+                    $("#open-rcard").find(".d-body").addClass("open-rcard-body")
+                    $("#open-rcard").find(".rcard").addClass("open-rcard-card")
                 } else {
                     $(this).parent().prependTo(".rcolumns")
                     $(this).parent().find(".card-body").hide("fast")
                 }
+
+                $(".rcolumns").find(".title-header").removeClass("open-rcard-header")
+                $(".rcolumns").find(".title-footer").removeClass("open-rcard-header")
+                $(".rcolumns").find(".d-body").removeClass("open-rcard-body")
+                $(".rcolumns").find(".rcard").removeClass("open-rcard-card")
             })
 
             var devlen = $(this).find(".card").length
@@ -559,7 +617,10 @@ function setLockDevice(lock, devid, last_state) {
     })    
 }
 
-function getContent(amodule) {
+function getContent(amodule, always_refresh = false) {
+    if (always_refresh && modulesToRefresh.indexOf(amodule) === -1) {
+        modulesToRefresh.push(amodule)
+    }
     $.ajax({
         type: "POST",
         url: ".",

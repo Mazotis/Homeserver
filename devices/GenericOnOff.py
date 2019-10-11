@@ -34,13 +34,13 @@ class GenericOnOff(device):
                 _stdout = subprocess.check_output(self.config["STATE"],
                                                   shell=True).decode('UTF-8')
             except subprocess.CalledProcessError:
-                self.state = 0
-                return 0
+                self.state = DEVICE_OFF
+                return DEVICE_OFF
             if self.config["STATE_ON_EXPECT"] in _stdout:
-                self.state = 1
-                return 1
-            self.state = 0
-            return 0
+                self.state = DEVICE_ON
+                return DEVICE_ON
+            self.state = DEVICE_OFF
+            return DEVICE_OFF
         return self.state
 
     def run(self, color):

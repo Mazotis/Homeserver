@@ -15,6 +15,14 @@
   </head>
   <body style="background-color:#eee !important">
     <style>
+    @font-face {
+        font-family: MuseoSans;
+        src: url("MuseoSans-300.woff") format("woff"), url("MuseoSans-300.ttf") format("truetype");
+    }
+    body {
+        font-family: MuseoSans, Arial, serif;
+        color: #191919;
+    }
     .disabledbutton {
         pointer-events: none;
         opacity: 0.4;
@@ -68,6 +76,20 @@
         position: absolute;
         transform: translate(-50%, 50%);
     }
+    .open-rcard-header {
+        border-radius: calc(.25rem - 1px) calc(.25rem - 1px) calc(.25rem - 1px) calc(.25rem - 1px) !important;
+
+    }
+    .open-rcard-body {
+        padding-left: 2px;
+        padding-right: 2px;
+        padding-bottom: 0px;
+        background-color:#eee;
+    }
+    .open-rcard-card {
+        border-left: none;
+        border-right: none;
+    }
     @media (max-width: 770px) {
         .dcard-columns {
             column-count: 2 !important;
@@ -92,13 +114,14 @@
         }
     }
     </style>
+    <!--
     <div class="navbar bg-info">
         <div class="navbar-inner noselect-nooverflow" style="width:100%;">
             <center><h1 style="color:white;width:100%;">Homeserver controls</h1></center>
-               <!-- nav bar items here -->
         </div>
     </div>
-    <div class="container">
+    -->
+    <div class="container-fluid">
         <div class="row">
             <div class="col-md-12" style="background-color:white !important">
                 <br>
@@ -109,9 +132,10 @@
                         </div>
                     </div>
                 </center>
+                <span id="detector-module-location"></span>
                 <div id="update-spin" class="col-12">
                     <center>
-                        <h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;Updating device status...</h5>
+                        <h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;<span id="spin-text">Updating device status...</span></h5>
                     </center>
                 </div>
                 <div id="rooms-section" style="display:none;">
@@ -153,6 +177,17 @@
                                         <button type="button" onclick="sendAllModeAuto()" class="btn btn-secondary">Set all devices to automatic mode</button>
                                     </div>
                                 </p>
+                                <p class="card-text">Mode selection toggles</p>
+                                <p class="card-text">
+                                    <div class="btn-group btn-group-toggle hidemode-toggles" data-toggle="buttons">
+                                        <label class="btn btn-secondary active">
+                                            <input type="radio" autocomplete="off" value="0" checked> Hide mode selection toggles
+                                        </label>
+                                        <label class="btn btn-secondary">
+                                            <input type="radio" autocomplete="off" value="1"> Show mode selection toggles
+                                        </label>
+                                    </div>
+                                </p>
                             </div>
                         </div>
                     </div>
@@ -185,7 +220,7 @@
                         </span>
                     </center>
                 </div>
-                <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons">
+                <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons" style="display:none;">
                     <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> Auto</label>
                     <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> Manual</label>
                 </div>

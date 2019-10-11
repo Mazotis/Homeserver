@@ -38,13 +38,13 @@ class Computer(device):
                 _stdout = subprocess.check_output("ping {} -c 1 -W 1".format(self.ip),
                                                   shell=True).decode('UTF-8')
             except subprocess.CalledProcessError:
-                self.state = 0
-                return 0
+                self.state = DEVICE_OFF
+                return DEVICE_OFF
             if "1 received" in _stdout:
-                self.state = 1
-                return 1
-            self.state = 0
-            return 0
+                self.state = DEVICE_ON
+                return DEVICE_ON
+            self.state = DEVICE_OFF
+            return DEVICE_OFF
         return self.state
 
     def run(self, color):

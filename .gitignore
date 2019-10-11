@@ -2,6 +2,7 @@
 /dnn/tf
 # My backup INI
 home.bak
+/web/images/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -2,7 +2,7 @@
 '''
     File name: detector.py
     Author: Maxime Bergeron
-    Date last modified: 04/10/2019
+    Date last modified: 11/10/2019
     Python Version: 3.5
 
     The device-pinging detector module for the homeserver
@@ -20,12 +20,13 @@ class detector(Thread):
         Thread.__init__(self)
         self.config = config
         self.stopevent = Event()
+        self.TRACKED_IPS = self.config['DETECTOR']['TRACKED_IPS'].split(",")
         self.DEVICE_STATE_LEVEL = [
             0] * len(config['DETECTOR']['TRACKED_IPS'].split(","))
         self.DEVICE_STATE_MAX = self.config['DETECTOR'].getint(
             'MAX_STATE_LEVEL')
         self.DEVICE_STATUS = [
-            0] * len(self.config['DETECTOR']['TRACKED_IPS'].split(","))
+            0] * len(self.TRACKED_IPS)
         self.FIND3_SERVER = self.config['DETECTOR'].getboolean(
             'FIND3_SERVER_ENABLE')
         self.DETECTOR_START_HOUR = datetime.datetime.strptime(
@@ -35,6 +36,12 @@ class detector(Thread):
         self.status = 0
         self.delayed_start = 0
         self.lm = lightmanager
+        if self.config.has_option("DETECTOR", "TRACKED_PICTURES"):
+            if len(self.config["DETECTOR"]["TRACKED_PICTURES"].split(',')) == len(self.config["DETECTOR"]["TRACKED_IPS"].split(',')):
+                self.web = "detector.html"
+            else:
+                debug.write(
+                    "You must provide enough TRACKED_PICTURES to match the TRACKED_IPS.", 1, "DETECTOR")
 
     def run(self):
         self.first_detect()
@@ -69,7 +76,7 @@ class detector(Thread):
                                                                                _dev))
                     self.tracked_find3_times[_cnt] = _r.json()['sensors']['t']
 
-        for _cnt, device in enumerate(self.config['DETECTOR']['TRACKED_IPS'].split(",")):
+        for _cnt, device in enumerate(self.TRACKED_IPS):
             if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
                 self.DEVICE_STATE_LEVEL[_cnt] = self.DEVICE_STATE_MAX
                 self.DEVICE_STATUS[_cnt] = 1
@@ -86,7 +93,7 @@ class detector(Thread):
 
     def detect_devices(self):
         EVENT_TIME = self.lm.update_event_time()
-        for _cnt, device in enumerate(self.config['DETECTOR']['TRACKED_IPS'].split(",")):
+        for _cnt, device in enumerate(self.TRACKED_IPS):
             # TODO Maintain the two pings requirement for status change ?
             if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
                 if self.DEVICE_STATE_LEVEL[_cnt] == self.DEVICE_STATE_MAX and self.DEVICE_STATUS[_cnt] == 0:
@@ -175,3 +182,19 @@ class detector(Thread):
             debug.write("Aborting light change, with actual state {}"
                         .format(self.DEVICE_STATE_LEVEL), 0, "DETECTOR")
             self.delayed_start = 0
+
+    def get_web(self):
+        web = ""
+        pictures = self.config["DETECTOR"]["TRACKED_PICTURES"].split(',')
+        for _cnt, pic in enumerate(pictures):
+            if _cnt == 5:
+                debug.write(
+                    "Max amount of pictures for detector web module is 5. Hiding the rest.", 1, "DETECTOR")
+                break
+            if self.DEVICE_STATE_LEVEL[_cnt] != self.DEVICE_STATE_MAX:
+                web += '<img src={} class="mx-auto d-block border-danger" style="width:85px; height:85px; border-radius:50%; margin-right:3px !important; border:5px solid; -webkit-filter: grayscale(100%); filter: grayscale(100%);">'.format(
+                    "/images/" + pic)
+            else:
+                web += '<img src={} class="mx-auto d-block border-success" style="width:85px; height:85px; border-radius:50%; margin-right:3px !important; border:5px solid;">'.format(
+                    "/images/" + pic)
+        return web

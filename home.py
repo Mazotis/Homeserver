@@ -2,7 +2,7 @@
 '''
     File name: home.py
     Author: Maxime Bergeron
-    Date last modified: 10/10/2019
+    Date last modified: 11/10/2019
     Python Version: 3.5
 
     A python home control server
@@ -62,235 +62,19 @@ class HomeServer(object):
 
     def listen_client(self, client, address):
         """ Listens for new requests and handle them properly """
-        streamingdev = False
-        streaminggrp = False
-        streaming_id = None
         try:
             while True:
                 msize = int(client.recv(4).decode('utf-8'))
                 if self.scheduled_disconnect is not None:
                     self.scheduled_disconnect.cancel()
                     self.scheduled_disconnect = None
-                #debug.write("Set message size {}".format(msize), 0)
                 data = client.recv(msize)
                 if data:
                     # TODO use the recv length to determine pickled vs non-pickled requests ?
                     if msize != 2048:
                         req = StateRequestObject()
-                        if data.decode('utf-8') == "getstate":
-                            ls_status = {}
-                            ls_status["state"] = dm.get_state(
-                                async=True, webcolors=True)
-                            ls_status["intensity"] = dm.get_state(
-                                async=True, intensity=True)
-                            ls_status["mode"] = dm.get_modes()
-                            ls_status["type"] = dm.get_types()
-                            ls_status["name"] = dm.get_names()
-                            for op in ["skiptime", "forceoff", "ignoremode", "actiondelay"]:
-                                ls_status["op_" + op] = dm.get_option(op)
-                            ls_status["icon"] = dm.get_icons()
-                            ls_status["description"] = dm.get_descriptions(
-                                True)
-                            ls_status["starttime"] = "{}".format(dm.starttime)
-                            ls_status["groups"] = dm.get_all_groups()
-                            ls_status["colortype"] = dm.get_colortypes()
-                            ls_status["moduleweb"] = dm.get_module_web()
-                            ls_status["locked"] = dm.get_lock_status()
-                            ls_status["roomgroups"] = ""
-                            if self.config.has_option("WEBSERVER", "ROOM_GROUPS"):
-                                ls_status["roomgroups"] = self.config["WEBSERVER"]["ROOM_GROUPS"]
-                            ls_status["deviceroom"] = dm.get_room_for_devices()
-                            debug.write('Sending lightserver status', 0)
-                            client.send(json.dumps(ls_status).encode('UTF-8'))
-                            # Run the non-async state getter after ?
-                            if self.state_thread is None or not self.state_thread.is_alive():
-                                self.state_thread = threading.Thread(
-                                    target=dm.get_state)
-                                self.state_thread.start()
+                        if self.check_for_function_request(data.decode('utf-8'), req, client):
                             break
-                        # TODO how to deprecate this ? This requires another connection to allow new async requests from the webserver
-                        if data.decode('utf-8') == "getstatepost":
-                            ls_status = {}
-                            while self.state_thread.is_alive():
-                                time.sleep(0.2)
-                            ls_status["state"] = dm.get_state(
-                                async=True, webcolors=True)
-                            ls_status["intensity"] = dm.get_state(
-                                async=True, intensity=True)
-                            ls_status["mode"] = dm.get_modes()
-                            client.send(json.dumps(ls_status).encode('UTF-8'))
-                            break
-                        if data.decode('utf-8') == "setstate":
-                            debug.write(
-                                'Running a single device state change', 0)
-                            iddata = int(client.recv(3).decode("UTF-8"))
-                            valdata = client.recv(8).decode("UTF-8")
-                            isintensity = client.recv(1).decode("UTF-8")
-                            skiptime = int(client.recv(1).decode("UTF-8"))
-                            _col = ["-1"] * len(dm.devices)
-                            try:
-                                valdata = int(valdata)
-                                if isintensity == "1" and dm.devices[iddata].color_type == "255":
-                                    valdata = (None, valdata)
-                            except ValueError:
-                                # Must be hexadecimal
-                                valdata = valdata[2:9]
-                            _col[iddata] = valdata
-                            req.set_colors(_col, len(dm.devices))
-                            if skiptime == 1:
-                                req.skip_time = True
-                            dm.run(req)
-                            client.send("1".encode("UTF-8"))
-                            break
-                        if data.decode('utf-8') == "setmode":
-                            debug.write(
-                                'Running a single device mode change', 0)
-                            iddata = int(client.recv(3).decode("UTF-8"))
-                            cmode = int(client.recv(1).decode("UTF-8"))
-                            req.set_mode_for_devid = iddata
-                            if cmode == 1:
-                                req.auto_mode = True
-                            dm.run(req)
-                            debug.write('Device modes: {}'.format(
-                                dm.get_modes()), 0)
-                            client.send("1".encode("UTF-8"))
-                            break
-                        if data.decode('utf-8') == "setallmode":
-                            debug.write(
-                                'Running an all-devices mode change', 0)
-                            req.force_auto_mode = True
-                            dm.run(req)
-                            debug.write('Device modes: {}'.format(
-                                dm.get_modes()), 0)
-                            client.send("1".encode("UTF-8"))
-                            break
-                        if data.decode('utf-8') == "setgroup":
-                            debug.write('Running a group change of state', 0)
-                            group = str(client.recv(
-                                64).decode("UTF-8")).strip()
-                            valdata = int(client.recv(2).decode("UTF-8"))
-                            skiptime = int(client.recv(1).decode("UTF-8"))
-                            _col = ["0"] * len(dm.devices)
-                            if skiptime == 1:
-                                req.skip_time = True
-                            if valdata == 1:
-                                _col = ["1"] * len(dm.devices)
-                            req.set_colors(_col, len(dm.devices))
-                            req.group = [group.replace("0", "").lower()]
-                            dm.run(req)
-                            client.send("1".encode("UTF-8"))
-                            break
-                        # TODO Create some protocol to link webserver to modules directly ?
-                        if data.decode('utf-8') == "getmodule":
-                            module = str(client.recv(64).decode(
-                                "UTF-8")).replace("0", "")
-                            debug.write(
-                                'Getting module "{}" web content'.format(module), 0)
-                            content = None
-                            for _mod in dm.modules:
-                                if _mod.__class__.__name__ == module:
-                                    content = _mod.webcontent
-                            if content is None:
-                                debug.write('Cannot find module', 1)
-                                client.send("0".encode("UTF-8"))
-                            else:
-                                client.send(content.encode("UTF-8"))
-                            break
-                        if data.decode('utf-8') == "dobackup":
-                            clientid = int(client.recv(4).decode("UTF-8"))
-                            debug.write('Scheduling backup', 0)
-                            for _mod in dm.modules:
-                                if _mod.__class__.__name__ == "backup":
-                                    content = _mod.backup_queue.put(clientid)
-                            client.send("1".encode("UTF-8"))
-                            break
-                        if data.decode('utf-8') == "setlock":
-                            iddata = int(client.recv(3).decode("UTF-8"))
-                            lock_req = client.recv(1).decode("UTF-8")
-                            dm.devices[int(iddata)].lock_unlock_requests(
-                                int(lock_req))
-                            client.send("1".encode("UTF-8"))
-                            break
-                        if data.decode('utf-8') == "stream":
-                            debug.write('Starting streaming mode', 0)
-                            streamingdev = True
-                            continue
-                        if data.decode('utf-8') == "streamgroup":
-                            debug.write('Starting group streaming mode', 0)
-                            streaminggrp = True
-                            continue
-                        if data.decode('utf-8') == "nostream":
-                            debug.write('Ending streaming mode', 0)
-                            streamingdev = False
-                            streaminggrp = False
-                            streaming_id = None
-                            break
-                        if data.decode('utf-8')[:3] == "tcp":
-                            debug.write('Getting TCP request: {}'.format(
-                                data.decode('utf-8')), 0)
-                            if self.tcp_start_hour > datetime.datetime.now().time() or \
-                               self.tcp_end_hour < datetime.datetime.now().time():
-                                debug.write('TCP requests disabled until {}'.format(
-                                    self.tcp_start_hour), 0)
-                                break
-                            if data.decode('utf-8')[3:] in self.config["TCP-PRESETS"]:
-                                debug.write("Running TCP preset {}".format(
-                                    data.decode('utf-8')[3:]), 0)
-                                if self.config["TCP-PRESETS"].getboolean('AUTOMATIC_MODE'):
-                                    os.system(
-                                        "./homeclient.py --auto-mode " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
-                                else:
-                                    os.system(
-                                        "./homeclient.py " + self.config["TCP-PRESETS"][data.decode('utf-8')[3:]])
-                            else:
-                                debug.write("TCP preset {} is not configured".format(
-                                    data.decode('utf-8')[3:]), 1)
-                            break
-
-                        if data.decode('utf-8') == "sendloc":
-                            locationData = json.loads(
-                                client.recv(1024).decode("UTF-8"))
-                            debug.write('Recording a training location for room: {}'.format(
-                                locationData["room"]), 0)
-                            with open(self.config['SERVER']['JOURNAL_DIR'] + "/dnn/train.log", "a") as jfile:
-                                jfile.write("{},{},{},{},{},{},{}\n".format(locationData["room"], locationData["r1_mean"],
-                                                                            locationData["r1_rssi"], locationData["r2_mean"], locationData["r2_rssi"], locationData["r3_mean"], locationData["r3_rssi"]))
-                            break
-                        if data.decode('utf-8') == "getloc":
-                            ld = json.loads(client.recv(1024).decode("UTF-8"))
-                            debug.write(
-                                '[WIFI-RTT] Evaluating location from:', 0)
-                            tf_str = '{},{},{},{},{},{}'.format(
-                                ld["r1_mean"], ld["r1_rssi"], ld["r2_mean"], ld["r2_rssi"], ld["r3_mean"], ld["r3_rssi"])
-                            debug.write('[WIFI-RTT] {}'.format(tf_str), 0)
-                            res = run_tensorflow(
-                                TfPredict=True, PredictList=tf_str)
-                            debug.write(
-                                "[WIFI-RTT] Device found to be in room: {}".format(res), 0)
-                            client.send(res.encode("UTF-8"))
-                            break
-                        if streamingdev:
-                            if streaming_id is None:
-                                streaming_id = int(data.decode('utf-8'))
-                                debug.write('Set streaming devid to {}'
-                                            .format(streaming_id), 0)
-                                continue
-                            debug.write("Sending request to devid {} for color: {}"
-                                        .format(streaming_id, data.decode('utf-8')), 0)
-                            dm.set_light_stream(
-                                streaming_id, data.decode('utf-8'), False)
-                            continue
-                        if streaminggrp:
-                            if streaming_id is None:
-                                streaming_id = data.decode('utf-8')
-                                debug.write('Set streaming group to {}'
-                                            .format(streaming_id), 0)
-                                continue
-                            debug.write("Sending request to group '{}' for color: {}"
-                                        .format(streaming_id, data.decode('utf-8')), 0)
-                            dm.set_light_stream(
-                                streaming_id, data.decode('utf-8'), True)
-                            continue
                     try:
                         req = pickle.loads(data)
                     except:
@@ -322,6 +106,238 @@ class HomeServer(object):
             self.scheduled_disconnect = threading.Timer(
                 60, self.disconnect_devices, ())
             self.scheduled_disconnect.start()
+
+    def check_for_function_request(self, data, req, client):
+        streamingdev = False
+        streaminggrp = False
+        streaming_id = None
+
+        if data == "getstate":
+            ls_status = {}
+            ls_status["state"] = dm.get_state(
+                async=True, webcolors=True)
+            ls_status["intensity"] = dm.get_state(
+                async=True, intensity=True)
+            ls_status["mode"] = dm.get_modes()
+            ls_status["type"] = dm.get_types()
+            ls_status["name"] = dm.get_names()
+            for op in ["skiptime", "forceoff", "ignoremode", "actiondelay"]:
+                ls_status["op_" + op] = dm.get_option(op)
+            ls_status["icon"] = dm.get_icons()
+            ls_status["description"] = dm.get_descriptions(
+                True)
+            ls_status["starttime"] = "{}".format(dm.starttime)
+            ls_status["groups"] = dm.get_all_groups()
+            ls_status["colortype"] = dm.get_colortypes()
+            ls_status["moduleweb"] = dm.get_module_web()
+            ls_status["locked"] = dm.get_lock_status()
+            ls_status["roomgroups"] = ""
+            if self.config.has_option("WEBSERVER", "ROOM_GROUPS"):
+                ls_status["roomgroups"] = self.config["WEBSERVER"]["ROOM_GROUPS"]
+            ls_status["deviceroom"] = dm.get_room_for_devices()
+            debug.write('Sending lightserver status', 0)
+            client.send(json.dumps(ls_status).encode('UTF-8'))
+            # Run the non-async state getter after ?
+            if self.state_thread is None or not self.state_thread.is_alive():
+                self.state_thread = threading.Thread(
+                    target=dm.get_state)
+                self.state_thread.start()
+            return True
+
+        # TODO how to deprecate this ? This requires another connection to allow new async requests from the webserver
+        if data == "getstatepost":
+            ls_status = {}
+            while self.state_thread.is_alive():
+                time.sleep(0.2)
+            ls_status["state"] = dm.get_state(
+                async=True, webcolors=True)
+            ls_status["intensity"] = dm.get_state(
+                async=True, intensity=True)
+            ls_status["mode"] = dm.get_modes()
+            client.send(json.dumps(ls_status).encode('UTF-8'))
+            return True
+
+        if data == "setstate":
+            debug.write(
+                'Running a single device state change', 0)
+            iddata = int(client.recv(3).decode("UTF-8"))
+            valdata = client.recv(8).decode("UTF-8")
+            isintensity = client.recv(1).decode("UTF-8")
+            skiptime = int(client.recv(1).decode("UTF-8"))
+            _col = ["-1"] * len(dm.devices)
+            try:
+                valdata = int(valdata)
+                if isintensity == "1" and dm.devices[iddata].color_type == "255":
+                    valdata = (None, valdata)
+            except ValueError:
+                # Must be hexadecimal
+                valdata = valdata[2:9]
+            _col[iddata] = valdata
+            req.set_colors(_col, len(dm.devices))
+            if skiptime == 1:
+                req.skip_time = True
+            dm.run(req)
+            client.send("1".encode("UTF-8"))
+            return True
+
+        if data == "setmode":
+            debug.write(
+                'Running a single device mode change', 0)
+            iddata = int(client.recv(3).decode("UTF-8"))
+            cmode = int(client.recv(1).decode("UTF-8"))
+            req.set_mode_for_devid = iddata
+            if cmode == 1:
+                req.auto_mode = True
+            dm.run(req)
+            debug.write('Device modes: {}'.format(
+                dm.get_modes()), 0)
+            client.send("1".encode("UTF-8"))
+            return True
+
+        if data == "setallmode":
+            debug.write(
+                'Running an all-devices mode change', 0)
+            req.force_auto_mode = True
+            dm.run(req)
+            debug.write('Device modes: {}'.format(
+                dm.get_modes()), 0)
+            client.send("1".encode("UTF-8"))
+            return True
+
+        if data == "setgroup":
+            debug.write('Running a group change of state', 0)
+            group = str(client.recv(
+                64).decode("UTF-8")).strip()
+            valdata = int(client.recv(2).decode("UTF-8"))
+            skiptime = int(client.recv(1).decode("UTF-8"))
+            _col = ["0"] * len(dm.devices)
+            if skiptime == 1:
+                req.skip_time = True
+            if valdata == 1:
+                _col = ["1"] * len(dm.devices)
+            req.set_colors(_col, len(dm.devices))
+            req.group = [group.replace("0", "").lower()]
+            dm.run(req)
+            client.send("1".encode("UTF-8"))
+            return True
+
+        # TODO Create some protocol to link webserver to modules directly ?
+        if data == "getmodule":
+            module = str(client.recv(64).decode(
+                "UTF-8")).replace("0", "")
+            debug.write(
+                'Getting module "{}" web content'.format(module), 0)
+            content = None
+            for _mod in dm.modules:
+                if _mod.__class__.__name__ == module:
+                    content = _mod.get_web()
+            if content is None:
+                debug.write('Cannot find module', 1)
+                client.send("0".encode("UTF-8"))
+            else:
+                client.send(content.encode("UTF-8"))
+            return True
+
+        if data == "dobackup":
+            clientid = int(client.recv(4).decode("UTF-8"))
+            debug.write('Scheduling backup', 0)
+            for _mod in dm.modules:
+                if _mod.__class__.__name__ == "backup":
+                    content = _mod.backup_queue.put(clientid)
+            client.send("1".encode("UTF-8"))
+            return True
+
+        if data == "setlock":
+            iddata = int(client.recv(3).decode("UTF-8"))
+            lock_req = client.recv(1).decode("UTF-8")
+            dm.devices[int(iddata)].lock_unlock_requests(
+                int(lock_req))
+            client.send("1".encode("UTF-8"))
+            return True
+
+        if data == "stream":
+            debug.write('Starting streaming mode', 0)
+            streamingdev = True
+
+        if data == "streamgroup":
+            debug.write('Starting group streaming mode', 0)
+            streaminggrp = True
+
+        if data == "nostream":
+            debug.write('Ending streaming mode', 0)
+            streamingdev = False
+            streaminggrp = False
+            streaming_id = None
+            return True
+
+        if data[:3] == "tcp":
+            debug.write('Getting TCP request: {}'.format(
+                data), 0)
+            if self.tcp_start_hour > datetime.datetime.now().time() or \
+               self.tcp_end_hour < datetime.datetime.now().time():
+                debug.write('TCP requests disabled until {}'.format(
+                    self.tcp_start_hour), 0)
+                return True
+            if data[3:] in self.config["TCP-PRESETS"]:
+                debug.write("Running TCP preset {}".format(
+                    data[3:]), 0)
+                if self.config["TCP-PRESETS"].getboolean('AUTOMATIC_MODE'):
+                    os.system(
+                        "./homeclient.py --auto-mode " + self.config["TCP-PRESETS"][data[3:]])
+                else:
+                    os.system(
+                        "./homeclient.py " + self.config["TCP-PRESETS"][data[3:]])
+            else:
+                debug.write("TCP preset {} is not configured".format(
+                    data[3:]), 1)
+            return True
+
+        if data == "sendloc":
+            locationData = json.loads(
+                client.recv(1024).decode("UTF-8"))
+            debug.write('Recording a training location for room: {}'.format(
+                locationData["room"]), 0)
+            with open(self.config['SERVER']['JOURNAL_DIR'] + "/dnn/train.log", "a") as jfile:
+                jfile.write("{},{},{},{},{},{},{}\n".format(locationData["room"], locationData["r1_mean"],
+                                                            locationData["r1_rssi"], locationData["r2_mean"], locationData["r2_rssi"], locationData["r3_mean"], locationData["r3_rssi"]))
+            return True
+
+        if data == "getloc":
+            ld = json.loads(client.recv(1024).decode("UTF-8"))
+            debug.write(
+                '[WIFI-RTT] Evaluating location from:', 0)
+            tf_str = '{},{},{},{},{},{}'.format(
+                ld["r1_mean"], ld["r1_rssi"], ld["r2_mean"], ld["r2_rssi"], ld["r3_mean"], ld["r3_rssi"])
+            debug.write('[WIFI-RTT] {}'.format(tf_str), 0)
+            res = run_tensorflow(
+                TfPredict=True, PredictList=tf_str)
+            debug.write(
+                "[WIFI-RTT] Device found to be in room: {}".format(res), 0)
+            client.send(res.encode("UTF-8"))
+            return True
+
+        if streamingdev:
+            if streaming_id is None:
+                streaming_id = int(data)
+                debug.write('Set streaming devid to {}'
+                            .format(streaming_id), 0)
+            else:
+                debug.write("Sending request to devid {} for color: {}"
+                            .format(streaming_id, data), 0)
+                dm.set_light_stream(
+                    streaming_id, data, False)
+
+        if streaminggrp:
+            if streaming_id is None:
+                streaming_id = data
+                debug.write('Set streaming group to {}'
+                            .format(streaming_id), 0)
+            else:
+                debug.write("Sending request to group '{}' for color: {}"
+                            .format(streaming_id, data), 0)
+                dm.set_light_stream(
+                    streaming_id, data, True)
+        return False
 
     def disconnect_devices(self):
         """ Disconnects all configured devices """
