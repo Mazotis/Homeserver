@@ -13,14 +13,15 @@ import datetime
 import json
 import os
 import pickle
-import sys
 import socket
+import sys
 import threading
 import time
 import traceback
 from core.common import *
 from core.devicemanager import DeviceManager, StateRequestObject
 from argparse import RawTextHelpFormatter
+from shutil import copyfile
 from __main__ import *
 
 
@@ -253,6 +254,33 @@ class HomeServer(object):
             dm.devices[int(iddata)].lock_unlock_requests(
                 int(lock_req))
             client.send("1".encode("UTF-8"))
+            return True
+
+        if data == "getconfig":
+            _conf_dict = {s: dict(self.config.items(s))
+                          for s in self.config.sections()}
+            client.send(json.dumps(_conf_dict).encode('UTF-8'))
+            return True
+
+        if data == "setconfig":
+            msglen = int(client.recv(4).decode("UTF-8"))
+            section = str(client.recv(msglen).decode("UTF-8"))
+            configdata = json.loads(client.recv(8182).decode("UTF-8"))
+            has_changes = False
+            for entry in configdata:
+                if self.config[str(section).upper()][entry] != configdata[entry]:
+                    debug.write("Changing configuration entry {} to {}".format(
+                        entry.upper(), configdata[entry]), 0)
+                    self.config.set(str(section).upper(),
+                                    entry.upper(), configdata[entry])
+                    has_changes = True
+            if has_changes:
+                debug.write(
+                    "Changing local config file and creating backup 'home.old'", 0)
+                with open('home.ini', 'w') as configfile:
+                    copyfile('home.ini', 'home.old')
+                    self.config.write(configfile)
+                dm.reload_configs()
             return True
 
         if data == "stream":

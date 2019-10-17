@@ -2,6 +2,7 @@
 /dnn/tf
 # My backup INI
 home.bak
+home.old
 /web/images/*
 
 # Byte-compiled / optimized / DLL files

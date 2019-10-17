@@ -77,7 +77,7 @@ class detector(Thread):
                     self.tracked_find3_times[_cnt] = _r.json()['sensors']['t']
 
         for _cnt, device in enumerate(self.TRACKED_IPS):
-            if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
+            if device != "_" and int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
                 self.DEVICE_STATE_LEVEL[_cnt] = self.DEVICE_STATE_MAX
                 self.DEVICE_STATUS[_cnt] = 1
             else:
@@ -95,7 +95,7 @@ class detector(Thread):
         EVENT_TIME = self.lm.update_event_time()
         for _cnt, device in enumerate(self.TRACKED_IPS):
             # TODO Maintain the two pings requirement for status change ?
-            if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
+            if device != "_" and int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
                 if self.DEVICE_STATE_LEVEL[_cnt] == self.DEVICE_STATE_MAX and self.DEVICE_STATUS[_cnt] == 0:
                     debug.write("Device {} CONnected".format(
                         device), 0, "DETECTOR")
@@ -139,7 +139,7 @@ class detector(Thread):
                             'sensors']['t']
                         self.tracked_find3_local[_cnt] = _r.json(
                         )['analysis']['guesses'][0]['location']
-            else:
+            elif device != "_":
                 if self.DEVICE_STATE_LEVEL[_cnt] == 0 and self.DEVICE_STATUS[_cnt] == 1:
                     debug.write("DEVICE {} DISconnected".format(
                         device), 0, "DETECTOR")
@@ -191,7 +191,7 @@ class detector(Thread):
                 debug.write(
                     "Max amount of pictures for detector web module is 5. Hiding the rest.", 1, "DETECTOR")
                 break
-            if self.DEVICE_STATE_LEVEL[_cnt] != self.DEVICE_STATE_MAX:
+            if self.DEVICE_STATE_LEVEL[_cnt] != self.DEVICE_STATE_MAX and self.TRACKED_IPS[_cnt] != "_":
                 web += '<img src={} class="mx-auto d-block border-danger" style="width:85px; height:85px; border-radius:50%; margin-right:3px !important; border:5px solid; -webkit-filter: grayscale(100%); filter: grayscale(100%);">'.format(
                     "/images/" + pic)
             else:

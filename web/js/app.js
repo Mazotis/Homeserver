@@ -4,6 +4,7 @@ var runningRequests = 0
 var deduceAbortableRequest = false
 var hasRoomGroups = false
 var modulesToRefresh = new Array()
+var dmconfig
 
 $(document).ready(function() {
     getResult();
@@ -33,6 +34,7 @@ function abortPendingRequests() {
 }
 
 function getResult() {
+    getConfig()
     runningRequests++
     $("#preloader").show()
     $.ajax({
@@ -137,7 +139,6 @@ function getResultRefresh() {
             has_errors = false
             var i;
             for (i = 0; i < modulesToRefresh.length; i++) { 
-                console.log("called getcontent for " + modulesToRefresh[i])
                 getContent(modulesToRefresh[i]);
             }
             for (cnt in thedata.state) {
@@ -301,6 +302,7 @@ function computeCards() {
             $(this).find(".btn-group").hide()
             $(this).find(".noop").show()
         } else {
+            $(this).find(".card-footer").append('<i class="fas fa-cog text-white cog-btn" onclick="getConfigDevice('+ cid + ')" title="Device configuration"></i>')
             if (clocked == "1") {
                 $(this).find(".card-body").hide()
                 $(this).find(".card-footer center").append('<i class="fas fa-lock text-white lock-btn" onclick="setLockDevice(0,' + cid + ',' + cstate +')" title="Unlock device"></i>')
@@ -632,6 +634,85 @@ function getContent(amodule, always_refresh = false) {
             },
         success: function(data){
             $("#" + amodule + "-content").html(data)
+            if (amodule.toUpperCase() in dmconfig) {
+                if (amodule == "detector") {
+                    $("#" + amodule + "-content").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(\'' + amodule + '\')" title="Module configuration"></i>')
+                } else {
+                    $("#" + amodule + "-content").parent().parent(".card").find(".card-header").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(\'' + amodule + '\')" title="Module configuration"></i>')
+
+                }
+            }
+        },
+        error: function(data){
+            console.log(data)
+        }
+    })
+}
+
+function getConfig() {
+    $.ajax({
+        type: "POST",
+        url: ".",
+        dataType: "text",
+        data: {
+                request: "True",
+                reqtype: "10",
+            },
+        success: function(data){
+            dmconfig = JSON.parse(decodeURIComponent(data))
+        },
+        error: function(data){
+            console.log(data)
+        }
+    })
+}
+
+function getConfigDevice(devid) {
+    $("#settingsmodal").find(".modal-title").text("Settings for device ID " + devid)
+    $("#settingsmodal").find("#savemodal").attr("onclick", "saveConfig('DEVICE" + devid + "')")
+    html = '<p class="small">WARNING - do not use latin characters (é,à,ç...) or upper-case words if not absolutely required (for example, file locations, MAC addresses, True/False) as it may break your configuration</p><form id="configform" role="form"><fieldset>'
+    for (var entry in dmconfig["DEVICE" + devid]) {
+        html += '<div class="form-group row"><label for="' + entry + '" class="col-sm-3 col-form-label">' + entry + '</label><div class="col-sm-9"><input type="text" class="form-control" name="' + entry + '" value="' + dmconfig["DEVICE" + devid][entry] + '"></div></div>'
+    }
+    html += "</fieldset></form>"
+    $("#settingsmodal").find(".modal-body").html(html)
+    $("#settingsmodal").modal('show')
+}
+
+function getConfigModule(amodule) {
+    $("#settingsmodal").find(".modal-title").text("Settings for module: " + amodule)
+    $("#settingsmodal").find("#savemodal").attr("onclick", "saveConfig('" + amodule + "')")
+    html = '<p class="small">WARNING - do not use latin characters (é,à,ç...) or upper-case words if not absolutely required (for example, file locations, MAC addresses, True/False) as it may break your configuration</p><form id="configform" role="form"><fieldset>'
+    for (var entry in dmconfig[amodule.toUpperCase()]) {
+        html += '<div class="form-group row"><label for="' + entry + '" class="col-sm-3 col-form-label">' + entry + '</label><div class="col-sm-9"><input type="text" class="form-control" name="' + entry + '" value="' + dmconfig[amodule.toUpperCase()][entry] + '"></div></div>'
+    }
+    html += "</fieldset></form>"
+    $("#settingsmodal").find(".modal-body").html(html)
+    $("#settingsmodal").modal('show')
+}
+
+function saveConfig(section) {
+    var jsonData = {}
+    $.each($("#configform").serializeArray(), function() {
+      jsonData[this.name] = this.value;
+    });
+    $("#settingsmodal").find('button').prop("disabled", true)
+    $.ajax({
+        type: "POST",
+        url: ".",
+        dataType: "text",
+        data: {
+                request: "True",
+                reqtype: "11",
+                section: section,
+                configdata: encodeURIComponent(JSON.stringify(jsonData))
+            },
+        success: function(data){
+            $("#settingsmodal").find('button').prop("disabled", false)
+            $("#settingsmodal").modal('hide')
+            setTimeout(function() {
+                window.location.reload()
+            }, 500)
         },
         error: function(data){
             console.log(data)

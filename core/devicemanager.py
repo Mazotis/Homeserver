@@ -287,6 +287,20 @@ class DeviceManager(object):
             devrooms = [""] * len(self.devices)
         return devrooms
 
+    def reload_configs(self):
+        self.config.read('home.ini')
+        for _dev in self.devices:
+            try:
+                _dev.config = self.config
+                _dev.init_from_config()
+            except NameError:
+                pass
+        for _mod in self.modules:
+            try:
+                _mod.config = self.config
+            except NameError:
+                pass
+
     def update_event_time(self):
         if self.lastupdate != datetime.date.today():
             self.lastupdate = datetime.date.today()

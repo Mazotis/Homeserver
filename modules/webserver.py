@@ -163,6 +163,30 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         response.write(data)
                 finally:
                     s.close()
+            if reqtype == 10:
+                try:
+                    s.sendall("0009".encode('utf-8'))
+                    s.sendall("getconfig".encode('utf-8'))
+                    data = s.recv(8184)
+                    if data:
+                        response.write(data)
+                finally:
+                    s.close()
+            if reqtype == 11:
+                section = str(postvars[b'section'][0].decode('utf-8'))
+                configdata = urllib.parse.unquote(
+                    postvars[b'configdata'][0].decode('utf-8'))
+                try:
+                    s.sendall("0009".encode('utf-8'))
+                    s.sendall("setconfig".encode('utf-8'))
+                    s.sendall(str(len(section)).zfill(4).encode('utf-8'))
+                    s.sendall(section.encode('utf-8'))
+                    s.sendall(configdata.encode('utf-8'))
+                    data = s.recv(1)
+                    if data:
+                        response.write(data)
+                finally:
+                    s.close()
         else:
             response.write("No request".encode("UTF-8"))
         self.wfile.write(response.getvalue())

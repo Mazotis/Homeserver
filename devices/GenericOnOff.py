@@ -2,7 +2,7 @@
 '''
     File name: Milight.py
     Author: Maxime Bergeron
-    Date last modified: 30/07/2019
+    Date last modified: 15/10/2019
     Python Version: 3.7
 
     A generic bash function On/Off device handler class
@@ -18,6 +18,10 @@ class GenericOnOff(device):
     def __init__(self, devid, config):
         super().__init__(devid, config)
         self.config = config["DEVICE" + str(devid)]
+        self.state_check = None
+        if config.has_option("DEVICE" + str(devid), "STATE") and self.config["STATE"] != "":
+            self.state_check = self.config["STATE"]
+            self.state_expect = self.config["STATE_ON_EXPECT"]
         self.device = self.config["DEVICE"]
         self.device_type = "GenericOnOff"
         if self.color_type is None:
@@ -29,14 +33,14 @@ class GenericOnOff(device):
         if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
             self.state = DEVICE_STANDBY
             return self.state
-        if self.config["STATE"] and not self.success:
+        if self.state_check is not None and not self.success:
             try:
-                _stdout = subprocess.check_output(self.config["STATE"],
+                _stdout = subprocess.check_output(self.state_check,
                                                   shell=True).decode('UTF-8')
             except subprocess.CalledProcessError:
                 self.state = DEVICE_OFF
                 return DEVICE_OFF
-            if self.config["STATE_ON_EXPECT"] in _stdout:
+            if self.state_expect in _stdout:
                 self.state = DEVICE_ON
                 return DEVICE_ON
             self.state = DEVICE_OFF

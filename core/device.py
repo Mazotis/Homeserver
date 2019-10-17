@@ -17,14 +17,9 @@ from core.convert import convert_color
 class device(object):
     def __init__(self, devid, config):
         self.devid = devid
-        self.description = config["DEVICE" + str(devid)]["DESCRIPTION"]
         self.success = False
         self._connection = None
         self.group = []
-        if config.has_option("DEVICE" + str(devid), "GROUP"):
-            self.group = config["DEVICE" + str(devid)]["GROUP"].split(',')
-        if config.has_option("DEVICE" + str(devid), "DEFAULT_INTENSITY"):
-            self.intensity = config["DEVICE" + str(devid)]["DEFAULT_INTENSITY"]
         self.state = 0
         self.device_type = None
         self.request_auto_mode = True
@@ -33,34 +28,47 @@ class device(object):
         self.name = None
         self.color_type = None
         self.start_event_time = None
-        if config.has_option("DEVICE" + str(devid), "COLOR_TYPE"):
-            self.color_type = config["DEVICE" + str(devid)]["COLOR_TYPE"]
         self.color_brightness = None
         self.default_skip_time = False
-        if config.has_option("DEVICE" + str(devid), "SKIPTIME"):
-            self.default_skip_time = config["DEVICE" +
-                                            str(devid)].getboolean("SKIPTIME")
         self.skip_time = self.default_skip_time
         self.forceoff = True
-        if config.has_option("DEVICE" + str(devid), "FORCEOFF"):
-            self.forceoff = config["DEVICE" +
-                                   str(devid)].getboolean("FORCEOFF")
         self.ignoremode = False
-        if config.has_option("DEVICE" + str(devid), "IGNOREMODE"):
-            self.ignoremode = config["DEVICE" +
-                                     str(devid)].getboolean("IGNOREMODE")
-        if config.has_option("DEVICE" + str(devid), "NAME"):
-            self.name = config["DEVICE" + str(devid)]["NAME"]
         self.icon = None
-        if config.has_option("DEVICE" + str(devid), "ICON"):
-            self.icon = config["DEVICE" + str(devid)]["ICON"]
         self.action_delay = 0
         self.last_action_timestamp = 0
-        if config.has_option("DEVICE" + str(devid), "ACTION_DELAY"):
-            self.action_delay = int(
-                config["DEVICE" + str(devid)]["ACTION_DELAY"])
         self.has_pseudodevice = None
         self.request_locked = False
+        self.config = config
+        self.init_from_config()
+
+    def init_from_config(self):
+        self.description = self.config["DEVICE" +
+                                       str(self.devid)]["DESCRIPTION"]
+        if self.config.has_option("DEVICE" + str(self.devid), "GROUP"):
+            self.group = self.config["DEVICE" +
+                                     str(self.devid)]["GROUP"].split(',')
+        if self.config.has_option("DEVICE" + str(self.devid), "DEFAULT_INTENSITY"):
+            self.intensity = self.config["DEVICE" +
+                                         str(self.devid)]["DEFAULT_INTENSITY"]
+        if self.config.has_option("DEVICE" + str(self.devid), "COLOR_TYPE"):
+            self.color_type = self.config["DEVICE" +
+                                          str(self.devid)]["COLOR_TYPE"]
+        if self.config.has_option("DEVICE" + str(self.devid), "SKIPTIME"):
+            self.default_skip_time = self.config["DEVICE" +
+                                                 str(self.devid)].getboolean("SKIPTIME")
+        if self.config.has_option("DEVICE" + str(self.devid), "FORCEOFF"):
+            self.forceoff = self.config["DEVICE" +
+                                        str(self.devid)].getboolean("FORCEOFF")
+        if self.config.has_option("DEVICE" + str(self.devid), "IGNOREMODE"):
+            self.ignoremode = self.config["DEVICE" +
+                                          str(self.devid)].getboolean("IGNOREMODE")
+        if self.config.has_option("DEVICE" + str(self.devid), "NAME"):
+            self.name = self.config["DEVICE" + str(self.devid)]["NAME"]
+        if self.config.has_option("DEVICE" + str(self.devid), "ICON"):
+            self.icon = self.config["DEVICE" + str(self.devid)]["ICON"]
+        if self.config.has_option("DEVICE" + str(self.devid), "ACTION_DELAY"):
+            self.action_delay = int(
+                self.config["DEVICE" + str(self.devid)]["ACTION_DELAY"])
 
     def pre_run(self, color):
         if self.success:

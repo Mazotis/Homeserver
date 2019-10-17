@@ -2,6 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="utf-8">
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
+    <meta content="utf-8" http-equiv="encoding">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css" rel="stylesheet">
@@ -40,6 +42,22 @@
         position:absolute;
         line-height:inherit;
         right:10px;
+        text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+        cursor:pointer;
+    }
+    .cog-btn {
+        position:absolute;
+        line-height:inherit;
+        left:10px;
+        bottom:0.75rem;
+        text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+        cursor:pointer;
+    }
+    .cog-btn-top {
+        position:absolute;
+        line-height:inherit;
+        right:10px;
+        top:0.75rem;
         text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
         cursor:pointer;
     }
@@ -248,6 +266,24 @@
                 </center>
             </div>
         </div>
+    </div>
+    <div class="modal fade" id="settingsmodal" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-lg" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title"></h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+          </div>
+          <div class="modal-footer">
+            <button type="button" id="savemodal" class="btn btn-primary">Save</button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+          </div>
+        </div>
+      </div>
     </div>
   </body>
 </html>
