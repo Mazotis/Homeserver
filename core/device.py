@@ -21,6 +21,7 @@ class device(object):
         self._connection = None
         self.group = []
         self.state = 0
+        self.disabled = False
         self.device_type = None
         self.request_auto_mode = True
         self.auto_mode = True

@@ -23,6 +23,7 @@ DEVICE_STANDBY = "-2"
 DEVICE_SKIP = "-1"
 DEVICE_OFF = "0"
 DEVICE_ON = "1"
+DEVICE_DISABLED = "X"
 
 VERSION = "alpha"
 ###
@@ -83,8 +84,12 @@ class DebugLog(object):
                                                  self.LEVELS[level], msg)
             print(_cdebugtext)
             if ast.literal_eval(self.config['SERVER']['JOURNALING']):
-                with open(self.config['SERVER']['JOURNAL_DIR'] + "/home.0.log", "a") as jfile:
-                    jfile.write(_debugtext + "\n")
+                try:
+                    with open(self.config['SERVER']['JOURNAL_DIR'] + "/home.0.log", "a+") as jfile:
+                        jfile.write(_debugtext + "\n")
+                except FileNotFoundError:
+                    print("Directory {} does not exist. Quitting.".format(self.config['SERVER']['JOURNAL_DIR']))
+                    quit()
 
 
 decora = None

@@ -2,8 +2,8 @@
 '''
     File name: DecoraSwitch.py
     Author: Maxime Bergeron
-    Date last modified: 14/03/2019
-    Python Version: 3.7
+    Date last modified: 17/10/2019
+    Python Version: 3.5
 
     The DecoraSwitch for Leviton Decora Switches handler class
 '''
@@ -54,6 +54,7 @@ class DecoraSwitch(device):
         else:
             debug.write(
                 "Skipping device {} - handler connection failed.".format(self.device), 0, self.device_type)
+            self.state = DEVICE_DISABLED
             return True
 
     def create_pseudodevice(self):

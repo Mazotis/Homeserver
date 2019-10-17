@@ -2,7 +2,7 @@
 '''
     File name: MerossSwitch.py
     Author: Maxime Bergeron
-    Date last modified: 19/02/2019
+    Date last modified: 17/10/2019
     Python Version: 3.7
 
     The MerossSwitch for Meross Switches handler class
@@ -31,33 +31,39 @@ class MerossSwitch(device):
 
     def run(self, color):
         """ Checks the request and trigger a light change if needed """
-        if color == DEVICE_OFF:
-            debug.write("Turning Meross device {} OFF.".format(self.device), 0)
-            self.meross_dev.turn_off()
-            self.state = "0"
-            self.success = True
-            return True
-        elif color == DEVICE_ON:
-            debug.write("Turning Meross device {} ON.".format(self.device), 0)
-            self.meross_dev.turn_on()
-            self.state = "1"
-            self.success = True
-            return True
-        else:
-            debug.write("Unknown state {} for device {}, falling back to OFF."
-                        .format(color, self.device), 0, self.device_type)
-            self.meross_dev.turn_off()
-            self.state = "0"
-            self.success = True
-            return True
+        if not self.meross.disabled:
+            if color == DEVICE_OFF:
+                debug.write(
+                    "Turning Meross device {} OFF.".format(self.device), 0)
+                self.meross_dev.turn_off()
+                self.state = "0"
+                self.success = True
+                return True
+            elif color == DEVICE_ON:
+                debug.write(
+                    "Turning Meross device {} ON.".format(self.device), 0)
+                self.meross_dev.turn_on()
+                self.state = "1"
+                self.success = True
+                return True
+            else:
+                debug.write("Unknown state {} for device {}, falling back to OFF."
+                            .format(color, self.device), 0, self.device_type)
+                self.meross_dev.turn_off()
+                self.state = "0"
+                self.success = True
+                return True
 
     def get_state(self):
         # TODO Is this the proper limit for ON/OFF ?
-        if self.meross_dev.supports_electricity_reading():
-            if int(self.meross_dev.get_electricity()['current']) > 100:
-                self.state = "1"
-            else:
-                self.state = "0"
+        if not self.meross.disabled:
+            if self.meross_dev.supports_electricity_reading():
+                if int(self.meross_dev.get_electricity()['current']) > 100:
+                    self.state = "1"
+                else:
+                    self.state = "0"
+        else:
+            self.state = DEVICE_DISABLED
         return self.state
 
     def create_pseudodevice(self):

@@ -9,6 +9,7 @@
 '''
 
 from pyHS100 import SmartPlug
+from pyHS100.smartdevice import SmartDeviceException
 from core.common import *
 from core.device import device
 
@@ -34,32 +35,41 @@ class TPLinkSwitch(device):
             self.ip, self.device), 0, self.device_type)
 
     def run(self, color):
-        if color == DEVICE_ON:
-            if self.dimmable:
-                self.plug.brightness = self.convert(self.intensity)
+        if not self.disabled:
+            if color == DEVICE_ON:
+                if self.dimmable:
+                    self.plug.brightness = self.convert(self.intensity)
+                else:
+                    self.plug.turn_on()
+                self.state = DEVICE_ON
+            elif color == DEVICE_OFF:
+                self.plug.turn_off()
+                self.state = DEVICE_OFF
+            elif self.dimmable:
+                self.plug.brightness = int(color)
+                self.state = color
             else:
-                self.plug.turn_on()
-            self.state = DEVICE_ON
-        elif color == DEVICE_OFF:
-            self.plug.turn_off()
-            self.state = DEVICE_OFF
-        elif self.dimmable:
-            self.plug.brightness = int(color)
-            self.state = color
-        else:
-            debug.write("Unknown color code for device {}".format(
-                self.device), 1, self.device_type)
+                debug.write("Unknown color code for device {}".format(
+                    self.device), 1, self.device_type)
         self.success = True
         return True
 
     def get_state(self):
-        if self.plug.state == "OFF":
-            self.state = DEVICE_OFF
-        else:
-            if self.dimmable:
-                self.state = self.plug.brightness
-            else:
-                self.state = DEVICE_ON
+        if not self.disabled:
+            try:
+                if self.plug.state == "OFF":
+                    self.state = DEVICE_OFF
+                else:
+                    if self.dimmable:
+                        self.state = self.plug.brightness
+                    else:
+                        self.state = DEVICE_ON
+                return self.state
+            except SmartDeviceException as ex:
+                debug.write("Connection failed for device {}, disabling.".format(self.name), 1, "TP-LinkSwitch")
+                self.disabled = True
+                self.state = DEVICE_DISABLED
+                pass
         return self.state
 
     def connect(self):

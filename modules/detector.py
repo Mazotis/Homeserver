@@ -71,9 +71,15 @@ class detector(Thread):
             for _cnt, _dev in enumerate(self.tracked_find3_devs):
                 # Get last update times
                 if _dev != "_":
-                    _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.config['DETECTOR']['FIND3_SERVER_URL'],
+                    try:
+                        _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.config['DETECTOR']['FIND3_SERVER_URL'],
                                                                                self.config['DETECTOR']['FIND3_FAMILY_NAME'],
                                                                                _dev))
+                    except requests.exceptions.ConnectionError:
+                        debug.write("Cannot connect to FIND3 server using provided config. Disabling", 1, "DETECTOR")
+                        self.FIND3_SERVER = False
+                        break;
+
                     self.tracked_find3_times[_cnt] = _r.json()['sensors']['t']
 
         for _cnt, device in enumerate(self.TRACKED_IPS):

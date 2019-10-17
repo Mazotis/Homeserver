@@ -291,7 +291,7 @@ function computeCards() {
             $(this).find(".onbuttons").attr('disabled', true)
             $(this).find(".card-header").addClass("bg-warning")
             $(this).addClass("border-warning")
-        } else {
+        } else if (cstate != "X") {
             $(this).find(".offbuttons").attr('disabled', false)
             $(this).find(".onbuttons").attr('disabled', true)
             $(this).find(".card-header").addClass("bg-success")
