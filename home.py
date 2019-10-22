@@ -176,7 +176,7 @@ class HomeServer(object):
             _col[iddata] = valdata
             req.set_colors(_col, len(dm.devices))
             if skiptime == 1:
-                req.skip_time = True
+                req.set(skip_time=True)
             dm.run(req)
             client.send("1".encode("UTF-8"))
             return True
@@ -188,7 +188,7 @@ class HomeServer(object):
             cmode = int(client.recv(1).decode("UTF-8"))
             req.set_mode_for_devid = iddata
             if cmode == 1:
-                req.auto_mode = True
+                req.set(auto_mode=True)
             dm.run(req)
             debug.write('Device modes: {}'.format(
                 dm.get_modes()), 0)
@@ -198,7 +198,7 @@ class HomeServer(object):
         if data == "setallmode":
             debug.write(
                 'Running an all-devices mode change', 0)
-            req.force_auto_mode = True
+            req.set(force_auto_mode=True)
             dm.run(req)
             debug.write('Device modes: {}'.format(
                 dm.get_modes()), 0)
@@ -213,11 +213,11 @@ class HomeServer(object):
             skiptime = int(client.recv(1).decode("UTF-8"))
             _col = ["0"] * len(dm.devices)
             if skiptime == 1:
-                req.skip_time = True
+                req.set(skip_time=True)
             if valdata == 1:
                 _col = ["1"] * len(dm.devices)
             req.set_colors(_col, len(dm.devices))
-            req.group = [group.replace("0", "").lower()]
+            req.set(group=[group.replace("0", "").lower()])
             dm.run(req)
             client.send("1".encode("UTF-8"))
             return True
@@ -310,11 +310,9 @@ class HomeServer(object):
                 debug.write("Running TCP preset {}".format(
                     data[3:]), 0)
                 if self.config["TCP-PRESETS"].getboolean('AUTOMATIC_MODE'):
-                    os.system(
-                        "./homeclient.py --auto-mode " + self.config["TCP-PRESETS"][data[3:]])
+                    StateRequestObject(auto_mode=True, hexvalues=self.config["TCP-PRESETS"][data[3:]]).run(self.lm)
                 else:
-                    os.system(
-                        "./homeclient.py " + self.config["TCP-PRESETS"][data[3:]])
+                    StateRequestObject(hexvalues=self.config["TCP-PRESETS"][data[3:]]).run(self.lm)
             else:
                 debug.write("TCP preset {} is not configured".format(
                     data[3:]), 1)

@@ -2,7 +2,7 @@
 '''
     File name: detector.py
     Author: Maxime Bergeron
-    Date last modified: 11/10/2019
+    Date last modified: 22/10/2019
     Python Version: 3.5
 
     The device-pinging detector module for the homeserver
@@ -12,6 +12,7 @@ import datetime
 import os
 import requests
 from core.common import *
+from core.devicemanager import StateRequestObject
 from threading import Thread, Event
 
 
@@ -44,12 +45,20 @@ class detector(Thread):
                     "You must provide enough TRACKED_PICTURES to match the TRACKED_IPS.", 1, "DETECTOR")
 
     def run(self):
+        _is_running = False
         self.first_detect()
         while not self.stopevent.is_set():
             if self.DETECTOR_START_HOUR > datetime.datetime.now().time() or \
                     self.DETECTOR_END_HOUR < datetime.datetime.now().time():
+                _is_running = False
                 self.stopevent.wait(30)
                 continue
+            if not _is_running and self.config['DETECTOR'].getboolean('FALLBACK_AUTO_ON_NEW_DAY'):
+                debug.write(
+                    "Setting back all devices to AUTO mode for new day", 0, "DETECTOR")
+                StateRequestObject(force_auto_mode=True,
+                                   notime=True).run(self.lm)
+                _is_running = True
             self.detect_devices()
             self.stopevent.wait(int(self.config['DETECTOR']['PING_FREQ_SEC']))
         debug.write("Stopped.", 0, "DETECTOR")
@@ -73,12 +82,13 @@ class detector(Thread):
                 if _dev != "_":
                     try:
                         _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.config['DETECTOR']['FIND3_SERVER_URL'],
-                                                                               self.config['DETECTOR']['FIND3_FAMILY_NAME'],
-                                                                               _dev))
+                                                                                   self.config['DETECTOR']['FIND3_FAMILY_NAME'],
+                                                                                   _dev))
                     except requests.exceptions.ConnectionError:
-                        debug.write("Cannot connect to FIND3 server using provided config. Disabling", 1, "DETECTOR")
+                        debug.write(
+                            "Cannot connect to FIND3 server using provided config. Disabling", 1, "DETECTOR")
                         self.FIND3_SERVER = False
-                        break;
+                        break
 
                     self.tracked_find3_times[_cnt] = _r.json()['sensors']['t']
 
@@ -118,11 +128,11 @@ class detector(Thread):
                        self.tracked_find3_local[_cnt] != _r.json()['analysis']['guesses'][0]['location']:
                         if _r.json()['analysis']['guesses'][0]['location'] in self.config['FIND3-PRESETS']:
                             if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
-                                os.system("./homeclient.py --auto-mode " + self.config['FIND3-PRESETS'][_r.json()[
-                                          'analysis']['guesses'][0]['location']])
+                                StateRequestObject(auto_mode=True, hexvalues=self.config['FIND3-PRESETS'][_r.json()[
+                                    'analysis']['guesses'][0]['location']]).run(self.lm)
                             else:
-                                os.system("./homeclient.py " + self.config['FIND3-PRESETS'][_r.json()[
-                                          'analysis']['guesses'][0]['location']])
+                                StateRequestObject(hexvalues=self.config['FIND3-PRESETS'][_r.json()[
+                                    'analysis']['guesses'][0]['location']]).run(self.lm)
                             debug.write("Device {} found in '{}'. Running change of lights."
                                         .format(self.tracked_find3_devs[_cnt],
                                                 _r.json()['analysis']['guesses'][0]['location']), 0, "DETECTOR")
@@ -133,11 +143,11 @@ class detector(Thread):
                                                 _r.json()['analysis']['guesses'][0]['location']), 0, "DETECTOR")
                         if self.tracked_find3_local[_cnt] + "-off" in self.config['FIND3-PRESETS']:
                             if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
-                                os.system("./homeclient.py --auto-mode " +
-                                          self.config['FIND3-PRESETS'][self.tracked_find3_local[_cnt] + "-off"])
+                                StateRequestObject(
+                                    auto_mode=True, hexvalues=self.config['FIND3-PRESETS'][self.tracked_find3_local][_cnt] + "-off").run(self.lm)
                             else:
-                                os.system(
-                                    "./homeclient.py " + self.config['FIND3-PRESETS'][self.tracked_find3_local[_cnt] + "-off"])
+                                StateRequestObject(
+                                    hexvalues=self.config['FIND3-PRESETS'][self.tracked_find3_local][_cnt] + "-off").run(self.lm)
                             debug.write("Device {} left '{}'. Running change of lights."
                                         .format(self.tracked_find3_devs[_cnt],
                                                 self.tracked_find3_local[_cnt]), 0, "DETECTOR")
@@ -158,17 +168,18 @@ class detector(Thread):
             debug.write("STATE changed to {} and DELAYED_START {}, turned off"
                         .format(self.DEVICE_STATE_LEVEL, self.delayed_start), 0, "DETECTOR")
             if self.config['DETECTOR'].getboolean('FALLBACK_AUTO_ON_DISCONNECT'):
-                os.system(
-                    './homeclient.py --reset-mode --off --notime --priority 3')
+                StateRequestObject(reset_mode=True, off=True,
+                                   notime=True).run(self.lm)
             else:
-                os.system(
-                    './homeclient.py --auto-mode --off --notime --priority 3')
+                StateRequestObject(auto_mode=True, off=True,
+                                   notime=True).run(self.lm)
             self.status = 0
             self.delayed_start = 0
         if datetime.datetime.now().time() == EVENT_TIME and self.delayed_start == 1:
             debug.write("DELAYED STATE with actual state {}, turned on".format(self.DEVICE_STATE_LEVEL),
                         0, "DETECTOR")
-            os.system('./homeclient.py --auto-mode --on --group passage')
+            StateRequestObject(
+                auto_mode=True, on=True, group=self.config['DETECTOR']['AUTO_ON_GROUP']).run(self.lm)
             self.delayed_start = 0
             self.status = 1
         if self.DEVICE_STATE_MAX in self.DEVICE_STATE_LEVEL and self.delayed_start == 0:
@@ -181,7 +192,8 @@ class detector(Thread):
            >= EVENT_TIME:
             debug.write("STATE changed to {}, turned on".format(
                 self.DEVICE_STATE_LEVEL), 0, "DETECTOR")
-            os.system('./homeclient.py --auto-mode --on --group passage')
+            StateRequestObject(
+                auto_mode=True, on=True, group=self.config['DETECTOR']['AUTO_ON_GROUP']).run(self.lm)
             self.status = 1
             self.delayed_start = 0
         if all(s == 0 for s in self.DEVICE_STATE_LEVEL) and self.status == 0 and self.delayed_start == 1:

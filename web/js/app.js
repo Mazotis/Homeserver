@@ -672,7 +672,7 @@ function getConfigDevice(devid) {
     $("#settingsmodal").find("#savemodal").attr("onclick", "saveConfig('DEVICE" + devid + "')")
     html = '<p class="small">WARNING - do not use latin characters (é,à,ç...) or upper-case words if not absolutely required (for example, file locations, MAC addresses, True/False) as it may break your configuration</p><form id="configform" role="form"><fieldset>'
     for (var entry in dmconfig["DEVICE" + devid]) {
-        html += '<div class="form-group row"><label for="' + entry + '" class="col-sm-3 col-form-label">' + entry + '</label><div class="col-sm-9"><input type="text" class="form-control" name="' + entry + '" value="' + dmconfig["DEVICE" + devid][entry] + '"></div></div>'
+        html += '<div class="form-group row"><label for="' + entry + '" class="col-sm-3 col-form-label" style="word-break:break-all;">' + entry + '</label><div class="col-sm-9"><input type="text" class="form-control" name="' + entry + '" value="' + dmconfig["DEVICE" + devid][entry] + '"></div></div>'
     }
     html += "</fieldset></form>"
     $("#settingsmodal").find(".modal-body").html(html)
@@ -684,7 +684,7 @@ function getConfigModule(amodule) {
     $("#settingsmodal").find("#savemodal").attr("onclick", "saveConfig('" + amodule + "')")
     html = '<p class="small">WARNING - do not use latin characters (é,à,ç...) or upper-case words if not absolutely required (for example, file locations, MAC addresses, True/False) as it may break your configuration</p><form id="configform" role="form"><fieldset>'
     for (var entry in dmconfig[amodule.toUpperCase()]) {
-        html += '<div class="form-group row"><label for="' + entry + '" class="col-sm-3 col-form-label">' + entry + '</label><div class="col-sm-9"><input type="text" class="form-control" name="' + entry + '" value="' + dmconfig[amodule.toUpperCase()][entry] + '"></div></div>'
+        html += '<div class="form-group row"><label for="' + entry + '" class="col-sm-3 col-form-label" style="word-break:break-all;">' + entry + '</label><div class="col-sm-9"><input type="text" class="form-control" name="' + entry + '" value="' + dmconfig[amodule.toUpperCase()][entry] + '"></div></div>'
     }
     html += "</fieldset></form>"
     $("#settingsmodal").find(".modal-body").html(html)

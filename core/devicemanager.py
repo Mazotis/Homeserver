@@ -99,6 +99,10 @@ class DeviceManager(object):
                 _device.auto_mode = True
         if device_id is not None:
             self.devices[device_id].auto_mode = auto_mode
+        if force_auto_mode:
+            debug.write("All devices set to AUTO mode", 0)
+        if reset_mode:
+            debug.write("All non-skipped devices set back to AUTO mode", 0)
 
     def get_group(self, group):
         """ Gets devices from a specific group for the light change """
@@ -141,6 +145,8 @@ class DeviceManager(object):
 
     def run(self, request):
         """ Validates the request and runs the light change """
+        if not request.request_is_validated and not request.validate_request(self, self.config, called_on_run=True):
+            return
         self.clean_delayed_changes()
 
         if request.colors is not None:
@@ -567,7 +573,7 @@ class DeviceManager(object):
 class StateRequestObject(object):
     """ Methods for properly handling devicemanager state change requests """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.hexvalues = []
         self.off = False
         self.on = False
@@ -597,6 +603,18 @@ class StateRequestObject(object):
         self.auto_mode = False
         self.reset_mode = False
         self.force_auto_mode = False
+        self.request_is_validated = False
+        self.set(**kwargs)
+
+    def set(self, **kwargs):
+        allowed_keys = {'hexvalues', 'off', 'on', 'restart', 'toggle', 'group',
+                        'notime', 'delay', 'preset', 'manual_mode', 'reset_location_data',
+                        'force_auto_mode', 'auto_mode', 'reset_mode'}
+        self.__dict__.update((k, v)
+                             for k, v in kwargs.items() if k in allowed_keys)
+
+    def run(self, dm):
+        dm.run(self)
 
     def parse_args(self, args):
         for _arg in vars(args):
@@ -625,7 +643,7 @@ class StateRequestObject(object):
             if self.colors[i] != _color:
                 self.colors[i] = _color
 
-    def validate_request(self, dm, config):
+    def validate_request(self, dm, config, called_on_run=False):
         debug.write("Validating arguments", 0)
         if self.reset_location_data:
             # TODO eventually add training data cleanup
@@ -702,6 +720,9 @@ class StateRequestObject(object):
                 self.set_colors(dm.get_toggle(), len(dm.devices))
         if self.notime or self.off:
             self.skip_time = True
+
         debug.write("Arguments are OK", 0)
-        dm.run(self)
+        self.request_is_validated = True
+        if not called_on_run:
+            self.run(dm)
         return True

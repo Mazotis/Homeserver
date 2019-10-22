@@ -59,7 +59,7 @@ class Decora(object):
             return
         except KeyboardInterrupt:
             self.disabled = True
-            pass
+            return
         self._connected = True
 
     def disconnect(self):
