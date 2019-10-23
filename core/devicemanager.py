@@ -106,6 +106,8 @@ class DeviceManager(object):
 
     def get_group(self, group):
         """ Gets devices from a specific group for the light change """
+        if type(group) == str:
+            group = [group]
         for _cnt, _device in enumerate(self.devices):
             if group is not None and set(group).issubset(_device.group):
                 continue
@@ -654,6 +656,8 @@ class StateRequestObject(object):
         for _dev in getDevices(True):
             if getattr(self, _dev, None) is not None:
                 has_device_requests = True
+        if self.colors is not None and len(self.colors) == len(dm.devices):
+            has_device_requests = True
 
         if self.hexvalues and has_device_requests:
             debug.write("Got color hexvalues for multiple devices in the same request, which is not \
@@ -663,7 +667,7 @@ class StateRequestObject(object):
 
         if len(self.hexvalues) != len(dm.devices) and not any([self.notime, self.off, self.on,
                                                                self.toggle, self.preset, self.restart,
-                                                               has_device_requests]):
+                                                               self.group, has_device_requests]):
             debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting"
                         .format(len(self.hexvalues), len(dm.devices), sys.argv[0]), 2)
             return False
