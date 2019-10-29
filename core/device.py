@@ -156,9 +156,9 @@ class device(object):
         self.request_locked = bool(is_locked)
         return
 
-    def set_event_time(self, event_time, skip_time=False):
+    def set_event_time(self, event_time, skip_time=None):
         self.start_event_time = event_time
-        self.skip_time = skip_time
+        self.skip_time = skip_time if skip_time is not None else self.default_skip_time
         return
 
     def descriptions(self):

@@ -328,7 +328,6 @@ class DeviceManager(object):
         now_time = datetime.datetime.now().time()
         self.update_event_time()
         for _dev in self.devices:
-            _dev.set_event_time(self.starttime)
             if self.always_skip_time or skip_time:
                 _dev.set_event_time(self.starttime, True)
             else:
@@ -611,7 +610,7 @@ class StateRequestObject(object):
     def set(self, **kwargs):
         allowed_keys = {'hexvalues', 'off', 'on', 'restart', 'toggle', 'group',
                         'notime', 'delay', 'preset', 'manual_mode', 'reset_location_data',
-                        'force_auto_mode', 'auto_mode', 'reset_mode'}
+                        'force_auto_mode', 'auto_mode', 'reset_mode', 'skip_time'}
         self.__dict__.update((k, v)
                              for k, v in kwargs.items() if k in allowed_keys)
 
