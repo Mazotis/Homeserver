@@ -49,5 +49,7 @@ class weblog(Thread):
         for _line in _logfile:
             if level == 'all' or "[" + level.upper() + "]" in _line:
                 _logstr += _line
+        if _logstr == "":
+            _logstr = "- No logs found for this level -"
         web += '<textarea id="debugarea">{}</textarea>'.format(_logstr)
         return web

@@ -236,6 +236,7 @@ class HomeServer(object):
                 debug.write('Cannot find module', 1)
                 client.send("0".encode("UTF-8"))
             else:
+                client.send(str(len(content)).zfill(6).encode("UTF-8"))
                 client.send(content.encode("UTF-8"))
             return True
 
@@ -293,6 +294,7 @@ class HomeServer(object):
                 debug.write('Cannot find module', 1)
                 client.send("0".encode("UTF-8"))
             else:
+                client.send(str(len(content)).zfill(6).encode("UTF-8"))
                 client.send(content.encode("UTF-8"))
             return True
 

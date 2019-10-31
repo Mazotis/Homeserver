@@ -134,7 +134,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     s.sendall("0009".encode('utf-8'))
                     s.sendall("getmodule".encode('utf-8'))
                     s.sendall(module.zfill(64).encode('utf-8'))
-                    data = s.recv(8184)
+                    data_len = int(s.recv(6))
+                    data = s.recv(data_len + 100)
                     if data:
                         response.write(data)
                 finally:
@@ -193,7 +194,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     s.sendall("0011".encode('utf-8'))
                     s.sendall("getdebuglog".encode('utf-8'))
                     s.sendall(debuglevel.encode('utf-8'))
-                    data = s.recv(8184)
+                    data_len = int(s.recv(6))
+                    data = s.recv(data_len + 100)
                     if data:
                         response.write(data)
                 finally:
