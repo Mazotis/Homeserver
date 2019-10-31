@@ -1,0 +1,55 @@
+<script>
+getContent("weblog")
+
+function getDebugLog() {
+    $("#refreshdb").prop("disabled", true)
+    $.ajax({
+        type: "POST",
+        url: ".",
+        dataType: "text",
+        data: {
+                request: "True",
+                reqtype: "12",
+                debuglevel: $("input[name='debugRadio']:checked").val()
+            },
+        success: function(data) {
+            $("#refreshdb").prop("disabled", false)
+            $("#weblog-content").html(data)
+        },
+        error: function(data){
+            console.log(data)
+        }
+    })
+}
+</script>
+<div class="row">
+    <div class="col-sm-12">
+        <div class="card bg-secondary mb-3 text-white">
+            <h4 class="card-header">Debug log (module)</h4>
+            <div class="card-body">
+                <p class="card-text"><div id="weblog-content"></div></p>
+                <button type="button" id="refreshdb" class="btn btn-secondary" style="float:right;" onclick="getDebugLog()">Refresh</button>
+                <div style="float:left;">
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="debugRadio" id="allDebug" value="all" checked>
+                      <label class="form-check-label" for="allDebug">
+                        Full debug log
+                      </label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="debugRadio" id="debugDebug" value="debug">
+                      <label class="form-check-label" for="debugDebug">
+                        "Debug" level logs
+                      </label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                      <input class="form-check-input" type="radio" name="debugRadio" id="errorDebug" value="error">
+                      <label class="form-check-label" for="errorDebug">
+                        "Error" level logs
+                      </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

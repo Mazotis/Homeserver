@@ -283,6 +283,19 @@ class HomeServer(object):
                 dm.reload_configs()
             return True
 
+        if data == "getdebuglog":
+            debug.write(
+                'Getting debug log for weblog module', 0)
+            for _mod in dm.modules:
+                if _mod.__class__.__name__ == "weblog":
+                    content = _mod.get_web(client.recv(5).decode("UTF-8"))
+            if content is None:
+                debug.write('Cannot find module', 1)
+                client.send("0".encode("UTF-8"))
+            else:
+                client.send(content.encode("UTF-8"))
+            return True
+
         if data == "stream":
             debug.write('Starting streaming mode', 0)
             streamingdev = True

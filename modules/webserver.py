@@ -187,6 +187,17 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         response.write(data)
                 finally:
                     s.close()
+            if reqtype == 12:
+                try:
+                    debuglevel = postvars[b'debuglevel'][0].decode('utf-8')
+                    s.sendall("0011".encode('utf-8'))
+                    s.sendall("getdebuglog".encode('utf-8'))
+                    s.sendall(debuglevel.encode('utf-8'))
+                    data = s.recv(8184)
+                    if data:
+                        response.write(data)
+                finally:
+                    s.close()
         else:
             response.write("No request".encode("UTF-8"))
         self.wfile.write(response.getvalue())

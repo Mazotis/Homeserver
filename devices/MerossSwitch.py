@@ -57,11 +57,16 @@ class MerossSwitch(device):
     def get_state(self):
         # TODO Is this the proper limit for ON/OFF ?
         if not self.meross.disabled:
-            if self.meross_dev.supports_electricity_reading():
-                if int(self.meross_dev.get_electricity()['current']) > 100:
-                    self.state = "1"
-                else:
-                    self.state = "0"
+            try:
+                if self.meross_dev.supports_electricity_reading():
+                    if int(self.meross_dev.get_electricity()['current']) > 100:
+                        self.state = "1"
+                    else:
+                        self.state = "0"
+            except CommandTimeoutException:
+                debug.write(
+                    "Failed to obtain current state for device {}. Fallback to server-side reported state.".format(self.device), 1)
+                return self.state
         else:
             self.state = DEVICE_DISABLED
         return self.state

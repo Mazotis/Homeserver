@@ -2,9 +2,9 @@
 getContent("backup")
 
 function doBackup(clientid) {
-	$("#backupbtn" + clientid).prop("disabled", true)
-	$("#backupbtn" + clientid).html("Scheduled")
-	$.ajax({
+    $("#backupbtn" + clientid).prop("disabled", true)
+    $("#backupbtn" + clientid).html("Scheduled")
+    $.ajax({
         type: "POST",
         url: ".",
         dataType: "text",
