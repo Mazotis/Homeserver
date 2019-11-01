@@ -230,10 +230,6 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 else:
                     response.write(content.encode("UTF-8"))
 
-            if reqtype == "gettext":
-                textid = postvars[b'textid'][0].decode('utf-8')
-                response.write(getTextHTML(textid).encode("utf-8"))
-
             # ADD NECESSARY WEBSERVER REQUESTS HERE #
 
         else:
