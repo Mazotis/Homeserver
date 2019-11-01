@@ -13,7 +13,7 @@
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/roundSlider/1.3.3/roundslider.min.js"></script>
     <script src="js/app.js"></script>
-    <title>Homeserver control panel</title>
+    <title>_(Homeserver control panel)</title>
   </head>
   <body style="background-color:#eee !important">
     <style>
@@ -146,63 +146,63 @@
                 <center>
                     <div id="preloader" style="display:none">
                         <div class="spinner-border" style="width: 200px; height: 200px; margin-bottom:20px" role="status">
-                            <span class="sr-only">Loading...</span>
+                            <span class="sr-only">_(Loading...)</span>
                         </div>
                     </div>
                 </center>
                 <span id="detector-module-location"></span>
                 <div id="update-spin" class="col-12">
                     <center>
-                        <h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;<span id="spin-text">Updating device status...</span></h5>
+                        <h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;<span id="spin-text">_(Updating device status...)</span></h5>
                     </center>
                 </div>
                 <div id="rooms-section" style="display:none;">
-                    <h4>Rooms</h4>
+                    <h4>_(Rooms)</h4>
                     <div id="open-rcard">
                     </div>
                     <div class="card-columns rcolumns">
                     </div>
                 </div>
-                <h4>Devices</h4>
+                <h4>_(Devices)</h4>
                 <div id="resultid"></div>
                 <div class="row">
                     <div class="col-sm-12">
                         <div class="card bg-info mb-3">
-                            <h4 class="card-header text-white">Groups</h4>
+                            <h4 class="card-header text-white">_(Groups)</h4>
                             <div class="card-body">
                                 <div id="groups" class="card-text">
-                                    <p class="text-white">No available device groups</p>
+                                    <p class="text-white">_(No available device groups)</p>
                                 </div>
                             </div>
                         </div>
                         <div class="card text-white bg-dark mb-3">
-                            <h4 class="card-header">Options</h4>
+                            <h4 class="card-header">_(Options)</h4>
                             <div class="card-body noselect-nooverflow">
-                                <p class="card-text">Time check feature (sunset time). Today's start time: <span id="suntime">N/A</span></p>
+                                <p class="card-text">_(Time check feature. Today's start time:) <span id="suntime">_(N/A)</span></p>
                                 <p class="card-text">
                                     <div class="btn-group btn-group-toggle" data-toggle="buttons">
                                         <label class="btn btn-secondary active">
-                                            <input type="radio" name="skiptime1" autocomplete="off" checked> Check time of day before executing changes
+                                            <input type="radio" name="skiptime1" autocomplete="off" checked> _(Check time of day before executing changes)
                                         </label>
                                         <label class="btn btn-secondary">
-                                            <input type="radio" name="skiptime2" autocomplete="off"> Execute changes anytime
+                                            <input type="radio" name="skiptime2" autocomplete="off"> _(Execute changes anytime)
                                         </label>
                                     </div>
                                 </p>
-                                <p class="card-text">Automatic mode</p>
+                                <p class="card-text">_(Automatic mode)</p>
                                 <p class="card-text">
                                     <div class="btn-group" data-toggle="buttons">
-                                        <button type="button" onclick="sendAllModeAuto()" class="btn btn-secondary">Set all devices to automatic mode</button>
+                                        <button type="button" onclick="sendAllModeAuto()" class="btn btn-secondary">_(Set all devices to automatic mode)</button>
                                     </div>
                                 </p>
-                                <p class="card-text">Mode selection toggles</p>
+                                <p class="card-text">_(Mode selection toggles)</p>
                                 <p class="card-text">
                                     <div class="btn-group btn-group-toggle hidemode-toggles" data-toggle="buttons">
                                         <label class="btn btn-secondary active">
-                                            <input type="radio" autocomplete="off" value="0" checked> Hide mode selection toggles
+                                            <input type="radio" autocomplete="off" value="0" checked> _(Hide mode selection toggles)
                                         </label>
                                         <label class="btn btn-secondary">
-                                            <input type="radio" autocomplete="off" value="1"> Show mode selection toggles
+                                            <input type="radio" autocomplete="off" value="1"> _(Show mode selection toggles)
                                         </label>
                                     </div>
                                 </p>
@@ -225,8 +225,8 @@
                 <small class="text-muted noselect-nooverflow"></small>
                 <p class="card-text c-desc"></p>
                 <div class="btn-group btn-group-lg" role="group" style="margin-bottom:10px;">
-                    <button type="button" class="btn btn-danger offbuttons">OFF</button>
-                    <button type="button" class="btn btn-success onbuttons">ON</button>
+                    <button type="button" class="btn btn-danger offbuttons">_(OFF)</button>
+                    <button type="button" class="btn btn-success onbuttons">_(ON)</button>
                 </div>
                 <div>
                     <center>
@@ -239,8 +239,8 @@
                     </center>
                 </div>
                 <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons" style="display:none;">
-                    <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> Auto</label>
-                    <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> Manual</label>
+                    <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> _(Auto)</label>
+                    <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> _(Manual)</label>
                 </div>
             </div>
             <div class="card-footer noselect-nooverflow">
@@ -260,8 +260,8 @@
             <div class="noselect-nooverflow">
                 <center>
                     <div class="btn-group btn-group-sm" role="group" style="padding:5px;">
-                        <button type="button" class="btn btn-danger goffbuttons">OFF</button>
-                        <button type="button" class="btn btn-success gonbuttons">ON</button>
+                        <button type="button" class="btn btn-danger goffbuttons">_(OFF)</button>
+                        <button type="button" class="btn btn-success gonbuttons">_(ON)</button>
                     </div>
                 </center>
             </div>
@@ -279,8 +279,8 @@
           <div class="modal-body">
           </div>
           <div class="modal-footer">
-            <button type="button" id="savemodal" class="btn btn-primary">Save</button>
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+            <button type="button" id="savemodal" class="btn btn-primary">_(Save)</button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">_(Close)</button>
           </div>
         </div>
       </div>

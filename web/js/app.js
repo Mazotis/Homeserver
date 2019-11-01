@@ -92,7 +92,7 @@ function getResult() {
 
                 $("#rooms-section").show()
                 for (cnt in rgroups) {
-                    rhtml += '<div class="card rcard mb-3 noselect-nooverflow" id="rcard-' + rgroups[cnt] + '"><h4 class="card-header title-header bg-danger text-white" style="font-weight:bold;">' + rgroups[cnt].charAt(0).toUpperCase() + rgroups[cnt].substr(1).toLowerCase() + '</h4><div class="card-body d-body card-columns" style="display:none;"></div><h5 class="card-header bg-danger d-count text-white title-footer"><div class="btn-group btn-group-sm" role="group" style="float:right;"><button type="button" class="btn btn-danger goffbuttons">OFF</button><button type="button" class="btn btn-success gonbuttons">ON</button></div></h5></div>'
+                    rhtml += '<div class="card rcard mb-3 noselect-nooverflow" id="rcard-' + rgroups[cnt] + '"><h4 class="card-header title-header bg-danger text-white" style="font-weight:bold;">' + rgroups[cnt].charAt(0).toUpperCase() + rgroups[cnt].substr(1).toLowerCase() + '</h4><div class="card-body d-body card-columns" style="display:none;"></div><h5 class="card-header bg-danger d-count text-white title-footer"><div class="btn-group btn-group-sm" role="group" style="float:right;"><button type="button" class="btn btn-danger goffbuttons">_(OFF)</button><button type="button" class="btn btn-success gonbuttons">_(ON)</button></div></h5></div>'
                 }
 
                 $(".rcolumns").html(rhtml)
@@ -123,7 +123,7 @@ function getResult() {
 
 function getResultRefresh() {
     runningRequests++
-    $("#spin-text").html("Running requests and getting cached state status...")
+    $("#spin-text").html("_(Running requests and getting cached state status...)")
     $("#update-spin").show()
     deduceAbortableRequest = true
 
@@ -169,7 +169,7 @@ function getResultRefresh() {
 function getResultPost() {
     if (runningRequests == 1) {
         deduceAbortableRequest = true
-        $("#spin-text").html("Querying device state...")
+        $("#spin-text").html("_(Querying device state...)")
         $("#update-spin").show()
         xhr = $.ajax({
             type: "POST",
@@ -305,13 +305,13 @@ function computeCards() {
             $(this).find(".btn-group").hide()
             $(this).find(".noop").show()
         } else {
-            $(this).find(".card-footer").append('<i class="fas fa-cog text-white cog-btn" onclick="getConfigDevice('+ cid + ')" title="Device configuration"></i>')
+            $(this).find(".card-footer").append('<i class="fas fa-cog text-white cog-btn" onclick="getConfigDevice('+ cid + ')" title="_(Device configuration)"></i>')
             if (clocked == "1") {
                 $(this).find(".card-body").hide()
-                $(this).find(".card-footer center").append('<i class="fas fa-lock text-white lock-btn" onclick="setLockDevice(0,' + cid + ',' + cstate +')" title="Unlock device"></i>')
+                $(this).find(".card-footer center").append('<i class="fas fa-lock text-white lock-btn" onclick="setLockDevice(0,' + cid + ',' + cstate +')" title="_(Unlock device)"></i>')
             } else {
                 $(this).find(".card-body").show()
-                $(this).find(".card-footer center").append('<i class="fas fa-unlock text-white lock-btn" onclick="setLockDevice(1,' + cid + ',' + cstate +')" title="Lock device in this state"></i>')
+                $(this).find(".card-footer center").append('<i class="fas fa-unlock text-white lock-btn" onclick="setLockDevice(1,' + cid + ',' + cstate +')" title="_(Lock device in this state)"></i>')
             }
 
             if (cmode == "0") {
@@ -641,9 +641,9 @@ function getContent(amodule, always_refresh = false) {
             $("#" + amodule + "-content").html(data)
             if (amodule.toUpperCase() in dmconfig) {
                 if (amodule == "detector") {
-                    $("#" + amodule + "-content").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(\'' + amodule + '\')" title="Module configuration"></i>')
+                    $("#" + amodule + "-content").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(&apos;detector&apos;)" title="_(Module configuration)"></i>')
                 } else {
-                    $("#" + amodule + "-content").parent().parent(".card").find(".card-header").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(\'' + amodule + '\')" title="Module configuration"></i>')
+                    $("#" + amodule + "-content").parent().parent(".card").find(".card-header").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(&apos;' + amodule + '&apos;)" title="_(Module configuration)"></i>')
 
                 }
             }
@@ -673,9 +673,9 @@ function getConfig() {
 }
 
 function getConfigDevice(devid) {
-    $("#settingsmodal").find(".modal-title").text("Settings for device ID " + devid)
+    $("#settingsmodal").find(".modal-title").text("_(Settings for device ID) " + devid)
     $("#settingsmodal").find("#savemodal").attr("onclick", "saveConfig('DEVICE" + devid + "')")
-    html = '<p class="small">WARNING - do not use latin characters (é,à,ç...) or upper-case words if not absolutely required (for example, file locations, MAC addresses, True/False) as it may break your configuration</p><form id="configform" role="form"><fieldset>'
+    html = '<p class="small">_(_text1)</p><form id="configform" role="form"><fieldset>'
     for (var entry in dmconfig["DEVICE" + devid]) {
         html += '<div class="form-group row"><label for="' + entry + '" class="col-sm-3 col-form-label" style="word-break:break-all;">' + entry + '</label><div class="col-sm-9"><input type="text" class="form-control" name="' + entry + '" value="' + dmconfig["DEVICE" + devid][entry] + '"></div></div>'
     }
@@ -685,9 +685,9 @@ function getConfigDevice(devid) {
 }
 
 function getConfigModule(amodule) {
-    $("#settingsmodal").find(".modal-title").text("Settings for module: " + amodule)
+    $("#settingsmodal").find(".modal-title").text("_(Settings for module): " + amodule)
     $("#settingsmodal").find("#savemodal").attr("onclick", "saveConfig('" + amodule + "')")
-    html = '<p class="small">WARNING - do not use latin characters (é,à,ç...) or upper-case words if not absolutely required (for example, file locations, MAC addresses, True/False) as it may break your configuration</p><form id="configform" role="form"><fieldset>'
+    html = '<p class="small">_(_text1)</p><form id="configform" role="form"><fieldset>'
     for (var entry in dmconfig[amodule.toUpperCase()]) {
         html += '<div class="form-group row"><label for="' + entry + '" class="col-sm-3 col-form-label" style="word-break:break-all;">' + entry + '</label><div class="col-sm-9"><input type="text" class="form-control" name="' + entry + '" value="' + dmconfig[amodule.toUpperCase()][entry] + '"></div></div>'
     }
@@ -724,3 +724,5 @@ function saveConfig(section) {
         }
     })
 }
+
+// Javascript ends here. Comment added to prevent EOF bytes loss due to &; characters parsing. TODO - prevent this some other way

@@ -9,6 +9,8 @@
 '''
 
 import json
+import os
+import re
 import requests
 import socket
 import socketserver
@@ -18,7 +20,9 @@ from core.devicemanager import StateRequestObject
 from functools import partial
 from http.server import SimpleHTTPRequestHandler
 from io import BytesIO
+from shutil import copyfile
 from threading import Thread
+from web.texts import getTextHTML
 
 
 class WebServerHandler(SimpleHTTPRequestHandler):
@@ -36,6 +40,24 @@ class WebServerHandler(SimpleHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'x-www-form-urlencoded')
         self.end_headers()
+
+    def do_GET(self):
+        if ".html" in self.path or ".js" in self.path or self.headers.get('Referer') is None:
+            _path = self.translate_path(self.path)
+            if self.headers.get('Referer') is None:
+                _path = os.path.join(_path, "index.html")
+            with open(_path, 'rb') as f:
+                _page = str(f.read().decode("unicode_escape"))
+                match = re.findall(r'\_\((.*?)\)', _page)
+                for _translatable in match:
+                    _page = _page.replace("_(" + _translatable + ")", getTextHTML(_translatable.replace("\\", "")))
+                self.send_response(200)
+                self.send_header("Content-type", super().guess_type(_path))
+                self.send_header("Content-length", len(_page))
+                self.end_headers()
+                self.wfile.write(_page.encode('utf-8'))
+        else:
+            super().do_GET()
 
     def do_POST(self):
         content_length = int(self.headers['Content-Length'])
@@ -207,6 +229,10 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     response.write("0".encode("UTF-8"))
                 else:
                     response.write(content.encode("UTF-8"))
+
+            if reqtype == "gettext":
+                textid = postvars[b'textid'][0].decode('utf-8')
+                response.write(getTextHTML(textid).encode("utf-8"))
 
             # ADD NECESSARY WEBSERVER REQUESTS HERE #
 

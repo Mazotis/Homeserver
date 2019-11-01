@@ -11,7 +11,6 @@ import argparse
 import configparser
 import datetime
 import json
-import os
 import pickle
 import socket
 import sys
@@ -21,7 +20,6 @@ import traceback
 from core.common import *
 from core.devicemanager import DeviceManager, StateRequestObject
 from argparse import RawTextHelpFormatter
-from shutil import copyfile
 from __main__ import *
 
 
@@ -185,9 +183,11 @@ class HomeServer(object):
                 debug.write("Running TCP preset {}".format(
                     data[3:]), 0)
                 if self.config["TCP-PRESETS"].getboolean('AUTOMATIC_MODE'):
-                    StateRequestObject(auto_mode=True, hexvalues=self.config["TCP-PRESETS"][data[3:]]).run(self.lm)
+                    StateRequestObject(
+                        auto_mode=True, hexvalues=self.config["TCP-PRESETS"][data[3:]]).run(self.lm)
                 else:
-                    StateRequestObject(hexvalues=self.config["TCP-PRESETS"][data[3:]]).run(self.lm)
+                    StateRequestObject(
+                        hexvalues=self.config["TCP-PRESETS"][data[3:]]).run(self.lm)
             else:
                 debug.write("TCP preset {} is not configured".format(
                     data[3:]), 1)

@@ -1,0 +1,185 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2019-11-01 16:11-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: web/texts.py:17 web/texts.py:25
+msgid "Homeserver control panel"
+msgstr ""
+
+#: web/texts.py:18 web/texts.py:26
+msgid "Loading..."
+msgstr ""
+
+#: web/texts.py:19 web/texts.py:27
+msgid "Updating device status..."
+msgstr ""
+
+#: web/texts.py:20 web/texts.py:28
+msgid "Rooms"
+msgstr ""
+
+#: web/texts.py:21 web/texts.py:29
+msgid "Devices"
+msgstr ""
+
+#: web/texts.py:22 web/texts.py:30
+msgid "Groups"
+msgstr ""
+
+#: web/texts.py:23 web/texts.py:31
+msgid "No available device groups"
+msgstr ""
+
+#: web/texts.py:24 web/texts.py:32
+msgid "Options"
+msgstr ""
+
+#: web/texts.py:25 web/texts.py:33
+msgid "Time check feature. Today's start time:"
+msgstr ""
+
+#: web/texts.py:26 web/texts.py:34
+msgid "N/A"
+msgstr ""
+
+#: web/texts.py:27 web/texts.py:35
+msgid "Check time of day before executing changes"
+msgstr ""
+
+#: web/texts.py:28 web/texts.py:36
+msgid "Execute changes anytime"
+msgstr ""
+
+#: web/texts.py:29 web/texts.py:37
+msgid "Automatic mode"
+msgstr ""
+
+#: web/texts.py:30 web/texts.py:38
+msgid "Set all devices to automatic mode"
+msgstr ""
+
+#: web/texts.py:31 web/texts.py:39
+msgid "Mode selection toggles"
+msgstr ""
+
+#: web/texts.py:32 web/texts.py:40
+msgid "Hide mode selection toggles"
+msgstr ""
+
+#: web/texts.py:33 web/texts.py:41
+msgid "Show mode selection toggles"
+msgstr ""
+
+#: web/texts.py:34 web/texts.py:42
+msgid "OFF"
+msgstr ""
+
+#: web/texts.py:35 web/texts.py:43
+msgid "ON"
+msgstr ""
+
+#: web/texts.py:36 web/texts.py:44
+msgid "Auto"
+msgstr ""
+
+#: web/texts.py:37 web/texts.py:45
+msgid "Manual"
+msgstr ""
+
+#: web/texts.py:38 web/texts.py:46
+msgid "Save"
+msgstr ""
+
+#: web/texts.py:39 web/texts.py:47
+msgid "Close"
+msgstr ""
+
+#: web/texts.py:48
+msgid "Scheduled"
+msgstr ""
+
+#: web/texts.py:49
+msgid "Backup"
+msgstr ""
+
+#: web/texts.py:50
+msgid "Run a preconfigured backup"
+msgstr ""
+
+#: web/texts.py:51
+msgid "Debug log"
+msgstr ""
+
+#: web/texts.py:52
+msgid "Refresh"
+msgstr ""
+
+#: web/texts.py:53
+msgid "Full debug log"
+msgstr ""
+
+#: web/texts.py:54
+msgid "'Debug' level logs"
+msgstr ""
+
+#: web/texts.py:55
+msgid "'Error' level logs"
+msgstr ""
+
+#: web/texts.py:56
+msgid "Hello!"
+msgstr ""
+
+#: web/texts.py:57
+msgid "Running requests and getting cached state status..."
+msgstr ""
+
+#: web/texts.py:58
+msgid "Querying device state..."
+msgstr ""
+
+#: web/texts.py:59
+msgid "Device configuration"
+msgstr ""
+
+#: web/texts.py:60
+msgid "Unlock device"
+msgstr ""
+
+#: web/texts.py:61
+msgid "Lock device in this state"
+msgstr ""
+
+#: web/texts.py:62
+msgid "Module configuration"
+msgstr ""
+
+#: web/texts.py:63
+msgid "Settings for device ID"
+msgstr ""
+
+#: web/texts.py:64
+msgid ""
+"WARNING - do not use latin characters (é,à,ç...) or upper-case words if not "
+"absolutely required (for example, file locations, MAC addresses, True/False) "
+"as it may break your configuration"
+msgstr ""
+
+#: web/texts.py:65
+msgid "Settings for module"
+msgstr ""

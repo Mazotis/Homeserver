@@ -1,0 +1,187 @@
+# English translations for Homeserver project.
+# Copyright (C) 2019
+# This file is distributed under the same license as the Homeserver package.
+# Mazotis <mazout360@hotmail.com>, 2019.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: alpha-0.1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2019-11-01 14:31-0400\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: Mazotis <mazout360@hotmail.com>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: web/texts.py:17
+msgid "Homeserver control panel"
+msgstr "Panneau de contrôle Homeserver"
+
+#: web/texts.py:18
+msgid "Loading..."
+msgstr "Chargement..."
+
+#: web/texts.py:19
+msgid "Updating device status..."
+msgstr "Mise à jour du statut des dispositifs..."
+
+#: web/texts.py:20
+msgid "Rooms"
+msgstr "Pièces"
+
+#: web/texts.py:21
+msgid "Devices"
+msgstr "Dispositifs"
+
+#: web/texts.py:22
+msgid "Groups"
+msgstr "Groupes"
+
+#: web/texts.py:23
+msgid "No available device groups"
+msgstr "Aucun groupe de dispositifs trouvé"
+
+#: web/texts.py:24
+msgid "Options"
+msgstr "Options"
+
+#: web/texts.py:25
+msgid "Time check feature. Today's start time:"
+msgstr "Heure de démarrage pour aujourd'hui:"
+
+#: web/texts.py:26
+msgid "N/A"
+msgstr "N/D"
+
+#: web/texts.py:27
+msgid "Check time of day before executing changes"
+msgstr "Vérifier l'heure avant d'effectuer des changements"
+
+#: web/texts.py:28
+msgid "Execute changes anytime"
+msgstr "Effectuer des changements n'importe quand"
+
+#: web/texts.py:29
+msgid "Automatic mode"
+msgstr "Mode automatique"
+
+#: web/texts.py:30
+msgid "Set all devices to automatic mode"
+msgstr "Mettre tous les dispositifs en mode automatique"
+
+#: web/texts.py:31
+msgid "Mode selection toggles"
+msgstr "Sélecteurs de mode"
+
+#: web/texts.py:32
+msgid "Hide mode selection toggles"
+msgstr "Masques les sélecteurs de mode"
+
+#: web/texts.py:33
+msgid "Show mode selection toggles"
+msgstr "Afficher les sélecteurs de mode"
+
+#: web/texts.py:34
+msgid "OFF"
+msgstr "OFF"
+
+#: web/texts.py:35
+msgid "ON"
+msgstr "ON"
+
+#: web/texts.py:36
+msgid "Auto"
+msgstr "Auto"
+
+#: web/texts.py:37
+msgid "Manual"
+msgstr "Manuel"
+
+#: web/texts.py:38
+msgid "Save"
+msgstr "Enregistrer"
+
+#: web/texts.py:39
+msgid "Close"
+msgstr "Fermer"
+
+#: web/texts.py:48
+msgid "Scheduled"
+msgstr "Planifié"
+
+#: web/texts.py:49
+msgid "Backup"
+msgstr "Sauvegardes"
+
+#: web/texts.py:50
+msgid "Run a preconfigured backup"
+msgstr "Exécuter une sauvegarde de fichiers préconfigurée"
+
+#: web/texts.py:51
+msgid "Debug log"
+msgstr "Journaux de débuggage"
+
+#: web/texts.py:52
+msgid "Refresh"
+msgstr "Réactualiser"
+
+#: web/texts.py:53
+msgid "Full debug log"
+msgstr "Journaux complets"
+
+#: web/texts.py:54
+msgid "'Debug' level logs"
+msgstr "Journeaux de niveau 'Debug'"
+
+#: web/texts.py:55
+msgid "'Error' level logs"
+msgstr "Journaux de niveau 'Error'"
+
+#: web/texts.py:56
+msgid "Hello!"
+msgstr "Bonjour!"
+
+#: web/texts.py:57
+msgid "Running requests and getting cached state status..."
+msgstr "Exécution des requêtes et obtention du statut en cache des dispositifs"
+
+#: web/texts.py:58
+msgid "Querying device state..."
+msgstr "Obtention du status des dispositifs en temps réel"
+
+#: web/texts.py:59
+msgid "Device configuration"
+msgstr "Configuration du dispositif"
+
+#: web/texts.py:60
+msgid "Unlock device"
+msgstr "Débloquer le dispositif"
+
+#: web/texts.py:61
+msgid "Lock device in this state"
+msgstr "Bloquer le dispositif dans cet état"
+
+#: web/texts.py:62
+msgid "Module configuration"
+msgstr "Configuration des modules"
+
+#: web/texts.py:63
+msgid "Settings for device ID"
+msgstr "Paramètres du dispositif ID"
+
+#: web/texts.py:64
+msgid ""
+"WARNING - do not use latin characters (é,à,ç...) or upper-case words if not "
+"absolutely required (for example, file locations, MAC addresses, True/False) "
+"as it may break your configuration"
+msgstr ""
+"ATTENTION - ne pas utiliser de caractères latins (é,à,ç...) ou de majuscules si "
+"non requis (par exemple, noms de fichiers, adresses MAC, True/False) "
+"car cela pourrait briser la configuration"
+
+#: web/texts.py:65
+msgid "Settings for module"
+msgstr "Configurations pour le module"

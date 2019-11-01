@@ -39,6 +39,7 @@ class DebugLog(object):
         self.device_colors = {}
         self.debug_enabled = self.config['SERVER'].getboolean("ENABLE_DEBUG")
         self._lock_socket = None
+        self.write("Starting debug logger", 0)
 
     def enable_debug(self):
         if self.get_set_lock(True) and self.debug_enabled:
@@ -88,19 +89,32 @@ class DebugLog(object):
                     with open(self.config['SERVER']['JOURNAL_DIR'] + "/home.0.log", "a+") as jfile:
                         jfile.write(_debugtext + "\n")
                 except FileNotFoundError:
-                    print("Directory {} does not exist. Quitting.".format(self.config['SERVER']['JOURNAL_DIR']))
+                    print("Directory {} does not exist. Quitting.".format(
+                        self.config['SERVER']['JOURNAL_DIR']))
                     quit()
+
+
+class LanguageHandler(object):
+    def __init__(self):
+        self.config = configparser.ConfigParser()
+        self.config.read('home.ini')
+        self.language = self.config['SERVER']['LANGUAGE']
+
+    def getLanguage(self):
+        return self.language
 
 
 decora = None
 meross = None
 debug = DebugLog()
+language = LanguageHandler()
 
 
 def getDevices(to_lower=False):
     """ Getter for available device modules, same as __init__ """
     modules = glob.glob(dirname(__file__) + "/../devices/*.py")
-    devices = [basename(f)[:-3] for f in modules if isfile(f) and not f.endswith('__init__.py')]
+    devices = [basename(f)[:-3] for f in modules if isfile(f)
+               and not f.endswith('__init__.py')]
     if to_lower:
         return [x.lower() for x in devices]
     else:
