@@ -610,7 +610,7 @@ class StateRequestObject(object):
     def set(self, **kwargs):
         allowed_keys = {'hexvalues', 'off', 'on', 'restart', 'toggle', 'group',
                         'notime', 'delay', 'preset', 'manual_mode', 'reset_location_data',
-                        'force_auto_mode', 'auto_mode', 'reset_mode', 'skip_time'}
+                        'force_auto_mode', 'auto_mode', 'reset_mode', 'skip_time', 'set_mode_for_devid'}
         self.__dict__.update((k, v)
                              for k, v in kwargs.items() if k in allowed_keys)
 
@@ -655,7 +655,7 @@ class StateRequestObject(object):
         for _dev in getDevices(True):
             if getattr(self, _dev, None) is not None:
                 has_device_requests = True
-        if self.colors is not None and len(self.colors) == len(dm.devices):
+        if (self.colors is not None and len(self.colors) == len(dm.devices)) or self.set_mode_for_devid is not None:
             has_device_requests = True
 
         if self.hexvalues and has_device_requests:
@@ -666,7 +666,8 @@ class StateRequestObject(object):
 
         if len(self.hexvalues) != len(dm.devices) and not any([self.notime, self.off, self.on,
                                                                self.toggle, self.preset, self.restart,
-                                                               self.group, has_device_requests]):
+                                                               self.group, has_device_requests,
+                                                               self.force_auto_mode]):
             debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting"
                         .format(len(self.hexvalues), len(dm.devices), sys.argv[0]), 2)
             return False
@@ -682,7 +683,7 @@ class StateRequestObject(object):
                 except KeyError:
                     debug.write("Devid {} does not exist".format(
                         self.set_mode_for_devid), 1)
-                return False
+                    return False
 
             for _dev in getDevices(True):
                 if getattr(self, _dev, None) is not None:

@@ -30,6 +30,7 @@ function abortPendingRequests() {
     if (deduceAbortableRequest && runningRequests > 0) {
         runningRequests--
     }
+    deduceAbortableRequest = false
     $("#update-spin").hide()
 }
 
@@ -43,7 +44,7 @@ function getResult() {
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "1"
+                reqtype: "getstate"
             },
         success: function(data){
             $("#preloader").hide()
@@ -132,10 +133,11 @@ function getResultRefresh() {
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "1"
+                reqtype: "getstate"
             },
         success: function(data){
             var thedata = JSON.parse(decodeURIComponent(data))
+            deduceAbortableRequest = false
             has_errors = false
             var i;
             for (i = 0; i < modulesToRefresh.length; i++) { 
@@ -175,10 +177,11 @@ function getResultPost() {
             dataType: "text",
             data: {
                     request: "True",
-                    reqtype: "5"
+                    reqtype: "getstatepost"
                 },
             success: function(data){
                 var thedata = JSON.parse(decodeURIComponent(data))
+                deduceAbortableRequest = false
                 has_errors = false
                 for (cnt in thedata.state) {
                     thedata.mode[cnt] ? mode = 1 : mode = 0
@@ -205,7 +208,7 @@ function getResultPost() {
     } else {
         deduceAbortableRequest = false
         runningRequests--
-    }  
+    }
 }
 
 function getOneResult(devid, last_state) {
@@ -216,7 +219,7 @@ function getOneResult(devid, last_state) {
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "1"
+                reqtype: "getstate"
             },
         success: function(data){
             var thedata = JSON.parse(decodeURIComponent(data))
@@ -528,7 +531,7 @@ function sendPowerRequest(devid, value, last_state, is_intensity=0) {
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "2",
+                reqtype: "setstate",
                 devid: devid,
                 value: value,
                 isintensity: is_intensity,
@@ -550,7 +553,7 @@ function sendGroupPowerRequest(group, value, devid) {
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "4",
+                reqtype: "setgroup",
                 group: group,
                 value: value,
                 skiptime: $('input[name=skiptime2]').is(":checked")
@@ -571,7 +574,7 @@ function sendModeRequest(devid, value, auto) {
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "3",
+                reqtype: "setmode",
                 mode: auto,
                 devid: devid
             },
@@ -584,16 +587,18 @@ function sendModeRequest(devid, value, auto) {
 function sendAllModeAuto() {
     abortPendingRequests()
     $(".dcard").addClass("disabledbutton")
+    runningRequests++
     $.ajax({
         type: "POST",
         url: ".",
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "6"
+                reqtype: "setallmode"
             },
         success: function(data){
-            getResult()
+            $(".dcard").removeClass("disabledbutton")
+            getResultPost()
         }
     })
 }
@@ -606,7 +611,7 @@ function setLockDevice(lock, devid, last_state) {
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "9",
+                reqtype: "setlock",
                 lock: lock,
                 devid: devid
             },
@@ -629,7 +634,7 @@ function getContent(amodule, always_refresh = false) {
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "7",
+                reqtype: "getmodule",
                 module: amodule
             },
         success: function(data){
@@ -656,7 +661,7 @@ function getConfig() {
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "10",
+                reqtype: "getconfig",
             },
         success: function(data){
             dmconfig = JSON.parse(decodeURIComponent(data))
@@ -703,7 +708,7 @@ function saveConfig(section) {
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "11",
+                reqtype: "setconfig",
                 section: section,
                 configdata: encodeURIComponent(JSON.stringify(jsonData))
             },
