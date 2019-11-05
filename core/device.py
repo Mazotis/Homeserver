@@ -2,7 +2,7 @@
 '''
     File name: device.py
     Author: Maxime Bergeron
-    Date last modified: 13/03/2019
+    Date last modified: 5/11/2019
     Python Version: 3.7
 
     Main wrapper object for all Homeserver devices. Not a device per-se.

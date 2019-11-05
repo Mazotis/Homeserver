@@ -2,7 +2,7 @@
 '''
     File name: devicemanager.py
     Author: Maxime Bergeron
-    Date last modified: 01/10/2019
+    Date last modified: 05/11/2019
     Python Version: 3.5
 
     The device and modules manager for the homeserver. Not a module per-se
@@ -388,8 +388,7 @@ class DeviceManager(object):
                 debug.write("Device '{}' actual state inferred as OFF from its group state".format(
                     self.devices[devid].name), 0)
                 return DEVICE_INFERRED_OFF
-        else:
-            return expected_state
+        return expected_state
 
     def set_light_stream(self, devid, color, is_group):
         """ Simplified function for quick, streamed light change requests """
