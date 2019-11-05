@@ -129,8 +129,6 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 req = StateRequestObject()
                 debug.write(
                     'Running a single device mode change', 0, "WEBSERVER")
-                devid = int(client.recv(3).decode("UTF-8"))
-                cmode = int(client.recv(1).decode("UTF-8"))
                 req.set(set_mode_for_devid=devid)
                 if cmode:
                     req.set(auto_mode=True)

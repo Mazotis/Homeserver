@@ -20,7 +20,7 @@ class device(object):
         self.success = False
         self._connection = None
         self.group = []
-        self.state = 0
+        self.state = DEVICE_OFF
         self.disabled = False
         self.device_type = None
         self.request_auto_mode = True
@@ -39,6 +39,7 @@ class device(object):
         self.last_action_timestamp = 0
         self.has_pseudodevice = None
         self.request_locked = False
+        self.state_inference_group = None
         self.config = config
         self.init_from_config()
 
@@ -70,13 +71,16 @@ class device(object):
         if self.config.has_option("DEVICE" + str(self.devid), "ACTION_DELAY"):
             self.action_delay = int(
                 self.config["DEVICE" + str(self.devid)]["ACTION_DELAY"])
+        if self.config.has_option("DEVICE" + str(self.devid), "STATE_INFERENCE_GROUP"):
+            self.state_inference_group = self.config["DEVICE" + str(self.devid)]["STATE_INFERENCE_GROUP"]
 
     def pre_run(self, color):
         if self.success:
             return True
-        if self.color_type == "noop" or self.request_locked:
-            debug.write("Device ({}) {} does not handle requests."
-                        .format(self.device_type, self.device), 0)
+        if (self.color_type == "noop" or self.request_locked):
+            if self.convert(color) != DEVICE_SKIP:
+                debug.write("Device ({}) {} does not handle requests."
+                            .format(self.device_type, self.device), 0)
             self.success = True
             return True
         if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
@@ -109,12 +113,13 @@ class device(object):
         else:
             debug.write("Skipping mode evaluation for {} device {}."
                         .format(self.device_type, self.device), 0)
-        if self.state == color and color != self.convert(DEVICE_OFF):
+        if self.state == self.convert(color) and str(color) not in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
             self.success = True
             debug.write("Device ({}) {} is already of the requested state, skipping."
                         .format(self.device_type, self.device), 0)
             return True
-        if self.state == color and color == self.convert(DEVICE_OFF) and not self.forceoff:
+
+        if self.state == self.convert(color) and str(color) in [DEVICE_OFF, DEVICE_INFERRED_OFF] and not self.forceoff:
             self.success = True
             debug.write("Device ({}) {} is already off and forcing-off disabled, skipping."
                         .format(self.device_type, self.device), 0)

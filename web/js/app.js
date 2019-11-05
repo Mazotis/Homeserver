@@ -281,10 +281,11 @@ function computeCards() {
         $(this).find(".card-header").removeClass("bg-danger")
         $(this).find(".card-header").removeClass("bg-warning")
         $(this).find(".card-header").removeClass("bg-success")
+        $(this).find(".card-header").removeClass("progress-bar-striped")
         $(this).removeClass("border-danger")
         $(this).removeClass("border-warning")
         $(this).removeClass("border-success")
-        if (cstate == "0" || (!isNaN(cstate) && parseInt(cstate) == 0)) {
+        if (cstate == "0" || (!isNaN(cstate) && parseInt(cstate) == 0) || cstate == "*0") {
             $(this).find(".offbuttons").attr('disabled', true)
             $(this).find(".onbuttons").attr('disabled', false)
             $(this).find(".card-header").addClass("bg-danger")
@@ -299,6 +300,10 @@ function computeCards() {
             $(this).find(".onbuttons").attr('disabled', true)
             $(this).find(".card-header").addClass("bg-success")
             $(this).addClass("border-success")
+        }
+
+        if (cstate == "*0" || cstate == "*1") {
+            $(this).find(".card-header").addClass("progress-bar-striped")
         }
 
         if (["noop"].includes(ccolortype)) {

@@ -119,7 +119,7 @@ class DeviceManager(object):
         colors = [DEVICE_ON] * len(dm.devices)
         i = 0
         for color in self.get_state():
-            if color != DEVICE_OFF:
+            if color not in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
                 colors = [DEVICE_OFF] * len(dm.devices)
             i = i + 1
         return colors
@@ -362,8 +362,34 @@ class DeviceManager(object):
             debug.write(
                 "All devices state status updated from devices get_state()", 0)
         if devid is not None:
+            if self.devices[devid].state_inference_group is not None:
+                states[devid] = self.get_inferred_group_state(
+                    devid, states[devid])
             return states[devid]
+        for _cnt, dev in enumerate(self.devices):
+            # Has to be called after device states all updated ? Only relevant on non-async requests ?
+            if self.devices[_cnt].state_inference_group is not None:
+                states[_cnt] = self.get_inferred_group_state(
+                    _cnt, states[_cnt])
         return states
+
+    def get_inferred_group_state(self, devid, expected_state):
+        _states = []
+        for _cnt, dev in enumerate(self.devices):
+            if _cnt != devid and self.devices[devid].state_inference_group in self.devices[_cnt].group:
+                _states.append(str(self.devices[_cnt].state))
+        if all(x == DEVICE_ON for x in _states):
+            if expected_state != DEVICE_ON:
+                debug.write("Device '{}' actual state inferred as ON from its group state".format(
+                    self.devices[devid].name), 0)
+                return DEVICE_INFERRED_ON
+        elif all(x == DEVICE_OFF for x in _states):
+            if expected_state != DEVICE_OFF:
+                debug.write("Device '{}' actual state inferred as OFF from its group state".format(
+                    self.devices[devid].name), 0)
+                return DEVICE_INFERRED_OFF
+        else:
+            return expected_state
 
     def set_light_stream(self, devid, color, is_group):
         """ Simplified function for quick, streamed light change requests """
