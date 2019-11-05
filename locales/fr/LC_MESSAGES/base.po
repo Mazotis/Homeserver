@@ -134,7 +134,7 @@ msgstr "Journaux complets"
 
 #: web/texts.py:54
 msgid "'Debug' level logs"
-msgstr "Journeaux de niveau 'Debug'"
+msgstr "Journaux de niveau 'Debug'"
 
 #: web/texts.py:55
 msgid "'Error' level logs"
@@ -150,7 +150,7 @@ msgstr "Exécution des requêtes et obtention du statut en cache des dispositifs
 
 #: web/texts.py:58
 msgid "Querying device state..."
-msgstr "Obtention du status des dispositifs en temps réel"
+msgstr "Obtention du statut des dispositifs en temps réel"
 
 #: web/texts.py:59
 msgid "Device configuration"

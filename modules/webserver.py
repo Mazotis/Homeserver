@@ -13,7 +13,6 @@ import os
 import re
 import requests
 import socket
-import socketserver
 import urllib.parse
 from core.common import *
 from core.devicemanager import StateRequestObject
@@ -21,8 +20,13 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler
 from io import BytesIO
 from shutil import copyfile
+from socketserver import ThreadingMixIn, TCPServer
 from threading import Thread
 from web.texts import getTextHTML
+
+
+class ThreadingSimpleServer(ThreadingMixIn, TCPServer):
+    pass
 
 
 class WebServerHandler(SimpleHTTPRequestHandler):
@@ -50,7 +54,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 _page = str(f.read().decode("unicode_escape"))
                 match = re.findall(r'\_\((.*?)\)', _page)
                 for _translatable in match:
-                    _page = _page.replace("_(" + _translatable + ")", getTextHTML(_translatable.replace("\\", "")))
+                    _page = _page.replace(
+                        "_(" + _translatable + ")", getTextHTML(_translatable.replace("\\", "")))
                 self.send_response(200)
                 self.send_header("Content-type", super().guess_type(_path))
                 self.send_header("Content-length", len(_page))
@@ -248,9 +253,10 @@ class webserver(Thread):
     def run(self):
         debug.write("Starting control webserver on port {}".format(
             self.port), 0, "WEBSERVER")
-        socketserver.TCPServer.allow_reuse_address = True
+        TCPServer.allow_reuse_address = True
         _handler = partial(WebServerHandler, self.config, self.dm)
-        httpd = socketserver.TCPServer(("", self.port), _handler)
+        # httpd = socketserver.TCPServer(("", self.port), _handler)
+        httpd = ThreadingSimpleServer(("", self.port), _handler)
 
         try:
             while self.running:

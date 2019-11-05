@@ -44,7 +44,6 @@ class DeviceManager(object):
         self.always_skip_time = False
         self.update_event_time()
         self.queue = queue.Queue()
-        self.colors = [DEVICE_SKIP] * len(self.devices)
         self.delays = [0] * len(self.devices)
         self.scheduled_changes = []
         self.states = self.get_state()
@@ -90,30 +89,30 @@ class DeviceManager(object):
         debug.write("Skipping time check for all requests", 0)
         self.always_skip_time = True
 
-    def set_mode(self, auto_mode, reset_mode, device_id, force_auto_mode=False):
-        for _device, _color in zip(self.devices, self.colors):
-            if self.colors is not None and _color != DEVICE_SKIP:
-                _device.request_auto_mode = auto_mode
-                _device.reset_mode = reset_mode
-            if force_auto_mode:
+    def set_mode(self, request):
+        for _device, _color in zip(self.devices, request.colors):
+            if request.colors is not None and _color != DEVICE_SKIP:
+                _device.request_auto_mode = request.auto_mode
+                _device.reset_mode = request.reset_mode
+            if request.force_auto_mode:
                 _device.auto_mode = True
-        if device_id is not None:
-            self.devices[device_id].auto_mode = auto_mode
-        if force_auto_mode:
+        if request.set_mode_for_devid is not None:
+            self.devices[request.set_mode_for_devid].auto_mode = request.auto_mode
+        if request.force_auto_mode:
             debug.write("All devices set to AUTO mode", 0)
-        if reset_mode:
+        if request.reset_mode:
             debug.write("All non-skipped devices set back to AUTO mode", 0)
 
-    def get_group(self, group):
+    def get_group(self, request):
         """ Gets devices from a specific group for the light change """
-        if type(group) == str:
-            group = [group]
+        if type(request.group) == str:
+            request.group = [group]
         for _cnt, _device in enumerate(self.devices):
-            if group is not None and set(group).issubset(_device.group):
+            if request.group is not None and set(request.group).issubset(_device.group):
                 continue
             debug.write("Skipping device {} as it does not belong in the {} group(s)"
-                        .format(_device.device, group), 0)
-            self.colors[_cnt] = DEVICE_SKIP
+                        .format(_device.device, request.group), 0)
+            request.colors[_cnt] = DEVICE_SKIP
 
     def get_toggle(self):
         """ Toggles the devices on/off """
@@ -125,24 +124,23 @@ class DeviceManager(object):
             i = i + 1
         return colors
 
-    def set_typed_colors(self, colorargs, atype):
+    def set_typed_colors(self, request):
         """ Gets devices of a specific  type for the light change """
-        self.colors = [DEVICE_SKIP] * len(self.devices)
         device_indexes = [i for i, x in enumerate(
-            self.devices) if x.__class__.__name__.lower() == atype.lower()]
+            self.devices) if x.__class__.__name__.lower() == request.device_type.lower()]
 
-        if len(colorargs) == 1 and len(device_indexes) > 1:
+        if len(request.device_type_args) == 1 and len(device_indexes) > 1:
             debug.write("Expanding state {} to {} devices."
-                        .format(len(colorargs), len(device_indexes)), 0)
+                        .format(len(request.device_type_args), len(device_indexes)), 0)
             for i in device_indexes:
-                self.colors[i] = colorargs[0]
-        elif len(device_indexes) != len(colorargs):
+                request.colors[i] = request.device_type_args[0]
+        elif len(device_indexes) != len(request.device_type_args):
             debug.write("Received state hexvalues length {} for {} devices. Quitting"
-                        .format(len(colorargs), len(device_indexes)), 2)
+                        .format(len(request.device_type_args), len(device_indexes)), 2)
             return False
         else:
             for _cnt, i in enumerate(device_indexes):
-                self.colors[i] = colorargs[_cnt]
+                request.colors[i] = request.device_type_args[_cnt]
         return True
 
     def run(self, request):
@@ -151,37 +149,34 @@ class DeviceManager(object):
             return
         self.clean_delayed_changes()
 
-        if request.colors is not None:
-            self.colors = request.colors
-        else:
-            self.colors = [DEVICE_SKIP] * len(self.devices)
-        self.skip_time = request.skip_time
-        self.set_mode(request.auto_mode, request.reset_mode,
-                      request.set_mode_for_devid, request.force_auto_mode)
-        if request.device_type is not None:
-            self.set_typed_colors(
-                request.device_type_args, request.device_type)
-        if request.group is not None:
-            self.get_group(request.group)
+        if request.colors is None:
+            request.colors = [DEVICE_SKIP] * len(self.devices)
 
-        if self.colors is not None:
-            if request.delay is not 0:
-                delay = request.delay
-                debug.write(
-                    "Delaying request for {} seconds".format(request.delay), 0)
-                request.delay = 0
-                _sched = Timer(int(delay), self.run, (request,))
-                _sched.start()
-                self.scheduled_changes.append(_sched)
+        self.skip_time = request.skip_time
+        self.set_mode(request)
+        if request.device_type is not None:
+            if not self.set_typed_colors(request):
                 return
-            if self.check_event_time(request.skip_time or self.always_skip_time):
-                self.queue.put(self.colors)
-                # TODO Manage locking out when the run thread hangs
-                debug.write("Locked status: {}".format(self.locked), 0)
-                if not self.locked or self.lockcount == 2:
-                    self._set_lights()
-                else:
-                    self.lockcount = self.lockcount + 1
+        if request.group is not None:
+            self.get_group(request)
+
+        if request.delay is not 0:
+            delay = request.delay
+            debug.write(
+                "Delaying request for {} seconds".format(request.delay), 0)
+            request.delay = 0
+            _sched = Timer(int(delay), self.run, (request,))
+            _sched.start()
+            self.scheduled_changes.append(_sched)
+            return
+        if self.check_event_time(request, request.skip_time or self.always_skip_time):
+            self.queue.put(request)
+            # TODO Manage locking out when the run thread hangs
+            debug.write("Locked status: {}".format(self.locked), 0)
+            if not self.locked or self.lockcount == 2:
+                self._set_lights()
+            else:
+                self.lockcount = self.lockcount + 1
 
     def get_all_groups(self):
         if self.all_groups is None:
@@ -324,7 +319,7 @@ class DeviceManager(object):
                     self.starttime), 0)
         return self.starttime
 
-    def check_event_time(self, skip_time=False):
+    def check_event_time(self, request, skip_time=False):
         now_time = datetime.datetime.now().time()
         self.update_event_time()
         for _dev in self.devices:
@@ -333,7 +328,7 @@ class DeviceManager(object):
             else:
                 _dev.set_event_time(self.starttime)
         if not skip_time and datetime.time(6, 00) < now_time < self.starttime:
-            for _device, _color in zip(self.devices, self.colors):
+            for _device, _color in zip(self.devices, request.colors):
                 if _color != DEVICE_SKIP and _device.get_time_check(now_time):
                     debug.write("Not all devices will be changed. Device changes begins at {}"
                                 .format(self.starttime), 0)
@@ -473,11 +468,14 @@ class DeviceManager(object):
         try:
             while not self.queue.empty():
                 colors = None
+                _req = self.queue.get()
                 if firstran:
                     debug.write("Getting remainder of queue", 0)
                     self.reinit()
+                    self.run(_req)
+                    return
                 colors = self._decode_colors(
-                    self.queue.get())  # TODO Check performance
+                    _req.colors)  # TODO Check performance
                 if all(c == DEVICE_SKIP for c in colors):
                     debug.write("All device requests skipped", 0)
                     break
