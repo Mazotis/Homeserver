@@ -44,7 +44,7 @@ class DeviceManager(object):
         self.always_skip_time = False
         self.update_event_time()
         self.queue = queue.Queue()
-        self.delays = [0] * len(self.devices)
+        self.delays = [0] * len(self)
         self.scheduled_changes = []
         self.states = self.get_state()
         self.skip_time = False
@@ -52,10 +52,144 @@ class DeviceManager(object):
         self.set_lock(0)
         self.lockcount = 0
         self.threaded = False
-        self.light_threads = [None] * len(self.devices)
+        self.light_threads = [None] * len(self)
         self.light_pool = None
         self.all_groups = None
         self.modules = []
+
+    def __len__(self):
+        return len(self.devices)
+
+    def __getitem__(self, position):
+        return self.devices[position]
+
+    def __setitem__(self, position, device):
+        try:
+            self.devices[position] = device
+        except IndexError:
+            self.devices.append(device)
+
+    def __call__(self, async=True):
+        dm_status = {}
+        dm_status["state"] = self.get_state(
+            async=async, webcolors=True)
+        dm_status["intensity"] = self.get_state(
+            async=True, intensity=True)
+        dm_status["mode"] = self.modes
+        dm_status["type"] = self.types
+        dm_status["name"] = self.names
+        for op in ["skiptime", "forceoff", "ignoremode", "actiondelay"]:
+            dm_status["op_" + op] = self.get_option(op)
+        dm_status["icon"] = self.icons
+        dm_status["description"] = self.get_descriptions(
+            True)
+        dm_status["starttime"] = "{}".format(self.starttime)
+        dm_status["groups"] = self.all_groups
+        dm_status["colortype"] = self.colortypes
+        dm_status["moduleweb"] = self.module_web
+        dm_status["locked"] = self.lock_status
+        dm_status["roomgroups"] = ""
+        if self.config.has_option("WEBSERVER", "ROOM_GROUPS"):
+            dm_status["roomgroups"] = self.config["WEBSERVER"]["ROOM_GROUPS"]
+        dm_status["deviceroom"] = self.room_groups
+        return dm_status
+
+    @property
+    def all_groups(self):
+        if self.__all_groups is None:
+            _groups = []
+            for obj in self:
+                for group in obj.group:
+                    if group not in _groups:
+                        _groups.append(group)
+            self.all_groups = _groups
+        return self.__all_groups
+
+    @all_groups.setter
+    def all_groups(self, groups):
+        self.__all_groups = groups
+
+    @property
+    def types(self):
+        typelist = []
+        for obj in self:
+            typelist.append(obj.__class__.__name__)
+        return typelist
+
+    @property
+    def modes(self):
+        modelist = []
+        for obj in self:
+            modelist.append(obj.auto_mode)
+        return modelist
+
+    @property
+    def names(self):
+        namelist = []
+        for obj in self:
+            if obj.name is not None:
+                namelist.append(obj.name)
+            else:
+                # Fallback to device then device type
+                try:
+                    namelist.append(obj.device)
+                except NameError:
+                    namelist.append(obj.device_type)
+        return namelist
+
+    @property
+    def icons(self):
+        iconlist = []
+        for obj in self:
+            if obj.icon is not None:
+                iconlist.append(obj.icon)
+            else:
+                iconlist.append("none")
+        return iconlist
+
+    @property
+    def colortypes(self):
+        ctypelist = []
+        for obj in self:
+            ctypelist.append(obj.color_type)
+        return ctypelist
+
+    @property
+    def module_web(self):
+        weblist = []
+        for obj in self.modules:
+            try:
+                weblist.append(obj.web)
+            except AttributeError:
+                weblist.append("none")
+                pass
+        return weblist
+
+    @property
+    def lock_status(self):
+        locklist = []
+        for obj in self:
+            if obj.request_locked:
+                locklist.append("1")
+            else:
+                locklist.append("0")
+        return locklist
+
+    @property
+    def room_groups(self):
+        if self.config.has_option("WEBSERVER", "ROOM_GROUPS"):
+            devrooms = []
+            room_groups = self.config["WEBSERVER"]["ROOM_GROUPS"].split(",")
+            for obj in self:
+                for group in obj.group:
+                    if group in room_groups:
+                        devrooms.append(group)
+                        break
+                else:
+                    devrooms.append("")
+        else:
+            devrooms = [""] * len(self)
+        return devrooms
 
     def get_devices_list(self):
         i = 0
@@ -69,7 +203,7 @@ class DeviceManager(object):
                         _module, self.config["DEVICE" + str(i)]["TYPE"])
                     _class = getattr(
                         _class, self.config["DEVICE" + str(i)]["TYPE"])
-                    self.devices.append(_class(i, self.config))
+                    self[i] = _class(i, self.config)
                     self.get_and_link_pseudodevice(i)
                 else:
                     debug.write('Unsupported device type {}'
@@ -90,14 +224,14 @@ class DeviceManager(object):
         self.always_skip_time = True
 
     def set_mode(self, request):
-        for _device, _color in zip(self.devices, request.colors):
+        for _device, _color in zip(self, request.colors):
             if request.colors is not None and _color != DEVICE_SKIP:
                 _device.request_auto_mode = request.auto_mode
                 _device.reset_mode = request.reset_mode
             if request.force_auto_mode:
                 _device.auto_mode = True
         if request.set_mode_for_devid is not None:
-            self.devices[request.set_mode_for_devid].auto_mode = request.auto_mode
+            self[request.set_mode_for_devid].auto_mode = request.auto_mode
         if request.force_auto_mode:
             debug.write("All devices set to AUTO mode", 0)
         if request.reset_mode:
@@ -107,7 +241,7 @@ class DeviceManager(object):
         """ Gets devices from a specific group for the light change """
         if type(request.group) == str:
             request.group = [request.group]
-        for _cnt, _device in enumerate(self.devices):
+        for _cnt, _device in enumerate(self):
             if request.group is not None and set(request.group).issubset(_device.group):
                 continue
             debug.write("Skipping device {} as it does not belong in the {} group(s)"
@@ -116,18 +250,17 @@ class DeviceManager(object):
 
     def get_toggle(self):
         """ Toggles the devices on/off """
-        colors = [DEVICE_ON] * len(dm.devices)
-        i = 0
-        for color in self.get_state():
-            if color not in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
-                colors = [DEVICE_OFF] * len(dm.devices)
-            i = i + 1
-        return colors
+        # TODO Check if this still works or deprecate it.
+        states = [DEVICE_ON] * len(self)
+        for _cnt, _state in enumerate(self.get_state()):
+            if _state not in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
+                states[_cnt] = [DEVICE_OFF]
+        return states
 
     def set_typed_colors(self, request):
         """ Gets devices of a specific  type for the light change """
         device_indexes = [i for i, x in enumerate(
-            self.devices) if x.__class__.__name__.lower() == request.device_type.lower()]
+            self) if x.__class__.__name__.lower() == request.device_type.lower()]
 
         if len(request.device_type_args) == 1 and len(device_indexes) > 1:
             debug.write("Expanding state {} to {} devices."
@@ -150,7 +283,7 @@ class DeviceManager(object):
         self.clean_delayed_changes()
 
         if request.colors is None:
-            request.colors = [DEVICE_SKIP] * len(self.devices)
+            request.colors = [DEVICE_SKIP] * len(self)
 
         self.skip_time = request.skip_time
         self.set_mode(request)
@@ -178,22 +311,12 @@ class DeviceManager(object):
             else:
                 self.lockcount = self.lockcount + 1
 
-    def get_all_groups(self):
-        if self.all_groups is None:
-            _groups = []
-            for obj in self.devices:
-                for group in obj.group:
-                    if group not in _groups:
-                        _groups.append(group)
-            self.all_groups = _groups
-        return self.all_groups
-
     def get_descriptions(self, as_list=False):
         """ Getter for configured devices descriptions """
         desclist = []
         desctext = ""
         i = 1
-        for obj in self.devices:
+        for obj in self:
             desctext += str(i) + " - " + obj.descriptions() + "\n"
             if as_list:
                 desclist.append(obj.descriptions())
@@ -202,35 +325,9 @@ class DeviceManager(object):
             return desclist
         return desctext
 
-    def get_types(self):
-        typelist = []
-        for obj in self.devices:
-            typelist.append(obj.__class__.__name__)
-        return typelist
-
-    def get_modes(self):
-        modelist = []
-        for obj in self.devices:
-            modelist.append(obj.auto_mode)
-        return modelist
-
-    def get_names(self):
-        namelist = []
-        for obj in self.devices:
-            if obj.name is not None:
-                namelist.append(obj.name)
-            else:
-                # Fallback to device then device type
-                try:
-                    namelist.append(obj.device)
-                except NameError:
-                    namelist.append(obj.device_type)
-
-        return namelist
-
     def get_option(self, option):
         oplist = []
-        for obj in self.devices:
+        for obj in self:
             if option == "skiptime":
                 oplist.append(obj.default_skip_time)
             elif option == "forceoff":
@@ -241,58 +338,9 @@ class DeviceManager(object):
                 oplist.append(obj.action_delay)
         return oplist
 
-    def get_icons(self):
-        iconlist = []
-        for obj in self.devices:
-            if obj.icon is not None:
-                iconlist.append(obj.icon)
-            else:
-                iconlist.append("none")
-        return iconlist
-
-    def get_colortypes(self):
-        ctypelist = []
-        for obj in self.devices:
-            ctypelist.append(obj.color_type)
-        return ctypelist
-
-    def get_module_web(self):
-        weblist = []
-        for obj in self.modules:
-            try:
-                weblist.append(obj.web)
-            except AttributeError:
-                weblist.append("none")
-                pass
-        return weblist
-
-    def get_lock_status(self):
-        locklist = []
-        for obj in self.devices:
-            if obj.request_locked:
-                locklist.append("1")
-            else:
-                locklist.append("0")
-        return locklist
-
-    def get_room_for_devices(self):
-        if self.config.has_option("WEBSERVER", "ROOM_GROUPS"):
-            devrooms = []
-            room_groups = self.config["WEBSERVER"]["ROOM_GROUPS"].split(",")
-            for obj in self.devices:
-                for group in obj.group:
-                    if group in room_groups:
-                        devrooms.append(group)
-                        break
-                else:
-                    devrooms.append("")
-        else:
-            devrooms = [""] * len(self.devices)
-        return devrooms
-
     def reload_configs(self):
         self.config.read('home.ini')
-        for _dev in self.devices:
+        for _dev in self:
             try:
                 _dev.config = self.config
                 _dev.init_from_config()
@@ -322,13 +370,13 @@ class DeviceManager(object):
     def check_event_time(self, request, skip_time=False):
         now_time = datetime.datetime.now().time()
         self.update_event_time()
-        for _dev in self.devices:
+        for _dev in self:
             if self.always_skip_time or skip_time:
                 _dev.set_event_time(self.starttime, True)
             else:
                 _dev.set_event_time(self.starttime)
         if not skip_time and datetime.time(6, 00) < now_time < self.starttime:
-            for _device, _color in zip(self.devices, request.colors):
+            for _device, _color in zip(self, request.colors):
                 if _color != DEVICE_SKIP and _device.get_time_check(now_time):
                     debug.write("Not all devices will be changed. Device changes begins at {}"
                                 .format(self.starttime), 0)
@@ -344,12 +392,12 @@ class DeviceManager(object):
 
     def get_state(self, devid=None, async=False, webcolors=False, intensity=False):
         """ Getter for configured devices actual colors """
-        states = [None] * len(self.devices)
-        for _cnt, dev in enumerate(self.devices):
+        states = [None] * len(self)
+        for _cnt, dev in enumerate(self):
             if devid is not None and devid != _cnt:
                 continue
             if async:
-                if intensity and self.devices[_cnt].color_type in ["argb", "rgb", "255"]:
+                if intensity and self[_cnt].color_type in ["argb", "rgb", "255"]:
                     states[_cnt] = convert_color(dev.state, "100")
                 else:
                     states[_cnt] = dev.state
@@ -362,38 +410,38 @@ class DeviceManager(object):
             debug.write(
                 "All devices state status updated from devices get_state()", 0)
         if devid is not None:
-            if self.devices[devid].state_inference_group is not None:
+            if self[devid].state_inference_group is not None:
                 states[devid] = self.get_inferred_group_state(
                     devid, states[devid])
             return states[devid]
-        for _cnt, dev in enumerate(self.devices):
+        for _cnt, dev in enumerate(self):
             # Has to be called after device states all updated ? Only relevant on non-async requests ?
-            if self.devices[_cnt].state_inference_group is not None:
+            if self[_cnt].state_inference_group is not None:
                 states[_cnt] = self.get_inferred_group_state(
                     _cnt, states[_cnt])
         return states
 
     def get_inferred_group_state(self, devid, expected_state):
         _states = []
-        for _cnt, dev in enumerate(self.devices):
-            if _cnt != devid and self.devices[devid].state_inference_group in self.devices[_cnt].group:
-                _states.append(str(self.devices[_cnt].state))
+        for _cnt, dev in enumerate(self):
+            if _cnt != devid and self[devid].state_inference_group in self[_cnt].group:
+                _states.append(str(self[_cnt].state))
         if all(x == DEVICE_ON for x in _states):
             if expected_state != DEVICE_ON:
                 debug.write("Device '{}' actual state inferred as ON from its group state".format(
-                    self.devices[devid].name), 0)
+                    self[devid].name), 0)
                 return DEVICE_INFERRED_ON
         elif all(x == DEVICE_OFF for x in _states):
             if expected_state != DEVICE_OFF:
                 debug.write("Device '{}' actual state inferred as OFF from its group state".format(
-                    self.devices[devid].name), 0)
+                    self[devid].name), 0)
                 return DEVICE_INFERRED_OFF
         return expected_state
 
     def set_light_stream(self, devid, color, is_group):
         """ Simplified function for quick, streamed light change requests """
         if is_group:
-            for device in self.devices:
+            for device in self:
                 if device.group == devid:
                     cnt = 0
                     _color = device.convert(color)
@@ -410,7 +458,7 @@ class DeviceManager(object):
             while True:
                 if cnt == 4:
                     break
-                if self.devices[devid].run(_color, 3):
+                if self[devid].run(_color, 3):
                     break
                 time.sleep(0.3)
                 cnt = cnt + 1
@@ -430,22 +478,22 @@ class DeviceManager(object):
     def reinit(self):
         """ Resets the Success bool to False """
         i = 0
-        while i < len(self.devices):
-            self.devices[i].post_run()
+        while i < len(self):
+            self[i].post_run()
             i += 1
 
     def get_and_link_pseudodevice(self, devid):
         _pseudodev = self.devices[devid].has_pseudodevice
         if _pseudodev is not None:
             if _pseudodev not in self.pseudodevices:
-                self.pseudodevices[_pseudodev] = self.devices[devid].create_pseudodevice(
+                self.pseudodevices[_pseudodev] = self[devid].create_pseudodevice(
                 )
-            self.devices[devid].get_pseudodevice(
+            self[devid].get_pseudodevice(
                 self.pseudodevices[_pseudodev])
 
     def _decode_colors(self, colors):
         _has_delays = False
-        self.delays = [0] * len(self.devices)
+        self.delays = [0] * len(self)
         for _cnt, _col in enumerate(colors):
             if type(_col) is not tuple:
                 if re.match("[0-9a-fA-F]+del[0-9]+", str(_col)) is not None:
@@ -465,7 +513,7 @@ class DeviceManager(object):
             for _delay in self.delays:
                 if _delay != 0 and _delay not in _delay_list:
                     _delay_list.append(_delay)
-                    _delay_colors = [DEVICE_SKIP] * len(self.devices)
+                    _delay_colors = [DEVICE_SKIP] * len(self)
                     for _acnt, _adelay in enumerate(self.delays):
                         if _adelay == _delay:
                             if _adelay < 0:
@@ -476,9 +524,9 @@ class DeviceManager(object):
                                 colors[_acnt] = DEVICE_SKIP
                             self.delays[_acnt] = 0
                     req = StateRequestObject()
-                    req.set_colors(_delay_colors, len(self.devices))
+                    req.set_colors(_delay_colors, len(self))
                     if self.skip_time:
-                        req.skip_time = True
+                        req.set(skip_time=True)
                     debug.write("Scheduling device state change ({}) after {} seconds".format(
                         _delay_colors, _delay), 0)
                     _sched = Timer(int(_delay), self.run, (req,))
@@ -504,25 +552,23 @@ class DeviceManager(object):
                 if all(c == DEVICE_SKIP for c in colors):
                     debug.write("All device requests skipped", 0)
                     break
-                debug.write("Changing states to {} from state {}"
-                            .format(colors, self.states), 0)
                 self.set_lock(1)
                 i = 0
                 tries = 0
                 firstran = True
 
-                while i < len(self.devices):
-                    if not self.devices[i].success:
-                        _color = self.devices[i].convert(colors[i])
+                while i < len(self):
+                    if not self[i].success:
+                        _color = self[i].convert(colors[i])
 
                         if _color != DEVICE_SKIP:
                             self.states[i] = self.get_state(i)
                             if _color != self.states[i]:
                                 debug.write(("Device '{}', change {} => "
                                              "{} (Automatic mode: {})")
-                                            .format(self.devices[i].name,
+                                            .format(self[i].name,
                                                     self.states[i], _color,
-                                                    self.devices[i].auto_mode),
+                                                    self[i].auto_mode),
                                             0)
                         if self.threaded:
                             if not self.queue.empty():
@@ -533,7 +579,7 @@ class DeviceManager(object):
                             self._set_device(i, _color)
                     i += 1
 
-                    if i == len(self.devices):
+                    if i == len(self):
                         if self.threaded:
                             debug.write("Awaiting results", 0)
                             for _thread in self.light_threads:
@@ -550,11 +596,11 @@ class DeviceManager(object):
                             if tries == 5:
                                 break
                         else:
-                            for _cnt, _dev in enumerate(self.devices):
+                            for _cnt, _dev in enumerate(self):
                                 if not self.queue.empty():
                                     break
                                 self.states[_cnt] = self.get_state(_cnt)
-                                if self.devices[_cnt].convert(colors[_cnt]) != self.states[_cnt] and not self.devices[_cnt].success:
+                                if self[_cnt].convert(colors[_cnt]) != self.states[_cnt] and not self[_cnt].success:
                                     i = 0
                             tries = tries + 1
                             if tries == 5:
@@ -576,7 +622,7 @@ class DeviceManager(object):
         debug.write("Change of device states completed.", 0)
 
     def _set_device(self, count, color):
-        return self.devices[count].pre_run(color)
+        return self[count].pre_run(color)
 
     @staticmethod
     def _update_sunset_time(localization):
@@ -630,15 +676,23 @@ class StateRequestObject(object):
         self.request_is_validated = False
         self.set(**kwargs)
 
+    def __call__(self, dm):
+        dm.run(self)
+
+    def __str__(self):
+        _str = ""
+        for i, (_var, _chg) in enumerate(self.changed_vars.items()):
+            if i != 0:
+                _str += ", "
+            _str += "{} will be set to {}".format(_var, _chg)
+        return _str
+
     def set(self, **kwargs):
         allowed_keys = {'hexvalues', 'off', 'on', 'restart', 'toggle', 'group',
                         'notime', 'delay', 'preset', 'manual_mode', 'reset_location_data',
                         'force_auto_mode', 'auto_mode', 'reset_mode', 'skip_time', 'set_mode_for_devid'}
         self.__dict__.update((k, v)
                              for k, v in kwargs.items() if k in allowed_keys)
-
-    def run(self, dm):
-        dm.run(self)
 
     def parse_args(self, args):
         for _arg in vars(args):
@@ -651,14 +705,6 @@ class StateRequestObject(object):
                     'Converting values to lists for {}'.format(_dev), 0)
                 setattr(self, _dev, str(
                     getattr(self, _dev, None).replace("'", "").split(',')))
-
-    def get_request_string(self):
-        _str = ""
-        for i, (_var, _chg) in enumerate(self.changed_vars.items()):
-            if i != 0:
-                _str += ", "
-            _str += "{} will be set to {}".format(_var, _chg)
-        return _str
 
     def set_colors(self, colors, length):
         if self.colors is None:

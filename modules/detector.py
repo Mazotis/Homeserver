@@ -17,28 +17,29 @@ from threading import Thread, Event
 
 
 class detector(Thread):
-    def __init__(self, config, lightmanager):
+    def __init__(self, config, dm):
         Thread.__init__(self)
-        self.config = config
+        self.detector_config = config['DETECTOR']
+        self.find3_config = config['FIND3-PRESETS']
         self.stopevent = Event()
-        self.TRACKED_IPS = self.config['DETECTOR']['TRACKED_IPS'].split(",")
-        self.DEVICE_STATE_LEVEL = [
-            0] * len(config['DETECTOR']['TRACKED_IPS'].split(","))
-        self.DEVICE_STATE_MAX = self.config['DETECTOR'].getint(
+        self.TRACKED_IPS = self.detector_config['TRACKED_IPS'].split(",")
+        self.device_state_level = [
+            0] * len(self.detector_config['TRACKED_IPS'].split(","))
+        self.DEVICE_STATE_MAX = self.detector_config.getint(
             'MAX_STATE_LEVEL')
-        self.DEVICE_STATUS = [
+        self.device_status = [
             0] * len(self.TRACKED_IPS)
-        self.FIND3_SERVER = self.config['DETECTOR'].getboolean(
+        self.FIND3_SERVER = self.detector_config.getboolean(
             'FIND3_SERVER_ENABLE')
         self.DETECTOR_START_HOUR = datetime.datetime.strptime(
-            self.config['DETECTOR']['START_HOUR'], '%H:%M').time()
+            self.detector_config['START_HOUR'], '%H:%M').time()
         self.DETECTOR_END_HOUR = datetime.datetime.strptime(
-            self.config['DETECTOR']['END_HOUR'], '%H:%M').time()
+            self.detector_config['END_HOUR'], '%H:%M').time()
         self.status = 0
         self.delayed_start = 0
-        self.lm = lightmanager
-        if self.config.has_option("DETECTOR", "TRACKED_PICTURES"):
-            if len(self.config["DETECTOR"]["TRACKED_PICTURES"].split(',')) == len(self.config["DETECTOR"]["TRACKED_IPS"].split(',')):
+        self.dm = dm
+        if config.has_option("DETECTOR", "TRACKED_PICTURES"):
+            if len(self.detector_config["TRACKED_PICTURES"].split(',')) == len(self.detector_config["TRACKED_IPS"].split(',')):
                 self.web = "detector.html"
             else:
                 debug.write(
@@ -53,14 +54,15 @@ class detector(Thread):
                 _is_running = False
                 self.stopevent.wait(30)
                 continue
-            if not _is_running and self.config['DETECTOR'].getboolean('FALLBACK_AUTO_ON_NEW_DAY'):
+            if not _is_running and self.detector_config.getboolean('FALLBACK_AUTO_ON_NEW_DAY'):
                 debug.write(
                     "Setting back all devices to AUTO mode for new day", 0, "DETECTOR")
-                StateRequestObject(force_auto_mode=True,
-                                   notime=True).run(self.lm)
+                req = StateRequestObject(force_auto_mode=True,
+                                         notime=True)
+                req(self.dm)
                 _is_running = True
             self.detect_devices()
-            self.stopevent.wait(int(self.config['DETECTOR']['PING_FREQ_SEC']))
+            self.stopevent.wait(int(self.detector_config['PING_FREQ_SEC']))
         debug.write("Stopped.", 0, "DETECTOR")
         return
 
@@ -73,7 +75,7 @@ class detector(Thread):
 
         if self.FIND3_SERVER:
             debug.write("Starting FIND3 localization server", 0, "DETECTOR")
-            self.tracked_find3_devs = self.config['DETECTOR']['FIND3_TRACKED_DEVICES'].split(
+            self.tracked_find3_devs = self.detector_config['FIND3_TRACKED_DEVICES'].split(
                 ",")
             self.tracked_find3_times = [0] * len(self.tracked_find3_devs)
             self.tracked_find3_local = [""] * len(self.tracked_find3_devs)
@@ -81,8 +83,8 @@ class detector(Thread):
                 # Get last update times
                 if _dev != "_":
                     try:
-                        _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.config['DETECTOR']['FIND3_SERVER_URL'],
-                                                                                   self.config['DETECTOR']['FIND3_FAMILY_NAME'],
+                        _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.detector_config['FIND3_SERVER_URL'],
+                                                                                   self.detector_config['FIND3_FAMILY_NAME'],
                                                                                    _dev))
                     except requests.exceptions.ConnectionError:
                         debug.write(
@@ -94,13 +96,13 @@ class detector(Thread):
 
         for _cnt, device in enumerate(self.TRACKED_IPS):
             if device != "_" and int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
-                self.DEVICE_STATE_LEVEL[_cnt] = self.DEVICE_STATE_MAX
-                self.DEVICE_STATUS[_cnt] = 1
+                self.device_state_level[_cnt] = self.DEVICE_STATE_MAX
+                self.device_status[_cnt] = 1
             else:
-                self.DEVICE_STATE_LEVEL[_cnt] = 0
-                self.DEVICE_STATUS[_cnt] = 0
+                self.device_state_level[_cnt] = 0
+                self.device_status[_cnt] = 0
         debug.write("Got initial states {} and status {}".format(
-            self.DEVICE_STATE_LEVEL, self.status), 0, "DETECTOR")
+            self.device_state_level, self.status), 0, "DETECTOR")
 
         if self.DETECTOR_START_HOUR > datetime.datetime.now().time() or \
            self.DETECTOR_END_HOUR < datetime.datetime.now().time():
@@ -108,31 +110,32 @@ class detector(Thread):
                                                                     self.DETECTOR_END_HOUR), 0, "DETECTOR")
 
     def detect_devices(self):
-        EVENT_TIME = self.lm.update_event_time()
+        EVENT_TIME = self.dm.update_event_time()
         for _cnt, device in enumerate(self.TRACKED_IPS):
             # TODO Maintain the two pings requirement for status change ?
             if device != "_" and int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
-                if self.DEVICE_STATE_LEVEL[_cnt] == self.DEVICE_STATE_MAX and self.DEVICE_STATUS[_cnt] == 0:
+                if self.device_state_level[_cnt] == self.DEVICE_STATE_MAX and self.device_status[_cnt] == 0:
                     debug.write("Device {} CONnected".format(
                         device), 0, "DETECTOR")
-                    self.DEVICE_STATUS[_cnt] = 1
-                elif self.DEVICE_STATE_LEVEL[_cnt] != self.DEVICE_STATE_MAX:
-                    self.DEVICE_STATE_LEVEL[_cnt] = self.DEVICE_STATE_LEVEL[_cnt] + 1
+                    self.device_status[_cnt] = 1
+                elif self.device_state_level[_cnt] != self.DEVICE_STATE_MAX:
+                    self.device_state_level[_cnt] = self.device_state_level[_cnt] + 1
                 if self.FIND3_SERVER and self.tracked_find3_devs[_cnt] != "_":
                     self.tracked_find3_local = [
                         ""] * len(self.tracked_find3_devs)
-                    _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.config['DETECTOR']['FIND3_SERVER_URL'],
-                                                                               self.config['DETECTOR']['FIND3_FAMILY_NAME'],
+                    _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.detector_config['FIND3_SERVER_URL'],
+                                                                               self.detector_config['FIND3_FAMILY_NAME'],
                                                                                self.tracked_find3_devs[_cnt]))
                     if self.tracked_find3_times[_cnt] != _r.json()['sensors']['t'] and \
                        self.tracked_find3_local[_cnt] != _r.json()['analysis']['guesses'][0]['location']:
-                        if _r.json()['analysis']['guesses'][0]['location'] in self.config['FIND3-PRESETS']:
-                            if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
-                                StateRequestObject(auto_mode=True, hexvalues=self.config['FIND3-PRESETS'][_r.json()[
-                                    'analysis']['guesses'][0]['location']]).run(self.lm)
+                        if _r.json()['analysis']['guesses'][0]['location'] in self.find3_config:
+                            if self.find3_config.getboolean('AUTOMATIC_MODE'):
+                                req = StateRequestObject(auto_mode=True, hexvalues=self.find3_config[_r.json()[
+                                    'analysis']['guesses'][0]['location']])
                             else:
-                                StateRequestObject(hexvalues=self.config['FIND3-PRESETS'][_r.json()[
-                                    'analysis']['guesses'][0]['location']]).run(self.lm)
+                                req = StateRequestObject(hexvalues=self.find3_config[_r.json()[
+                                    'analysis']['guesses'][0]['location']])
+                            req(self.dm)
                             debug.write("Device {} found in '{}'. Running change of lights."
                                         .format(self.tracked_find3_devs[_cnt],
                                                 _r.json()['analysis']['guesses'][0]['location']), 0, "DETECTOR")
@@ -141,13 +144,14 @@ class detector(Thread):
                             debug.write("Device {} found in '{}' but preset is not self.configured."
                                         .format(self.tracked_find3_devs[_cnt],
                                                 _r.json()['analysis']['guesses'][0]['location']), 0, "DETECTOR")
-                        if self.tracked_find3_local[_cnt] + "-off" in self.config['FIND3-PRESETS']:
-                            if self.config['FIND3-PRESETS'].getboolean('AUTOMATIC_MODE'):
-                                StateRequestObject(
-                                    auto_mode=True, hexvalues=self.config['FIND3-PRESETS'][self.tracked_find3_local][_cnt] + "-off").run(self.lm)
+                        if self.tracked_find3_local[_cnt] + "-off" in self.find3_config:
+                            if self.find3_config.getboolean('AUTOMATIC_MODE'):
+                                req = StateRequestObject(
+                                    auto_mode=True, hexvalues=self.find3_config[self.tracked_find3_local][_cnt] + "-off")
                             else:
-                                StateRequestObject(
-                                    hexvalues=self.config['FIND3-PRESETS'][self.tracked_find3_local][_cnt] + "-off").run(self.lm)
+                                req = StateRequestObject(
+                                    hexvalues=self.find3_config[self.tracked_find3_local][_cnt] + "-off")
+                            req(self.dm)
                             debug.write("Device {} left '{}'. Running change of lights."
                                         .format(self.tracked_find3_devs[_cnt],
                                                 self.tracked_find3_local[_cnt]), 0, "DETECTOR")
@@ -156,60 +160,63 @@ class detector(Thread):
                         self.tracked_find3_local[_cnt] = _r.json(
                         )['analysis']['guesses'][0]['location']
             elif device != "_":
-                if self.DEVICE_STATE_LEVEL[_cnt] == 0 and self.DEVICE_STATUS[_cnt] == 1:
+                if self.device_state_level[_cnt] == 0 and self.device_status[_cnt] == 1:
                     debug.write("DEVICE {} DISconnected".format(
                         device), 0, "DETECTOR")
-                    self.DEVICE_STATUS[_cnt] = 0
-                elif self.DEVICE_STATE_LEVEL[_cnt] != 0:
+                    self.device_status[_cnt] = 0
+                elif self.device_state_level[_cnt] != 0:
                     # Decrease state level down to zero (OFF)
-                    self.DEVICE_STATE_LEVEL[_cnt] = self.DEVICE_STATE_LEVEL[_cnt] - 1
+                    self.device_state_level[_cnt] = self.device_state_level[_cnt] - 1
 
-        if self.status == 1 and all(s == 0 for s in self.DEVICE_STATE_LEVEL):
+        if self.status == 1 and all(s == 0 for s in self.device_state_level):
             debug.write("STATE changed to {} and DELAYED_START {}, turned off"
-                        .format(self.DEVICE_STATE_LEVEL, self.delayed_start), 0, "DETECTOR")
-            if self.config['DETECTOR'].getboolean('FALLBACK_AUTO_ON_DISCONNECT'):
-                StateRequestObject(reset_mode=True, off=True,
-                                   notime=True).run(self.lm)
+                        .format(self.device_state_level, self.delayed_start), 0, "DETECTOR")
+            if self.detector_config.getboolean('FALLBACK_AUTO_ON_DISCONNECT'):
+                req = StateRequestObject(reset_mode=True, off=True,
+                                         notime=True)
             else:
-                StateRequestObject(auto_mode=True, off=True,
-                                   notime=True).run(self.lm)
+                req = StateRequestObject(auto_mode=True, off=True,
+                                         notime=True)
+            req(self.dm)
             self.status = 0
             self.delayed_start = 0
         if datetime.datetime.now().time() == EVENT_TIME and self.delayed_start == 1:
-            debug.write("DELAYED STATE with actual state {}, turned on".format(self.DEVICE_STATE_LEVEL),
+            debug.write("DELAYED STATE with actual state {}, turned on".format(self.device_state_level),
                         0, "DETECTOR")
-            StateRequestObject(
-                auto_mode=True, on=True, group=self.config['DETECTOR']['AUTO_ON_GROUP']).run(self.lm)
+            req = StateRequestObject(
+                auto_mode=True, on=True, group=self.detector_config['AUTO_ON_GROUP'])
+            req(self.dm)
             self.delayed_start = 0
             self.status = 1
-        if self.DEVICE_STATE_MAX in self.DEVICE_STATE_LEVEL and self.delayed_start == 0:
+        if self.DEVICE_STATE_MAX in self.device_state_level and self.delayed_start == 0:
             if datetime.datetime.now().time() < EVENT_TIME:
                 debug.write("Scheduling state change, with actual state {}"
-                            .format(self.DEVICE_STATE_LEVEL), 0, "DETECTOR")
+                            .format(self.device_state_level), 0, "DETECTOR")
                 self.delayed_start = 1
                 self.status = 0
-        if self.DEVICE_STATE_MAX in self.DEVICE_STATE_LEVEL and self.status == 0 and datetime.datetime.now().time() \
+        if self.DEVICE_STATE_MAX in self.device_state_level and self.status == 0 and datetime.datetime.now().time() \
            >= EVENT_TIME:
             debug.write("STATE changed to {}, turned on".format(
-                self.DEVICE_STATE_LEVEL), 0, "DETECTOR")
-            StateRequestObject(
-                auto_mode=True, on=True, group=self.config['DETECTOR']['AUTO_ON_GROUP']).run(self.lm)
+                self.device_state_level), 0, "DETECTOR")
+            req = StateRequestObject(
+                auto_mode=True, on=True, group=self.detector_config['AUTO_ON_GROUP'])
+            req(self.dm)
             self.status = 1
             self.delayed_start = 0
-        if all(s == 0 for s in self.DEVICE_STATE_LEVEL) and self.status == 0 and self.delayed_start == 1:
+        if all(s == 0 for s in self.device_state_level) and self.status == 0 and self.delayed_start == 1:
             debug.write("Aborting light change, with actual state {}"
-                        .format(self.DEVICE_STATE_LEVEL), 0, "DETECTOR")
+                        .format(self.device_state_level), 0, "DETECTOR")
             self.delayed_start = 0
 
     def get_web(self):
         web = ""
-        pictures = self.config["DETECTOR"]["TRACKED_PICTURES"].split(',')
+        pictures = self.detector_config["TRACKED_PICTURES"].split(',')
         for _cnt, pic in enumerate(pictures):
             if _cnt == 5:
                 debug.write(
                     "Max amount of pictures for detector web module is 5. Hiding the rest.", 1, "DETECTOR")
                 break
-            if self.DEVICE_STATE_LEVEL[_cnt] != self.DEVICE_STATE_MAX and self.TRACKED_IPS[_cnt] != "_":
+            if self.device_state_level[_cnt] != self.DEVICE_STATE_MAX and self.TRACKED_IPS[_cnt] != "_":
                 web += '<img src={} class="mx-auto d-block border-danger" style="width:85px; height:85px; border-radius:50%; margin-right:3px !important; border:5px solid; -webkit-filter: grayscale(100%); filter: grayscale(100%);">'.format(
                     "/images/" + pic)
             else:

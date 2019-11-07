@@ -2,7 +2,7 @@
 '''
     File name: backup.py
     Author: Maxime Bergeron
-    Date last modified: 25/09/2019
+    Date last modified: 07/11/2019
     Python Version: 3.5
 
     A backup manager/rsync wrapper module for the homeserver
@@ -19,10 +19,10 @@ from threading import Thread, Event
 
 
 class backup(Thread):
-    def __init__(self, config, lm):
+    def __init__(self, config, dm):
         Thread.__init__(self)
         self.config = config
-        self.lm = lm
+        self.dm = dm
         self.backup_interval = config["BACKUP"].getint("DELAY_BETWEEN_BACKUPS")
         self.backup_server = config["BACKUP"]["BACKUP_SERVER"]
         self.backup_server_forceon = config["BACKUP"].getboolean(
@@ -37,14 +37,14 @@ class backup(Thread):
     def run(self):
         debug.write("Starting backup manager", 0, "BACKUP")
         if self.backup_server != "local":
-            if int(self.backup_server) > len(self.lm.devices):
+            if int(self.backup_server) > len(self.dm):
                 debug.write("DEVICE{} is not valid. Quitting module".format(
                     self.backup_server), 2, "BACKUP")
                 self.stop()
                 return
-            if self.lm.devices[int(self.backup_server)].device_type != "Computer":
+            if self.dm[int(self.backup_server)].device_type != "Computer":
                 debug.write("DEVICE{} ({}) is not listed as Computer device in the Devicemanager. Quitting module"
-                            .format(self.backup_server, self.lm.devices[int(self.backup_server)].name), 2, "BACKUP")
+                            .format(self.backup_server, self.dm[int(self.backup_server)].name), 2, "BACKUP")
                 self.stop()
                 return
 
@@ -74,17 +74,13 @@ class backup(Thread):
         backup_server = None
         server_was_off = False
         if self.backup_server != "local":
-            backup_server = self.lm.devices[int(self.backup_server)]
+            backup_server = self.dm[int(self.backup_server)]
             if str(backup_server.get_state()) != DEVICE_ON:
                 if self.config["BACKUP"].getboolean("BACKUP_SERVER_FORCE_ON"):
                     server_was_off = True
                     debug.write("Turning on backup server", 0, "BACKUP")
-                    _col = ["-1"] * len(self.lm.devices)
-                    _col[int(self.backup_server)] = "1"
-                    self.lm.set_colors(_col)
-                    self.lm.set_skip_time_check()
-                    self.lm.set_mode(False, False)
-                    self.lm.run()
+                    self.change_state_for_device(self.backup_server, DEVICE_ON)
+
                     while str(backup_server.get_state()) != DEVICE_ON:
                         debug.write(
                             "Waiting for backup server...", 0, "BACKUP")
@@ -103,7 +99,7 @@ class backup(Thread):
             try:
                 destination = ""
                 if self.config["BACKUP"]["CLIENT" + str(i)] != "local":
-                    client = self.lm.devices[self.config["BACKUP"].getint(
+                    client = self.dm[self.config["BACKUP"].getint(
                         "CLIENT" + str(i))]
                     client_was_off = False
                     if str(client.get_state()) != DEVICE_ON:
@@ -111,13 +107,8 @@ class backup(Thread):
                             client_was_off = True
                             debug.write(
                                 "Turning ON CLIENT{}".format(i), 0, "BACKUP")
-                            _col = ["-1"] * len(self.lm.devices)
-                            _col[self.config["BACKUP"].getint(
-                                "CLIENT" + str(i))] = "1"
-                            self.lm.set_colors(_col)
-                            self.lm.set_skip_time_check()
-                            self.lm.set_mode(False, False)
-                            self.lm.run()
+                            self.change_state_for_device(self.config["BACKUP"].getint("CLIENT" + str(i)), DEVICE_ON)
+
                             while str(client.get_state()) != DEVICE_ON:
                                 debug.write(
                                     "Waiting for client...", 0, "BACKUP")
@@ -173,12 +164,7 @@ class backup(Thread):
                 if client_was_off:
                     debug.write(
                         "Turning back OFF CLIENT{}".format(i), 0, "BACKUP")
-                    _col = ["-1"] * len(self.lm.devices)
-                    _col[self.config["BACKUP"].getint("CLIENT" + str(i))] = "0"
-                    self.lm.set_colors(_col)
-                    self.lm.set_skip_time_check()
-                    self.lm.set_mode(False, False)
-                    self.lm.run()
+                    self.change_state_for_device(self.config["BACKUP"].getint("CLIENT" + str(i)), DEVICE_OFF)
 
             except KeyError:
                 debug.write('Backups are done', 0, "BACKUP")
@@ -192,14 +178,16 @@ class backup(Thread):
         if server_was_off:
             debug.write(
                 "Turning back OFF backup server".format(i), 0, "BACKUP")
-            _col = ["-1"] * len(self.lm.devices)
-            _col[int(self.backup_server)] = "0"
-            self.lm.set_colors(_col)
-            self.lm.set_skip_time_check()
-            self.lm.set_mode(False, False)
-            self.lm.run()
-
+            self.change_state_for_device(self.backup_server, DEVICE_OFF)
         return
+
+    def change_state_for_device(self, devid, state):
+        req = StateRequestObject()
+        _col = ["-1"] * len(self.dm)
+        _col[int(devid)] = state
+        req.set_colors(_col, len(self.dm))
+        req.set(skip_time=True, auto_mode=False)
+        req(self.dm)
 
     def stop(self):
         debug.write("Stopping.", 0, "BACKUP")
@@ -226,7 +214,7 @@ class backup(Thread):
         has_devices = False
         while True:
             try:
-                client = self.lm.devices[self.config["BACKUP"].getint(
+                client = self.dm.devices[self.config["BACKUP"].getint(
                     "CLIENT" + str(i))]
                 web += '<tr><th scope="row">{}</th>'.format(i + 1)
                 web += '<td>{}</td>'.format(client.name)

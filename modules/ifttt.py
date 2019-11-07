@@ -75,15 +75,15 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 return
             if func == "on":
                 req.set_colors(
-                    [DEVICE_ON] * len(self.dm.devices), len(self.dm.devices))
+                    [DEVICE_ON] * len(self.dm), len(self.dm))
             elif func == "off":
                 req.set(skip_time=True)
                 req.set_colors(
-                    [DEVICE_OFF] * len(self.dm.devices), len(self.dm.devices))
+                    [DEVICE_OFF] * len(self.dm), len(self.dm))
 
             group = postvars['group'][0].split()
             group = [unidecode.unidecode(x) for x in group]
-            groups = self.dm.get_all_groups()
+            groups = self.dm.all_groups
             changed_groups = []
             has_priority_group = False
             for _group in group:
@@ -108,16 +108,16 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 debug.write(
                     "No priority groups called. Setting back to AUTO mode.", 0, "IFTTT")
                 req.set(reset_mode=True)
-            req.run(self.dm)
+            req(self.dm)
 
             if "delay" in postvars and int(postvars['delay'][0]) != 0:
                 if func == "on":
                     req.set_colors(
-                        [DEVICE_OFF] * len(self.dm.devices), len(self.dm.devices))
+                        [DEVICE_OFF] * len(self.dm), len(self.dm))
                 elif func == "off":
                     req.set(skip_time=True)
                     req.set_colors(
-                        [DEVICE_ON] * len(self.dm.devices), len(self.dm.devices))
+                        [DEVICE_ON] * len(self.dm), len(self.dm))
                 req.set(delay=int(postvars['delay'][0]) * 60)
                 req.run(self.dm)
 
@@ -148,12 +148,12 @@ class IFTTTServer(BaseHTTPRequestHandler):
 
 
 class ifttt(Thread):
-    def __init__(self, config, lm):
+    def __init__(self, config, dm):
         Thread.__init__(self)
         self.config = config
         self.port = self.config['SERVER'].getint('VOICE_SERVER_PORT')
         self.protocol = self.config['IFTTT']['PROTOCOL']
-        self.dm = lm
+        self.dm = dm
         if self.protocol == "https":
             self.key = self.config['IFTTT']['IFTTT_HTTPS_CERTS_KEY']
             self.cert = self.config['IFTTT']['IFTTT_HTTPS_CERTS_CERT']
@@ -186,5 +186,5 @@ class ifttt(Thread):
             pass
 
 
-def run(config, lm):
-    runIFTTTServer(config, lm)
+def run(config, dm):
+    runIFTTTServer(config, dm)

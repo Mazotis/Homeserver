@@ -15,7 +15,6 @@ import pickle
 import socket
 import sys
 import threading
-import time
 import traceback
 from core.common import *
 from core.devicemanager import DeviceManager, StateRequestObject
@@ -40,7 +39,6 @@ class HomeServer(object):
         self.tcp_end_hour = datetime.datetime.strptime(
             self.config['SERVER']['TCP_END_HOUR'], '%H:%M').time()
         self.conn_sockets = []
-        self.state_thread = None
 
     def listen(self):
         """ Starts the server """
@@ -81,7 +79,7 @@ class HomeServer(object):
                             "Error - improperly formatted pickle. Got: {}".format(data), 2)
                         break
                     debug.write('Change of lights requested with request: {}'.format(
-                        req.get_request_string()), 0)
+                        req), 0)
                     if not req.validate_request(dm, self.config):
                         debug.write(
                             "Some errors in the request prevent a proper state change", 1)
@@ -112,48 +110,8 @@ class HomeServer(object):
         streaming_id = None
 
         if data == "getstate":
-            ls_status = {}
-            ls_status["state"] = dm.get_state(
-                async=True, webcolors=True)
-            ls_status["intensity"] = dm.get_state(
-                async=True, intensity=True)
-            ls_status["mode"] = dm.get_modes()
-            ls_status["type"] = dm.get_types()
-            ls_status["name"] = dm.get_names()
-            for op in ["skiptime", "forceoff", "ignoremode", "actiondelay"]:
-                ls_status["op_" + op] = dm.get_option(op)
-            ls_status["icon"] = dm.get_icons()
-            ls_status["description"] = dm.get_descriptions(
-                True)
-            ls_status["starttime"] = "{}".format(dm.starttime)
-            ls_status["groups"] = dm.get_all_groups()
-            ls_status["colortype"] = dm.get_colortypes()
-            ls_status["moduleweb"] = dm.get_module_web()
-            ls_status["locked"] = dm.get_lock_status()
-            ls_status["roomgroups"] = ""
-            if self.config.has_option("WEBSERVER", "ROOM_GROUPS"):
-                ls_status["roomgroups"] = self.config["WEBSERVER"]["ROOM_GROUPS"]
-            ls_status["deviceroom"] = dm.get_room_for_devices()
             debug.write('Sending lightserver status', 0)
-            client.send(json.dumps(ls_status).encode('UTF-8'))
-            # Run the non-async state getter after ?
-            if self.state_thread is None or not self.state_thread.is_alive():
-                self.state_thread = threading.Thread(
-                    target=dm.get_state)
-                self.state_thread.start()
-            return True
-
-        # TODO how to deprecate this ? This requires another connection to allow new async requests from the webserver
-        if data == "getstatepost":
-            ls_status = {}
-            while self.state_thread.is_alive():
-                time.sleep(0.2)
-            ls_status["state"] = dm.get_state(
-                async=True, webcolors=True)
-            ls_status["intensity"] = dm.get_state(
-                async=True, intensity=True)
-            ls_status["mode"] = dm.get_modes()
-            client.send(json.dumps(ls_status).encode('UTF-8'))
+            client.send(json.dumps(dm()).encode('UTF-8'))
             return True
 
         if data == "stream":
@@ -244,7 +202,7 @@ class HomeServer(object):
         """ Disconnects all configured devices """
         self.scheduled_disconnect = None
         debug.write("Server unused. Disconnecting devices.", 0)
-        for _dev in dm.devices:
+        for _dev in dm:
             _dev.disconnect()
 
     def remove_server(self):
@@ -433,7 +391,7 @@ if __name__ == "__main__":
         # TODO report connection errors or allow feedback response
         debug.write('Connecting with homeserver daemon', 0)
         debug.write('Sending request: {}'.format(
-            req.get_request_string()), 0, "CLIENT")
+            req), 0, "CLIENT")
         s.sendall("2048".encode('utf-8'))
         s.sendall(pickle.dumps(req))
         s.close()

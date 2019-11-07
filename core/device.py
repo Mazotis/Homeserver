@@ -40,40 +40,36 @@ class device(object):
         self.has_pseudodevice = None
         self.request_locked = False
         self.state_inference_group = None
-        self.config = config
+        self.parent_config = config
+        self.config = config["DEVICE" + str(self.devid)]
         self.init_from_config()
 
     def init_from_config(self):
-        self.description = self.config["DEVICE" +
-                                       str(self.devid)]["DESCRIPTION"]
-        if self.config.has_option("DEVICE" + str(self.devid), "GROUP"):
-            self.group = self.config["DEVICE" +
-                                     str(self.devid)]["GROUP"].split(',')
-        if self.config.has_option("DEVICE" + str(self.devid), "DEFAULT_INTENSITY"):
-            self.intensity = self.config["DEVICE" +
-                                         str(self.devid)]["DEFAULT_INTENSITY"]
-        if self.config.has_option("DEVICE" + str(self.devid), "COLOR_TYPE"):
-            self.color_type = self.config["DEVICE" +
-                                          str(self.devid)]["COLOR_TYPE"]
-        if self.config.has_option("DEVICE" + str(self.devid), "SKIPTIME"):
-            self.default_skip_time = self.config["DEVICE" +
-                                                 str(self.devid)].getboolean("SKIPTIME")
-        if self.config.has_option("DEVICE" + str(self.devid), "FORCEOFF"):
-            self.forceoff = self.config["DEVICE" +
-                                        str(self.devid)].getboolean("FORCEOFF")
-        if self.config.has_option("DEVICE" + str(self.devid), "IGNOREMODE"):
-            self.ignoremode = self.config["DEVICE" +
-                                          str(self.devid)].getboolean("IGNOREMODE")
-        if self.config.has_option("DEVICE" + str(self.devid), "NAME"):
-            self.name = self.config["DEVICE" + str(self.devid)]["NAME"]
-        if self.config.has_option("DEVICE" + str(self.devid), "ICON"):
-            self.icon = self.config["DEVICE" + str(self.devid)]["ICON"]
-        if self.config.has_option("DEVICE" + str(self.devid), "ACTION_DELAY"):
+        self.description = self.config["DESCRIPTION"]
+        if self.config_has_option("GROUP"):
+            self.group = self.config["GROUP"].split(',')
+        if self.config_has_option("DEFAULT_INTENSITY"):
+            self.intensity = self.config["DEFAULT_INTENSITY"]
+        if self.config_has_option("COLOR_TYPE"):
+            self.color_type = self.config["COLOR_TYPE"]
+        if self.config_has_option("SKIPTIME"):
+            self.default_skip_time = self.config.getboolean("SKIPTIME")
+        if self.config_has_option("FORCEOFF"):
+            self.forceoff = self.config.getboolean("FORCEOFF")
+        if self.config_has_option("IGNOREMODE"):
+            self.ignoremode = self.config.getboolean("IGNOREMODE")
+        if self.config_has_option("NAME"):
+            self.name = self.config["NAME"]
+        if self.config_has_option("ICON"):
+            self.icon = self.config["ICON"]
+        if self.config_has_option("ACTION_DELAY"):
             self.action_delay = int(
-                self.config["DEVICE" + str(self.devid)]["ACTION_DELAY"])
-        if self.config.has_option("DEVICE" + str(self.devid), "STATE_INFERENCE_GROUP"):
-            self.state_inference_group = self.config["DEVICE" + str(
-                self.devid)]["STATE_INFERENCE_GROUP"]
+                self.config["ACTION_DELAY"])
+        if self.config_has_option("STATE_INFERENCE_GROUP"):
+            self.state_inference_group = self.config["STATE_INFERENCE_GROUP"]
+
+    def config_has_option(self, option):
+        return self.parent_config.has_option("DEVICE" + str(self.devid), option)
 
     def pre_run(self, color):
         if self.success:

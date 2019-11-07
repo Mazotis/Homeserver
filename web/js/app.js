@@ -5,6 +5,7 @@ var deduceAbortableRequest = false
 var hasRoomGroups = false
 var modulesToRefresh = new Array()
 var dmconfig
+var oldstateJSON, stateJSON
 
 $(document).ready(function() {
     getResult();
@@ -48,19 +49,19 @@ function getResult() {
             },
         success: function(data){
             $("#preloader").hide()
-            var thedata = JSON.parse(decodeURIComponent(data))
+            stateJSON = JSON.parse(decodeURIComponent(data))
             var cnt = 0
-            $('#suntime').html(thedata.starttime)
+            $('#suntime').html(stateJSON.starttime)
 
             //var ghtml = '<div class="row"><div class="col-sm-3">'
             var ghtml = '<div class="card-columns gcard-columns">'
-            for (group in thedata.groups) {
+            for (group in stateJSON.groups) {
                 var skip_group = false
-                if (thedata.roomgroups != "") {
+                if (stateJSON.roomgroups != "") {
                     hasRoomGroups = true
-                    var rgroups = thedata.roomgroups.split(",")
+                    var rgroups = stateJSON.roomgroups.split(",")
                     for (grp in rgroups) {
-                        if (rgroups[grp] == thedata.groups[group]) {
+                        if (rgroups[grp] == stateJSON.groups[group]) {
                             skip_group = true
                         }
                     }
@@ -68,7 +69,7 @@ function getResult() {
 
                 if (skip_group == false) {
                     $("#groups").html("")
-                    $("#groupcardmodel").find(".card-header").text(thedata.groups[group].charAt(0).toUpperCase() + thedata.groups[group].substr(1).toLowerCase())
+                    $("#groupcardmodel").find(".card-header").text(stateJSON.groups[group].charAt(0).toUpperCase() + stateJSON.groups[group].substr(1).toLowerCase())
                     ghtml += '<div class="gcard noselect-nooverflow" id="gcard' + cnt + '">' + $("#groupcardmodel").html() + '</div>'
                 }
                 cnt = cnt + 1
@@ -79,8 +80,8 @@ function getResult() {
             cnt = 0
             //var html = '<div class="row"><div id="update-spin" class="col-12"><center><h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;Updating device status...</h5></center></div><div class="col-sm-4">'
             var html = '<div class="card-columns dcard-columns">'
-            for (_ in thedata.state) {
-                html += generateCard(cnt, thedata)
+            for (_ in stateJSON.state) {
+                html += generateCard(cnt, stateJSON)
                 cnt = cnt + 1
             }
 
@@ -88,7 +89,7 @@ function getResult() {
 
             if (hasRoomGroups) {
                 var rhtml = ''
-                var rgroups = thedata.roomgroups.split(",")
+                var rgroups = stateJSON.roomgroups.split(",")
 
                 $("#rooms-section").show()
                 for (cnt in rgroups) {
@@ -100,15 +101,15 @@ function getResult() {
 
             html += '</div></div><hr>'
 
-            for (_mod in thedata.moduleweb) {
-                if (thedata.moduleweb[_mod] != "none") {
-                    if (thedata.moduleweb[_mod] == "detector.html") {
-                        $.get("/modules/" + thedata.moduleweb[_mod], function(htmlpage) {
+            for (_mod in stateJSON.moduleweb) {
+                if (stateJSON.moduleweb[_mod] != "none") {
+                    if (stateJSON.moduleweb[_mod] == "detector.html") {
+                        $.get("/modules/" + stateJSON.moduleweb[_mod], function(htmlpage) {
                             $("#detector-module-location").append(htmlpage)
                         });
                     } else {
-                        $.get("/modules/" + thedata.moduleweb[_mod], function(htmlpage) {
-                            $("#resultid").append(htmlpage)
+                        $.get("/modules/" + stateJSON.moduleweb[_mod], function(htmlpage) {
+                            $("#modulesid").append(htmlpage)
                         });
                     }
                 }
@@ -136,25 +137,22 @@ function getResultRefresh() {
                 reqtype: "getstate"
             },
         success: function(data){
-            var thedata = JSON.parse(decodeURIComponent(data))
+            oldstateJSON = stateJSON
+            stateJSON = JSON.parse(decodeURIComponent(data))
             deduceAbortableRequest = false
             has_errors = false
             var i;
             for (i = 0; i < modulesToRefresh.length; i++) { 
                 getContent(modulesToRefresh[i]);
             }
-            for (cnt in thedata.state) {
-                thedata.mode[cnt] ? mode = 1 : mode = 0
-                if ($(".card[cid=" + cnt + "]").attr("cstate") != thedata.state[cnt]) {
-                    $(".card[cid=" + cnt + "]").attr("cstate", thedata.state[cnt])
+            for (cnt in stateJSON.state) {
+                if (oldstateJSON.state[cnt] != stateJSON.state[cnt]) {
                     has_errors = true
                 }
-                if ($(".card[cid=" + cnt + "]").attr("cintensity") != thedata.intensity[cnt]) {
-                    $(".card[cid=" + cnt + "]").attr("cintensity", thedata.intensity[cnt])
+                if (oldstateJSON.intensity[cnt] != stateJSON.intensity[cnt]) {
                     has_errors = true
                 }
-                if ($(".card[cid=" + cnt + "]").attr("cmode") != mode) {
-                    $(".card[cid=" + cnt + "]").attr("cmode", mode)
+                if (oldstateJSON.mode[cnt] != stateJSON.mode[cnt]) {
                     has_errors = true
                 }
             }
@@ -180,21 +178,18 @@ function getResultPost() {
                     reqtype: "getstatepost"
                 },
             success: function(data){
-                var thedata = JSON.parse(decodeURIComponent(data))
+                oldstateJSON = stateJSON
+                stateJSON = JSON.parse(decodeURIComponent(data))
                 deduceAbortableRequest = false
                 has_errors = false
-                for (cnt in thedata.state) {
-                    thedata.mode[cnt] ? mode = 1 : mode = 0
-                    if ($(".card[cid=" + cnt + "]").attr("cstate") != thedata.state[cnt]) {
-                        $(".card[cid=" + cnt + "]").attr("cstate", thedata.state[cnt])
+                for (cnt in stateJSON.state) {
+                    if (oldstateJSON.state[cnt] != stateJSON.state[cnt]) {
                         has_errors = true
                     }
-                    if ($(".card[cid=" + cnt + "]").attr("cintensity") != thedata.intensity[cnt]) {
-                        $(".card[cid=" + cnt + "]").attr("cintensity", thedata.intensity[cnt])
+                    if (oldstateJSON.intensity[cnt] != stateJSON.intensity[cnt]) {
                         has_errors = true
                     }
-                    if ($(".card[cid=" + cnt + "]").attr("cmode") != mode) {
-                        $(".card[cid=" + cnt + "]").attr("cmode", mode)
+                    if (oldstateJSON.mode[cnt] != stateJSON.mode[cnt]) {
                         has_errors = true
                     }
                 }
@@ -222,8 +217,10 @@ function getOneResult(devid) {
                 reqtype: "getstate"
             },
         success: function(data){
-            var thedata = JSON.parse(decodeURIComponent(data))
-            generateCard(devid, thedata, $(".card[cid=" + devid + "]"))
+            oldstateJSON = stateJSON
+            stateJSON = JSON.parse(decodeURIComponent(data))
+            lastupdate = new Date()
+            generateCard(devid, stateJSON, $(".card[cid=" + devid + "]"))
             computeCards()
             $(".card[cid=" + devid + "]").removeClass("disabledbutton")
             getResultPost()
@@ -232,25 +229,12 @@ function getOneResult(devid) {
 }
 
 function generateCard(devid, data, a_this = null) {
-    var mode
-    data.mode[devid] ? mode = 1 : mode = 0
     if (a_this != null) {
         card = $(a_this)
     } else {
         card = $("#cardmodel").find("div.mb-3")
     }
-    card.attr("cstate", data.state[devid])
-    card.attr("cintensity", data.intensity[devid])
     card.attr("cid", devid)
-    card.attr("cmode", mode)
-    card.attr("cskiptime", data.op_skiptime[devid])
-    card.attr("cforceoff", data.op_forceoff[devid])
-    card.attr("cignoremode", data.op_ignoremode[devid])
-    card.attr("cactiondelay", data.op_actiondelay[devid])
-    card.attr("cicon", data.icon[devid])
-    card.attr("ccolortype", data.colortype[devid])
-    card.attr("clocked", data.locked[devid])
-    card.attr("croom", data.deviceroom[devid])
     card.find(".card-title").text(data.name[devid])
     card.find(".text-muted").text(data.type[devid])
     card.find("p.c-desc").text(data.description[devid])
@@ -262,20 +246,9 @@ function generateCard(devid, data, a_this = null) {
 
 function computeCards() {
     $(".dcard").each(function() {
-        var cstate, cintensity, cid, cmode, ccolortype, cinit, clocked, croom
+        var cid
+        cid = parseInt($(this).attr("cid"))
         cinit = $(this).attr("cinit")
-        cstate = $(this).attr("cstate")
-        cintensity = $(this).attr("cintensity")
-        cid = $(this).attr("cid")
-        cmode = $(this).attr("cmode")
-        cforceoff = $(this).attr("cforceoff")
-        cignoremode = $(this).attr("cignoremode")
-        cskiptime = $(this).attr("cskiptime")
-        cactiondelay = $(this).attr("cactiondelay")
-        cicon = $(this).attr("cicon")
-        ccolortype = $(this).attr("ccolortype")
-        clocked = $(this).attr("clocked")
-        croom = $(this).attr("croom")
 
         $(this).find(".sliderpick").hide()
         $(this).find(".card-header").removeClass("bg-danger")
@@ -285,43 +258,43 @@ function computeCards() {
         $(this).removeClass("border-danger")
         $(this).removeClass("border-warning")
         $(this).removeClass("border-success")
-        if (cstate == "0" || (!isNaN(cstate) && parseInt(cstate) == 0) || cstate == "*0") {
+        if (stateJSON.state[cid] == "0" || (!isNaN(stateJSON.state[cid]) && parseInt(stateJSON.state[cid]) == 0) || stateJSON.state[cid] == "*0") {
             $(this).find(".offbuttons").attr('disabled', true)
             $(this).find(".onbuttons").attr('disabled', false)
             $(this).find(".card-header").addClass("bg-danger")
             $(this).addClass("border-danger")
-        } else if (cstate == "-2") {
+        } else if (stateJSON.state[cid] == "-2") {
             $(this).find(".offbuttons").attr('disabled', true)
             $(this).find(".onbuttons").attr('disabled', true)
             $(this).find(".card-header").addClass("bg-warning")
             $(this).addClass("border-warning")
-        } else if (cstate != "X") {
+        } else if (stateJSON.state[cid] != "X") {
             $(this).find(".offbuttons").attr('disabled', false)
             $(this).find(".onbuttons").attr('disabled', true)
             $(this).find(".card-header").addClass("bg-success")
             $(this).addClass("border-success")
         }
 
-        if (cstate == "X") {
+        if (stateJSON.state[cid] == "X") {
             $(this).find(".onbuttons").attr('disabled', true)
             $(this).find(".offbuttons").attr('disabled', true)
             $(this).find(".card-header").removeClass("text-white")
-            $(this).find(".card-header").append('<i class="fas fa-wrench wrench-btn" onclick="reconnectDevice(' + cid + ')" title="Attempt device reconnection"></i>')
+            $(this).find(".card-header").append('<i class="fas fa-wrench wrench-btn" onclick="reconnectDevice(' + cid + ')" title="_(Attempt device reconnection)"></i>')
         }
 
-        if (cstate == "*0" || cstate == "*1") {
+        if (stateJSON.state[cid] == "*0" || stateJSON.state[cid] == "*1") {
             $(this).find(".card-header").addClass("progress-bar-striped")
-            $(this).find(".card-header").append('<i class="fas fa-check check-btn" onclick="confirmState(' + cid + ',&apos;' + cstate + '&apos;)" title="Confirm device state"></i>')
+            $(this).find(".card-header").append('<i class="fas fa-check check-btn" onclick="confirmState(' + cid + ',&apos;' + stateJSON.state[cid] + '&apos;)" title="_(Confirm device state)"></i>')
         } else {
             $(this).find(".check-btn").remove()
         }
 
-        if (["noop"].includes(ccolortype)) {
+        if (["noop"].includes(stateJSON.colortype[cid])) {
             $(this).find(".btn-group").hide()
             $(this).find(".noop").show()
         } else {
             $(this).find(".card-footer").append('<i class="fas fa-cog text-white cog-btn" onclick="getConfigDevice('+ cid + ')" title="_(Device configuration)"></i>')
-            if (clocked == "1") {
+            if (stateJSON.locked[cid] == "1") {
                 $(this).find(".controls-div").hide()
                 $(this).find(".card-footer center").append('<i class="fas fa-lock text-white lock-btn" onclick="setLockDevice(0,' + cid + ')" title="_(Unlock device)"></i>')
             } else {
@@ -329,7 +302,7 @@ function computeCards() {
                 $(this).find(".card-footer center").append('<i class="fas fa-unlock text-white lock-btn" onclick="setLockDevice(1,' + cid + ')" title="_(Lock device in this state)"></i>')
             }
 
-            if (cmode == "0") {
+            if (stateJSON.mode[cid] == false) {
                 $(this).find(".autobtn").removeClass('active')
                 $(this).find(".manbtn").addClass('active')
             } else {
@@ -337,26 +310,26 @@ function computeCards() {
                 $(this).find(".manbtn").removeClass('active')
             }
 
-            if (cforceoff == "false") {
+            if (stateJSON.op_forceoff[cid] == false) {
                 $(this).find(".forceoff").show()
             }
 
-            if (cignoremode == "true") {
+            if (stateJSON.op_ignoremode[cid]) {
                 $(this).find(".ignoremode").show()
             }
 
-            if (cskiptime == "false") {
+            if (stateJSON.op_skiptime[cid] == false) {
                 $(this).find(".skiptime").show()
             }
 
-            if (cactiondelay != "0") {
+            if (stateJSON.op_actiondelay[cid] != "0") {
                 $(this).find(".actiondelay").show()
-                $(this).find(".actiondelay span").html(cactiondelay + " s.")
+                $(this).find(".actiondelay span").html(stateJSON.op_actiondelay[cid] + " s.")
             }
 
-            if (["argb", "rgb", "255"].includes(ccolortype)) {
-                if (cstate.length == 6) {
-                    $(this).find(".colorpick input").attr("value", "#" + cstate)
+            if (["argb", "rgb", "255"].includes(stateJSON.colortype[cid])) {
+                if (stateJSON.state[cid].length == 6) {
+                    $(this).find(".colorpick input").attr("value", "#" + stateJSON.state[cid])
                 }
                 $(this).find(".colorpick").css("display", "inline-block")
                 if (cinit != "1") {
@@ -367,7 +340,7 @@ function computeCards() {
                 }
             }
 
-            if (["100", "255", "argb", "rgb"].includes(ccolortype)) {
+            if (["100", "255", "argb", "rgb"].includes(stateJSON.colortype[cid])) {
                 $(this).find(".sliderpick").show()
                 $(this).find(".btn-group-lg").hide()
                 if (cinit != "1") {
@@ -377,7 +350,7 @@ function computeCards() {
                         handleShape: "round",
                         width: 30,
                         radius: 70,
-                        value: parseInt(cintensity),
+                        value: parseInt(stateJSON.intensity[cid]),
                         editableTooltip: false,
                         change: function(event) {
                             sendPowerRequest(cid, event.value, 1)
@@ -406,7 +379,7 @@ function computeCards() {
                 }
             }
 
-            $(this).find(".slider").roundSlider("setValue", parseInt(cintensity))
+            $(this).find(".slider").roundSlider("setValue", parseInt(stateJSON.intensity[cid]))
             var sliderVal = $(this).find(".slider").roundSlider("getValue")
             if (parseInt(sliderVal) == 0) {
                 $(this).find(".rs-handle").css("border", "5px solid #dc3545")
@@ -425,14 +398,14 @@ function computeCards() {
                     sendPowerRequest(cid, 1)
                 })
 
-                if (croom != "") {
-                    $(this).prependTo($("#rcard-" + croom + " > .card-body"))
+                if (stateJSON.deviceroom[cid] != "") {
+                    $(this).prependTo($("#rcard-" + stateJSON.deviceroom[cid] + " > .card-body"))
                 }
             }
         }
 
-        if (cicon != "none") {
-            $(this).find(".iconi").attr("class", "iconi " + cicon)
+        if (stateJSON.icon[cid] != "none") {
+            $(this).find(".iconi").attr("class", "iconi " + stateJSON.icon[cid])
         }
 
         $(this).attr("cinit", "1")
@@ -464,12 +437,13 @@ function computeCards() {
         hasdefectdevices = false
 
         $(this).find(".card").each(function() {
-            if (parseInt($(this).attr("cstate")) == 0 || $(this).attr("cstate") == "*0") {
+            cid = parseInt($(this).attr("cid"))
+            if (parseInt(stateJSON.state[cid]) == 0 || stateJSON.state[cid] == "*0") {
                 hasoffdevices = true
             } else {
                 hasondevices = true
             }
-            if ($(this).attr("cstate") == "X") {
+            if (stateJSON.state[cid] == "X") {
                 hasdefectdevices = true
             }
         })
@@ -529,9 +503,9 @@ function computeCards() {
 
             var devlen = $(this).find(".card").length
             if (devlen in [0, 1]) {
-                $(this).find(".d-count").prepend(devlen + " device")
+                $(this).find(".d-count").prepend(devlen + " _(device)")
             } else {
-                $(this).find(".d-count").prepend(devlen + " devices")
+                $(this).find(".d-count").prepend(devlen + " _(devices)")
             }
 
             $(this).find(".goffbuttons").on('click', function() {
@@ -786,5 +760,6 @@ function confirmState(devid, state) {
         }
     })    
 }
+
 
 // Javascript ends here. Comment added to prevent EOF bytes loss due to &; characters parsing. TODO - prevent this some other way

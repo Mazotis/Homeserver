@@ -133,7 +133,7 @@ if __name__ == "__main__":
         # todo report connection errors or allow feedback response
         debug.write('Connecting with homeserver daemon', 0, "CLIENT")
         debug.write('Sending request: {}'.format(
-            req.get_request_string()), 0, "CLIENT")
+            req), 0, "CLIENT")
         s.sendall("2048".encode('utf-8'))
         s.sendall(pickle.dumps(req))
         s.close()

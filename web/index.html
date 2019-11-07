@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/roundSlider/1.3.3/roundslider.min.css" rel="stylesheet">
+    <link href="style/app.css" rel="stylesheet">
     <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
@@ -16,138 +17,6 @@
     <title>_(Homeserver control panel)</title>
   </head>
   <body style="background-color:#eee !important">
-    <style>
-    @font-face {
-        font-family: MuseoSans;
-        src: url("MuseoSans-300.woff") format("woff"), url("MuseoSans-300.ttf") format("truetype");
-    }
-    body {
-        font-family: MuseoSans, Arial, serif;
-        color: #191919;
-    }
-    .disabledbutton {
-        pointer-events: none;
-        opacity: 0.4;
-    }
-    .noselect-nooverflow {
-        user-select: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none; 
-        -ms-user-select: none;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .lock-btn {
-        position:absolute;
-        line-height:inherit;
-        right:10px;
-        text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
-        cursor:pointer;
-    }
-    .cog-btn {
-        position:absolute;
-        line-height:inherit;
-        left:10px;
-        bottom:0.75rem;
-        text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
-        cursor:pointer;
-    }
-    .cog-btn-top {
-        position:absolute;
-        line-height:inherit;
-        right:10px;
-        top:0.75rem;
-        text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
-        cursor:pointer;
-    }
-    .wrench-btn {
-        position:absolute;
-        line-height:inherit;
-        right:10px;
-        top:5px;
-        text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
-        cursor:pointer;
-    }
-    .check-btn {
-        position:absolute;
-        line-height:inherit;
-        right:10px;
-        top:5px;
-        text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
-        cursor:pointer;
-    }
-    .rs-transition  {
-        transition-timing-function: cubic-bezier(.29, 1.01, 1, -0.68);
-    }
-    .rs-range-color  {
-        background-color: #f9d71c;
-    }
-    .rs-handle:after  {
-        background-color: #000000;
-    }
-    .rs-border  {
-        border-color: #fff;
-    }
-    .rs-seperator {
-        display:none !important;
-    }
-    .rs-handle  {
-        background-color: #fff;
-        border: 5px solid black;
-    }
-    .rs-tooltip-text {
-        filter: invert(1);
-        font-weight:bold;
-    }
-    .colorpick {
-        display:none;
-        overflow:hidden; 
-        border-radius:100%; 
-        width:70px; 
-        height:70px;
-        z-index:5;
-        position: absolute;
-        transform: translate(-50%, 50%);
-    }
-    .open-rcard-header {
-        border-radius: calc(.25rem - 1px) calc(.25rem - 1px) calc(.25rem - 1px) calc(.25rem - 1px) !important;
-
-    }
-    .open-rcard-body {
-        padding-left: 2px;
-        padding-right: 2px;
-        padding-bottom: 0px;
-        background-color:#eee;
-    }
-    .open-rcard-card {
-        border-left: none;
-        border-right: none;
-    }
-    @media (max-width: 770px) {
-        .dcard-columns {
-            column-count: 2 !important;
-        }
-        .card-columns .card {
-            display: inline-block;
-            width:100%;
-        }
-        .gcard-columns {
-            column-count: 2 !important;
-        }
-        .rcard .card-columns {
-            column-count: 2 !important;
-        }
-    }
-    @media (min-width: 770px) {
-        .gcard-columns {
-            column-count: 4 !important;
-        }
-        .rcolumns {
-            column-count: 2 !important;
-        }
-    }
-    </style>
     <!--
     <div class="navbar bg-info">
         <div class="navbar-inner noselect-nooverflow" style="width:100%;">
@@ -155,9 +24,9 @@
         </div>
     </div>
     -->
-    <div class="container-fluid">
+    <div class="container-fluid noselect-nooverflow">
         <div class="row">
-            <div class="col-md-12" style="background-color:white !important">
+            <div class="col-md-12" style="background-color:#eee !important">
                 <br>
                 <center>
                     <div id="preloader" style="display:none">
@@ -191,6 +60,7 @@
                                 </div>
                             </div>
                         </div>
+                        <div id="modulesid"></div>
                         <div class="card text-white bg-dark mb-3">
                             <h4 class="card-header">_(Options)</h4>
                             <div class="card-body noselect-nooverflow">
@@ -236,9 +106,9 @@
                     <i class="iconi"></i>
                 </center>
             </div>
-            <div class="card-body noselect-nooverflow" style="padding-top:0; padding:0.25rem;">
-                <h5 class="card-title noselect-nooverflow" style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"></h5>
-                <small class="text-muted noselect-nooverflow"></small>
+            <div class="card-body " style="padding-top:0; padding:0.25rem;">
+                <h5 class="card-title " style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"></h5>
+                <small class="text-muted "></small>
                 <p class="card-text c-desc"></p>
                 <div class="controls-div">
                     <div class="btn-group btn-group-lg" role="group" style="margin-bottom:10px;">
@@ -261,21 +131,21 @@
                     </div>
                 </div>
             </div>
-            <div class="card-footer noselect-nooverflow">
-                <center>
-                    <i class="fas fa-clock skiptime" title="Device follows the time-check feature" style="margin-right:5px; display:none"></i>
-                    <i class="fas fa-power-off forceoff" title="If the device status is OFF, will ignore all turn-off requests" style="margin-right:5px; display:none"></i>
-                    <i class="fas fa-exclamation ignoremode" title="Device ignores its mode" style="display:none"></i>
-                    <span class="badge badge-secondary actiondelay" title="Device has a delay between state changes" style="display:none"><span></span>&nbsp;<i class="fas fa-hourglass-half"></i></span>
-                    <i class="fas fa-stop-circle noop" title="Device is read-only" style="display:none;"></i>
-                </center>
+            <div class="card-footer ">
+                <center>&nbsp;
+                    <i class="fas fa-clock skiptime" title="_(Device follows the time-check feature)" style="margin-right:5px; display:none"></i>
+                    <i class="fas fa-power-off forceoff" title="_(If the device status is OFF, will ignore all turn-off requests)" style="margin-right:5px; display:none"></i>
+                    <i class="fas fa-exclamation ignoremode" title="_(Device ignores its mode)" style="display:none"></i>
+                    <span class="badge badge-secondary actiondelay" title="_(Device has a delay between state changes)" style="display:none"><span></span>&nbsp;<i class="fas fa-hourglass-half"></i></span>
+                    <i class="fas fa-stop-circle noop" title="_(Device is read-only)" style="display:none;"></i>
+                &nbsp;</center>
             </div>
         </div>
     </div>
     <div id="groupcardmodel" style="display:none;">
         <div class="card text-center bg-light mb-3">
-            <h5 class="card-header noselect-nooverflow" style="font-weight:bold;"></h5>
-            <div class="noselect-nooverflow">
+            <h5 class="card-header " style="font-weight:bold;"></h5>
+            <div class="">
                 <center>
                     <div class="btn-group btn-group-sm" role="group" style="padding:5px;">
                         <button type="button" class="btn btn-danger goffbuttons">_(OFF)</button>

@@ -13,10 +13,10 @@ from threading import Thread
 
 
 class weblog(Thread):
-    def __init__(self, config, lm):
+    def __init__(self, config, dm):
         Thread.__init__(self)
         self.config = config
-        self.lm = lm
+        self.dm = dm
         self.running = True
         self.rsync = None
         self.web = "weblog.html"

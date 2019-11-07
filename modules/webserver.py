@@ -2,7 +2,7 @@
 '''
     File name: webserver.py
     Author: Maxime Bergeron
-    Date last modified: 10/10/2019
+    Date last modified: 07/11/2019
     Python Version: 3.5
 
     The web server interface module for the homeserver
@@ -12,7 +12,6 @@ import json
 import os
 import re
 import requests
-import socket
 import urllib.parse
 from core.common import *
 from core.devicemanager import StateRequestObject
@@ -74,30 +73,10 @@ class WebServerHandler(SimpleHTTPRequestHandler):
         response = BytesIO()
         if request:
             if reqtype == "getstate":
-                try:
-                    # TODO Create a non-socketed getstate ?
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.connect((self.dm_host, self.dm_port))
-                    s.sendall("0008".encode('utf-8'))
-                    s.sendall("getstate".encode('utf-8'))
-                    data = s.recv(4096)
-                    if data:
-                        response.write(data)
-                finally:
-                    s.close()
+                response.write(json.dumps(self.dm()).encode('UTF-8'))
 
             if reqtype == "getstatepost":
-                try:
-                    # TODO Create a non-socketed getstatepost ?
-                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                    s.connect((self.dm_host, self.dm_port))
-                    s.sendall("0012".encode('utf-8'))
-                    s.sendall("getstatepost".encode('utf-8'))
-                    data = s.recv(1024)
-                    if data:
-                        response.write(data)
-                finally:
-                    s.close()
+                response.write(json.dumps(self.dm(False)).encode('UTF-8'))
 
             if reqtype == "setstate":
                 # TODO GET SUCCESS STATE ?
@@ -107,19 +86,19 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 isintensity = str(postvars[b'isintensity'][0].decode('utf-8'))
                 skiptime = postvars[b'skiptime'][0].decode(
                     'utf-8') in ['true', True]
-                _col = ["-1"] * len(self.dm.devices)
+                _col = ["-1"] * len(self.dm)
                 try:
                     value = int(value)
-                    if isintensity == "1" and self.dm.devices[devid].color_type == "255":
+                    if isintensity == "1" and self.dm[devid].color_type == "255":
                         value = (None, value)
                 except ValueError:
                     # Must be hexadecimal AARRGGBB
                     value = value[2:9]
                 _col[devid] = value
-                req.set_colors(_col, len(self.dm.devices))
+                req.set_colors(_col, len(self.dm))
                 if skiptime:
                     req.set(skip_time=True)
-                req.run(self.dm)
+                req(self.dm)
                 response.write("1".encode("UTF-8"))
 
             if reqtype == "setmode":
@@ -132,9 +111,9 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 req.set(set_mode_for_devid=devid)
                 if cmode:
                     req.set(auto_mode=True)
-                req.run(self.dm)
+                req(self.dm)
                 debug.write('Device modes: {}'.format(
-                    self.dm.get_modes()), 0, "WEBSERVER")
+                    self.dm.modes), 0, "WEBSERVER")
                 response.write("1".encode("UTF-8"))
 
             if reqtype == "setgroup":
@@ -145,14 +124,14 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     'utf-8') in ['true', True]
                 req = StateRequestObject()
                 debug.write('Running a group change of state', 0, "WEBSERVER")
-                _col = ["0"] * len(self.dm.devices)
+                _col = ["0"] * len(self.dm)
                 if skiptime:
                     req.set(skip_time=True)
                 if value == 1:
-                    _col = ["1"] * len(self.dm.devices)
-                req.set_colors(_col, len(self.dm.devices))
+                    _col = ["1"] * len(self.dm)
+                req.set_colors(_col, len(self.dm))
                 req.set(group=[group.replace("0", "").lower()])
-                req.run(self.dm)
+                req(self.dm)
                 response.write("1".encode("UTF-8"))
 
             if reqtype == "setallmode":
@@ -161,9 +140,9 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 debug.write(
                     'Running an all-devices mode change', 0, "WEBSERVER")
                 req.set(force_auto_mode=True)
-                req.run(self.dm)
+                req(self.dm)
                 debug.write('Device modes: {}'.format(
-                    self.dm.get_modes()), 0)
+                    self.dm.modes), 0)
                 response.write("1".encode("UTF-8"))
 
             if reqtype == "getmodule":
@@ -191,7 +170,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
             if reqtype == "setlock":
                 lock = int(postvars[b'lock'][0].decode('utf-8'))
                 devid = int(postvars[b'devid'][0].decode('utf-8'))
-                self.dm.devices[devid].lock_unlock_requests(lock)
+                self.dm[devid].lock_unlock_requests(lock)
                 response.write("1".encode("UTF-8"))
 
             if reqtype == "getconfig":
@@ -235,13 +214,13 @@ class WebServerHandler(SimpleHTTPRequestHandler):
 
             if reqtype == "reconnect":
                 devid = int(postvars[b'devid'][0].decode('utf-8'))
-                self.dm.devices[devid].reconnect()
+                self.dm[devid].reconnect()
                 response.write("1".encode("UTF-8"))
 
             if reqtype == "confirmstate":
                 devid = int(postvars[b'devid'][0].decode('utf-8'))
                 state = str(postvars[b'state'][0].decode('utf-8'))
-                self.dm.devices[devid].set_state(state)
+                self.dm[devid].set_state(state)
                 response.write("1".encode("UTF-8"))
 
             # ADD NECESSARY WEBSERVER REQUESTS HERE #

@@ -62,7 +62,16 @@ def getTextHTML(textid):
         "Module configuration": _("Module configuration"),
         "Settings for device ID": _("Settings for device ID"),
         "_text1": _("WARNING - do not use latin characters (é,à,ç...) or upper-case words if not absolutely required (for example, file locations, MAC addresses, True/False) as it may break your configuration"),
-        "Settings for module": _("Settings for module")
+        "Settings for module": _("Settings for module"),
+        "Attempt device reconnection": _("Attempt device reconnection"),
+        "Confirm device state": _("Confirm device state"),
+        "device": _("device"),
+        "devices": _("devices"),
+        "Device follows the time-check feature": _("Device follows the time-check feature"),
+        "If the device status is OFF, will ignore all turn-off requests": _("If the device status is OFF, will ignore all turn-off requests"),
+        "Device ignores its mode": _("Device ignores its mode"),
+        "Device has a delay between state changes": _("Device has a delay between state changes"),
+        "Device is read-only": _("Device is read-only")
     }
 
     try:

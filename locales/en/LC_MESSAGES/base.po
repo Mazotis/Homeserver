@@ -182,3 +182,40 @@ msgstr ""
 #: web/texts.py:65
 msgid "Settings for module"
 msgstr ""
+
+#: web/texts.py:66
+msgid "Attempt device reconnection"
+msgstr ""
+
+#: web/texts.py:67
+msgid "Confirm device state"
+msgstr ""
+
+#: web/texts.py:68
+msgid "device"
+msgstr ""
+
+#: web/texts.py:69
+msgid "devices"
+msgstr ""
+
+#: web/texts.py:70
+msgid "Device follows the time-check feature"
+msgstr ""
+
+#: web/texts.py:71
+msgid "If the device status is OFF, will ignore all turn-off requests"
+msgstr ""
+
+#: web/texts.py:72
+msgid "Device ignores its mode"
+msgstr ""
+
+#: web/texts.py:73
+msgid "Device has a delay between state changes"
+msgstr ""
+
+#: web/texts.py:74
+msgid "Device is read-only"
+msgstr ""
+
