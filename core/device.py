@@ -2,7 +2,7 @@
 '''
     File name: device.py
     Author: Maxime Bergeron
-    Date last modified: 5/11/2019
+    Date last modified: 07/11/2019
     Python Version: 3.7
 
     Main wrapper object for all Homeserver devices. Not a device per-se.
@@ -72,7 +72,8 @@ class device(object):
             self.action_delay = int(
                 self.config["DEVICE" + str(self.devid)]["ACTION_DELAY"])
         if self.config.has_option("DEVICE" + str(self.devid), "STATE_INFERENCE_GROUP"):
-            self.state_inference_group = self.config["DEVICE" + str(self.devid)]["STATE_INFERENCE_GROUP"]
+            self.state_inference_group = self.config["DEVICE" + str(
+                self.devid)]["STATE_INFERENCE_GROUP"]
 
     def pre_run(self, color):
         if self.success:
@@ -109,7 +110,6 @@ class device(object):
                     debug.write("{} device {} set back to AUTO mode."
                                 .format(self.device_type, self.device), 0)
                 self.auto_mode = True
-                self.reset_mode = False
         else:
             debug.write("Skipping mode evaluation for {} device {}."
                         .format(self.device_type, self.device), 0)
@@ -138,12 +138,24 @@ class device(object):
     def post_run(self):
         """ Prepares the device for a future request """
         self.success = False
+        self.reset_mode = False
         self.skip_time = self.default_skip_time
         return
 
     def get_state(self):
-        """ Getter for the actual color """
+        """ Getter for the actual state """
         return self.state
+
+    def set_state(self, state):
+        """ Setter for the actual state """
+        if state in ["0", 0]:
+            self.state = DEVICE_OFF
+        elif state in ["1", 1]:
+            self.state = DEVICE_ON
+        else:
+            self.state = state
+        debug.write("Manually set device ({}) {} state to {}".format(
+            self.device_type, self.device, self.state), 0)
 
     def get_time_check(self, now_time=None):
         if now_time is None:
@@ -172,6 +184,12 @@ class device(object):
 
     def disconnect(self):
         """ Disconnects the device """
+        pass
+
+    def reconnect(self):
+        """ Function used to reconnect device in case of connection failure, without having to restart the whole server """
+        debug.write("Device ({}) {} does not support live reconnection".format(
+            self.device_type, self.device), 1)
         pass
 
     def create_pseudodevice(self):

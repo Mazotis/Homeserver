@@ -106,7 +106,7 @@ class DeviceManager(object):
     def get_group(self, request):
         """ Gets devices from a specific group for the light change """
         if type(request.group) == str:
-            request.group = [group]
+            request.group = [request.group]
         for _cnt, _device in enumerate(self.devices):
             if request.group is not None and set(request.group).issubset(_device.group):
                 continue

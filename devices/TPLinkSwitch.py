@@ -66,14 +66,23 @@ class TPLinkSwitch(device):
                         self.state = DEVICE_ON
                 return self.state
             except SmartDeviceException as ex:
-                debug.write("Connection failed for device {}, disabling.".format(self.name), 1, "TP-LinkSwitch")
+                debug.write("Connection failed for device {}, disabling.".format(
+                    self.name), 1, "TP-LinkSwitch")
                 self.disabled = True
                 self.state = DEVICE_DISABLED
+                self.plug = None
                 pass
         return self.state
 
     def connect(self):
         self.plug = SmartPlug(self.ip)
+
+    def reconnect(self):
+        debug.write("Attempting reconnection of device {}.".format(
+                    self.name), 0, "TP-LinkSwitch")
+        self.connect()
+        self.disabled = False
+        self.get_state()
 
     def disconnect(self):
         # TODO - Check if disconnection is required

@@ -61,6 +61,22 @@
         text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
         cursor:pointer;
     }
+    .wrench-btn {
+        position:absolute;
+        line-height:inherit;
+        right:10px;
+        top:5px;
+        text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+        cursor:pointer;
+    }
+    .check-btn {
+        position:absolute;
+        line-height:inherit;
+        right:10px;
+        top:5px;
+        text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
+        cursor:pointer;
+    }
     .rs-transition  {
         transition-timing-function: cubic-bezier(.29, 1.01, 1, -0.68);
     }
@@ -224,23 +240,25 @@
                 <h5 class="card-title noselect-nooverflow" style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"></h5>
                 <small class="text-muted noselect-nooverflow"></small>
                 <p class="card-text c-desc"></p>
-                <div class="btn-group btn-group-lg" role="group" style="margin-bottom:10px;">
-                    <button type="button" class="btn btn-danger offbuttons">_(OFF)</button>
-                    <button type="button" class="btn btn-success onbuttons">_(ON)</button>
-                </div>
-                <div>
-                    <center>
-                        <div class="colorpick">
-                            <input type="color" cid="" style="width:200%; height:200%; transform: translate(-25%, -25%)">
-                        </div>
-                        <span class="sliderpick">
-                            <div class="slider"></div>
-                        </span>
-                    </center>
-                </div>
-                <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons" style="display:none;">
-                    <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> _(Auto)</label>
-                    <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> _(Manual)</label>
+                <div class="controls-div">
+                    <div class="btn-group btn-group-lg" role="group" style="margin-bottom:10px;">
+                        <button type="button" class="btn btn-danger offbuttons">_(OFF)</button>
+                        <button type="button" class="btn btn-success onbuttons">_(ON)</button>
+                    </div>
+                    <div>
+                        <center>
+                            <div class="colorpick">
+                                <input type="color" cid="" style="width:200%; height:200%; transform: translate(-25%, -25%)">
+                            </div>
+                            <span class="sliderpick">
+                                <div class="slider"></div>
+                            </span>
+                        </center>
+                    </div>
+                    <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons" style="display:none;">
+                        <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> _(Auto)</label>
+                        <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> _(Manual)</label>
+                    </div>
                 </div>
             </div>
             <div class="card-footer noselect-nooverflow">

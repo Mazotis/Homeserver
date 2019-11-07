@@ -36,7 +36,7 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 ### Relative requirements
 - HDMI cable (to send HDMI-CEC commands to TV. Check cec-client for infos about how to use this)
 - RPI-GPIO + LIRC setup (to create a small, sub-20$ IR remote controller for IR devices, such as a sound device)
-- Edited sudoers file to allow shutdown/reboot requests via ssh (UNIX systems)
+- Edited sudoers file to allow shutdown/reboot requests via ssh (UNIX/linux systems)
 
 ## Installation and configuration
 ### Using the systemd script
@@ -112,18 +112,18 @@ class MyNewDevice(device):
         # use the same approach for any required variable taken from the config file
         # self._connection is provided by device.py to handle your device connection - True or False
         # self.auto_mode is provided by device.py to give you the AUTO mode status (True or False)
-        self.state = 0 # You might want a variable to keep in memory the actual color/state of your bulb/device, in this case the initial value is 0
+        self.state = DEVICE_OFF # You might want a variable to keep in memory the actual color/state of your bulb/device, in this case the initial value is OFF
         self.device_type = "MyNewDevice" # Tells the homeserver the actual device type - inheritance safe
         self.color_type = "rgb" # Tells the homeserver the expected device state variable type - see convert.py for more info
 ```
-Each new device class must provide the following functions to properly work. This is subject to change.
+Each new device class must provide the run(self,color) and get_state(self) to properly work. def run(...) connects to the device, sends the state/color value and returns True or False depending on the success state of the request. It must also set the self.state variable to the end state and self.success to True when the request is completed. def get_state(...) "pings" the device to get its state (or just returns self.state if it cannot know the state in real-time). Subject to change.  
 
 device.py provides all functions except color, but you might want to override them if required.
-Bulb.py provides the device.py functions + additional features used in BLE lightbulbs. 
+Bulb.py provides the device.py functions + additional features used in BLE lightbulbs (for the moment, it only provides a generic disconnection function for BLE devices). Subject to change.
 ```
     def get_state(self):
         """ Getter for the actual color/state of device """
-        return self.color
+        return self.state
 
     def disconnect(self):
         """ Disconnects the device """
@@ -142,13 +142,19 @@ Bulb.py provides the device.py functions + additional features used in BLE light
             return True
         if color == DEVICE_OFF:
             if not self.turn_off(): return False
+            self.state = DEVICE_OFF
+            self.success = True
             return True
         elif color == DEVICE_ON:
             if not self.turn_on_and_dim_on(color):
                 return False
+            self.state = DEVICE_ON
+            self.success = True
             return True
         else:
             if not self.turn_on_and_set_color(color): return False
+            self.state = color
+            self.success = True
             return True
 
     def post_run(self):
@@ -179,10 +185,10 @@ from devices.common import *
 from threading import Thread, Event
 
 class mynewmodule(Thread):
-    def __init__(self, config, lm):
+    def __init__(self, config, dm):
         Thread.__init__(self)
         self.config = config # The config file
-        self.lm = lm # The reference to the Homeserver. 
+        self.dm = dm # The reference to the Homeserver's devicemanager. 
         self.running = True # Required. You may want to use this in a "while self.running:" loop in def run(): for telling your module when to start/stop.
         self.web = "mynewmodule.html" # Optional. The filename of the module web content, for the webserver
 

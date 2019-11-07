@@ -211,7 +211,7 @@ function getResultPost() {
     }
 }
 
-function getOneResult(devid, last_state) {
+function getOneResult(devid) {
     runningRequests++
     $.ajax({
         type: "POST",
@@ -223,7 +223,7 @@ function getOneResult(devid, last_state) {
             },
         success: function(data){
             var thedata = JSON.parse(decodeURIComponent(data))
-            generateCard(devid, thedata, last_state, $(".card[cid=" + devid + "]"))
+            generateCard(devid, thedata, $(".card[cid=" + devid + "]"))
             computeCards()
             $(".card[cid=" + devid + "]").removeClass("disabledbutton")
             getResultPost()
@@ -231,7 +231,7 @@ function getOneResult(devid, last_state) {
     })
 }
 
-function generateCard(devid, data, last_state = null, a_this = null) {
+function generateCard(devid, data, a_this = null) {
     var mode
     data.mode[devid] ? mode = 1 : mode = 0
     if (a_this != null) {
@@ -302,8 +302,18 @@ function computeCards() {
             $(this).addClass("border-success")
         }
 
+        if (cstate == "X") {
+            $(this).find(".onbuttons").attr('disabled', true)
+            $(this).find(".offbuttons").attr('disabled', true)
+            $(this).find(".card-header").removeClass("text-white")
+            $(this).find(".card-header").append('<i class="fas fa-wrench wrench-btn" onclick="reconnectDevice(' + cid + ')" title="Attempt device reconnection"></i>')
+        }
+
         if (cstate == "*0" || cstate == "*1") {
             $(this).find(".card-header").addClass("progress-bar-striped")
+            $(this).find(".card-header").append('<i class="fas fa-check check-btn" onclick="confirmState(' + cid + ',&apos;' + cstate + '&apos;)" title="Confirm device state"></i>')
+        } else {
+            $(this).find(".check-btn").remove()
         }
 
         if (["noop"].includes(ccolortype)) {
@@ -312,11 +322,11 @@ function computeCards() {
         } else {
             $(this).find(".card-footer").append('<i class="fas fa-cog text-white cog-btn" onclick="getConfigDevice('+ cid + ')" title="_(Device configuration)"></i>')
             if (clocked == "1") {
-                $(this).find(".card-body").hide()
-                $(this).find(".card-footer center").append('<i class="fas fa-lock text-white lock-btn" onclick="setLockDevice(0,' + cid + ',' + cstate +')" title="_(Unlock device)"></i>')
+                $(this).find(".controls-div").hide()
+                $(this).find(".card-footer center").append('<i class="fas fa-lock text-white lock-btn" onclick="setLockDevice(0,' + cid + ')" title="_(Unlock device)"></i>')
             } else {
-                $(this).find(".card-body").show()
-                $(this).find(".card-footer center").append('<i class="fas fa-unlock text-white lock-btn" onclick="setLockDevice(1,' + cid + ',' + cstate +')" title="_(Lock device in this state)"></i>')
+                $(this).find(".controls-div").show()
+                $(this).find(".card-footer center").append('<i class="fas fa-unlock text-white lock-btn" onclick="setLockDevice(1,' + cid + ')" title="_(Lock device in this state)"></i>')
             }
 
             if (cmode == "0") {
@@ -352,7 +362,7 @@ function computeCards() {
                 if (cinit != "1") {
                     $(this).find(".colorpick").on("change", function(ev) {
                         color = ev.currentTarget.firstElementChild.value.substr(1)
-                        sendPowerRequest(cid, color, cstate)
+                        sendPowerRequest(cid, color)
                     })
                 }
             }
@@ -370,7 +380,7 @@ function computeCards() {
                         value: parseInt(cintensity),
                         editableTooltip: false,
                         change: function(event) {
-                            sendPowerRequest(cid, event.value, cstate, 1)
+                            sendPowerRequest(cid, event.value, 1)
                         }
                     });
 
@@ -387,9 +397,9 @@ function computeCards() {
                         if (!wasDragging) {
                             var sliderVal = slider.roundSlider("getValue")
                             if (parseInt(sliderVal) == 0) {
-                                sendPowerRequest(cid, 1, cstate, 1)
+                                sendPowerRequest(cid, 1, 1)
                             } else {
-                                sendPowerRequest(cid, 0, cstate, 1)
+                                sendPowerRequest(cid, 0, 1)
                             }
                         }
                     });
@@ -406,13 +416,13 @@ function computeCards() {
 
             if (cinit != "1") {
                 $(this).find(".radiomode :input").on('change', function() {
-                    sendModeRequest(cid, cstate, $(this).val())
+                    sendModeRequest(cid, $(this).val())
                 })
                 $(this).find(".offbuttons").on('click', function() {
-                    sendPowerRequest(cid, 0, cstate)
+                    sendPowerRequest(cid, 0)
                 })
                 $(this).find(".onbuttons").on('click', function() {
-                    sendPowerRequest(cid, 1, cstate)
+                    sendPowerRequest(cid, 1)
                 })
 
                 if (croom != "") {
@@ -451,12 +461,16 @@ function computeCards() {
         cinit = $(this).attr("cinit")
         cgroup = $(this).find("h4.card-header").text()
         hasoffdevices = hasondevices = false
+        hasdefectdevices = false
 
         $(this).find(".card").each(function() {
-            if (parseInt($(this).attr("cstate")) == 0) {
+            if (parseInt($(this).attr("cstate")) == 0 || $(this).attr("cstate") == "*0") {
                 hasoffdevices = true
             } else {
                 hasondevices = true
+            }
+            if ($(this).attr("cstate") == "X") {
+                hasdefectdevices = true
             }
         })
 
@@ -469,18 +483,23 @@ function computeCards() {
         $(this).find(".d-count").removeClass("bg-danger")
         $(this).find(".d-count").removeClass("bg-warning")
         $(this).find(".d-count").removeClass("bg-success")
-        if (hasoffdevices == false) {
+        if (hasoffdevices == false && hasdefectdevices == false) {
             $(this).addClass("border-success")
             $(this).find(".title-header").addClass("bg-success")
             $(this).find(".d-count").addClass("bg-success")
-        } else if (hasondevices == false) {
+        } else if (hasondevices == false && hasdefectdevices == false) {
             $(this).addClass("border-danger")
             $(this).find(".title-header").addClass("bg-danger")
             $(this).find(".d-count").addClass("bg-danger")
-        } else {
+        } else if (hasdefectdevices == false) {
             $(this).addClass("border-warning")
             $(this).find(".title-header").addClass("bg-warning")
             $(this).find(".d-count").addClass("bg-warning")
+        } else {
+            $(this).find(".title-header").removeClass("text-white")
+            $(this).find(".title-footer").removeClass("text-white")
+            $(this).find(".gonbuttons").prop("disabled", true)
+            $(this).find(".goffbuttons").prop("disabled", true)
         }
 
         if (cinit != "1") {
@@ -527,7 +546,7 @@ function computeCards() {
     })
 }
 
-function sendPowerRequest(devid, value, last_state, is_intensity=0) {
+function sendPowerRequest(devid, value, is_intensity=0) {
     abortPendingRequests()
     $(".card[cid=" + devid + "]").addClass("disabledbutton")
     $.ajax({
@@ -543,7 +562,7 @@ function sendPowerRequest(devid, value, last_state, is_intensity=0) {
                 skiptime: $('input[name=skiptime2]').is(":checked")
             },
         success: function(data){
-            getOneResult(devid, last_state)
+            getOneResult(devid)
         }
     })
 }
@@ -570,7 +589,7 @@ function sendGroupPowerRequest(group, value, devid) {
     })
 }
 
-function sendModeRequest(devid, value, auto) {
+function sendModeRequest(devid, auto) {
     abortPendingRequests()
     $(".card[cid=" + devid + "]").addClass("disabledbutton")
     $.ajax({
@@ -584,7 +603,7 @@ function sendModeRequest(devid, value, auto) {
                 devid: devid
             },
         success: function(data){
-            getOneResult(devid, value)
+            getOneResult(devid)
         }
     })
 }
@@ -608,7 +627,7 @@ function sendAllModeAuto() {
     })
 }
 
-function setLockDevice(lock, devid, last_state) {
+function setLockDevice(lock, devid) {
     $("#"+devid).addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -621,7 +640,7 @@ function setLockDevice(lock, devid, last_state) {
                 devid: devid
             },
         success: function(data){
-            getOneResult(devid, last_state)
+            getOneResult(devid)
         },
         error: function(data){
             console.log(data)
@@ -728,6 +747,44 @@ function saveConfig(section) {
             console.log(data)
         }
     })
+}
+
+function reconnectDevice(devid) {
+    abortPendingRequests()
+    $(".card[cid=" + devid + "]").addClass("disabledbutton")
+    $.ajax({
+        type: "POST",
+        url: ".",
+        dataType: "text",
+        data: {
+                request: "True",
+                reqtype: "reconnect",
+                devid: devid
+            },
+        success: function(data){
+            getOneResult(devid)
+        }
+    })
+}
+
+function confirmState(devid, state) {
+    state = state.replace("*", "")
+    abortPendingRequests()
+    $(".card[cid=" + devid + "]").addClass("disabledbutton")
+    $.ajax({
+        type: "POST",
+        url: ".",
+        dataType: "text",
+        data: {
+                request: "True",
+                reqtype: "confirmstate",
+                state: state,
+                devid: devid
+            },
+        success: function(data){
+            getOneResult(devid)
+        }
+    })    
 }
 
 // Javascript ends here. Comment added to prevent EOF bytes loss due to &; characters parsing. TODO - prevent this some other way

@@ -233,6 +233,17 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 else:
                     response.write(content.encode("UTF-8"))
 
+            if reqtype == "reconnect":
+                devid = int(postvars[b'devid'][0].decode('utf-8'))
+                self.dm.devices[devid].reconnect()
+                response.write("1".encode("UTF-8"))
+
+            if reqtype == "confirmstate":
+                devid = int(postvars[b'devid'][0].decode('utf-8'))
+                state = str(postvars[b'state'][0].decode('utf-8'))
+                self.dm.devices[devid].set_state(state)
+                response.write("1".encode("UTF-8"))
+
             # ADD NECESSARY WEBSERVER REQUESTS HERE #
 
         else:

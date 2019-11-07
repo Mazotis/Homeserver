@@ -2,7 +2,7 @@
 '''
     File name: ifttt.py
     Author: Maxime Bergeron
-    Date last modified: 25/09/2019
+    Date last modified: 07/11/2019
     Python Version: 3.5
 
     The IFTTT receiver module for the homeserver
@@ -22,9 +22,9 @@ from threading import Thread
 
 
 class IFTTTServer(BaseHTTPRequestHandler):
-    def __init__(self, config, lm, *args, **kwargs):
+    def __init__(self, config, dm, *args, **kwargs):
         self.config = config
-        self.lm = lm
+        self.dm = dm
         self.priority_groups = []
         if self.config.has_option("IFTTT", "PRIORITY_GROUPS"):
             self.priority_groups = self.config["IFTTT"]["PRIORITY_GROUPS"].split(
@@ -75,15 +75,15 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 return
             if func == "on":
                 req.set_colors(
-                    [DEVICE_ON] * len(self.lm.devices), len(self.lm.devices))
+                    [DEVICE_ON] * len(self.dm.devices), len(self.dm.devices))
             elif func == "off":
-                req.skip_time = True
+                req.set(skip_time=True)
                 req.set_colors(
-                    [DEVICE_OFF] * len(self.lm.devices), len(self.lm.devices))
+                    [DEVICE_OFF] * len(self.dm.devices), len(self.dm.devices))
 
             group = postvars['group'][0].split()
             group = [unidecode.unidecode(x) for x in group]
-            groups = self.lm.get_all_groups()
+            groups = self.dm.get_all_groups()
             changed_groups = []
             has_priority_group = False
             for _group in group:
@@ -95,7 +95,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 if _group + "s" in groups:
                     changed_groups.append(_group + "s")
             if len(changed_groups) != 0:
-                req.group = changed_groups
+                req.set(group=changed_groups)
             else:
                 debug.write("No devices belong to group {}. Request aborted.".format(
                     group), 1, "IFTTT")
@@ -103,23 +103,23 @@ class IFTTTServer(BaseHTTPRequestHandler):
             debug.write("Running function '{}' on group(s) {}".format(
                 func, changed_groups), 0, "IFTTT")
             if self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
-                req.auto_mode = True
+                req.set(auto_mode=True)
             elif not has_priority_group:
                 debug.write(
-                    "No-priority groups called. Setting back to AUTO mode.", 0, "IFTTT")
-                req.reset_mode = True
-            self.lm.run(req)
+                    "No priority groups called. Setting back to AUTO mode.", 0, "IFTTT")
+                req.set(reset_mode=True)
+            req.run(self.dm)
 
             if "delay" in postvars and int(postvars['delay'][0]) != 0:
                 if func == "on":
                     req.set_colors(
-                        [DEVICE_OFF] * len(self.lm.devices), len(self.lm.devices))
+                        [DEVICE_OFF] * len(self.dm.devices), len(self.dm.devices))
                 elif func == "off":
-                    req.skip_time = True
+                    req.set(skip_time=True)
                     req.set_colors(
-                        [DEVICE_ON] * len(self.lm.devices), len(self.lm.devices))
-                req.delay = int(postvars['delay'][0]) * 60
-                self.lm.run(req)
+                        [DEVICE_ON] * len(self.dm.devices), len(self.dm.devices))
+                req.set(delay=int(postvars['delay'][0]) * 60)
+                req.run(self.dm)
 
         try:
             # TODO rewrite this more elegantly
@@ -153,7 +153,7 @@ class ifttt(Thread):
         self.config = config
         self.port = self.config['SERVER'].getint('VOICE_SERVER_PORT')
         self.protocol = self.config['IFTTT']['PROTOCOL']
-        self.lm = lm
+        self.dm = lm
         if self.protocol == "https":
             self.key = self.config['IFTTT']['IFTTT_HTTPS_CERTS_KEY']
             self.cert = self.config['IFTTT']['IFTTT_HTTPS_CERTS_CERT']
@@ -162,7 +162,7 @@ class ifttt(Thread):
     def run(self):
         debug.write('Getting lightserver POST requests on port {} using {} protocol'
                     .format(self.port, self.protocol), 0, "IFTTT")
-        IFTTTServerPartial = partial(IFTTTServer, self.config, self.lm)
+        IFTTTServerPartial = partial(IFTTTServer, self.config, self.dm)
         httpd = HTTPServer(('', self.port), IFTTTServerPartial)
         if self.protocol == "https":
             httpd.socket = ssl.wrap_socket(httpd.socket,
