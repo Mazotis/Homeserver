@@ -31,6 +31,14 @@ VERSION = "alpha"
 ###
 
 
+class NewRequestException(Exception):
+    def __init__(self):
+        debug.write("Aborting state change due to new request", 0)
+
+    def __str__(self):
+        return "Aborting state change due to new request"
+
+
 class DebugLog(object):
     def __init__(self):
         """ Handles debug logging """

@@ -67,22 +67,22 @@ class WebServerHandler(SimpleHTTPRequestHandler):
         content_length = int(self.headers['Content-Length'])
         postvars = urllib.parse.parse_qs(
             self.rfile.read(content_length), keep_blank_values=1)
-        request = bool(postvars[b'request'][0].decode('utf-8'))
+        request = postvars[b'request'][0].decode('utf-8') in ["True", "true", True]
         reqtype = postvars[b'reqtype'][0].decode('utf-8')
         self._set_response()
         response = BytesIO()
         if request:
             if reqtype == "getstate":
-                response.write(json.dumps(self.dm()).encode('UTF-8'))
-
-            if reqtype == "getstatepost":
-                response.write(json.dumps(self.dm(False)).encode('UTF-8'))
+                async = postvars[b'isasync'][0].decode('utf-8') in ["True", "true", True]
+                response.write(json.dumps(self.dm(async=async)).encode('UTF-8'))
 
             if reqtype == "setstate":
                 # TODO GET SUCCESS STATE ?
                 req = StateRequestObject()
                 devid = int(postvars[b'devid'][0].decode('utf-8'))
                 value = str(postvars[b'value'][0].decode('utf-8'))
+                debug.write(
+                    'Running a single device ({}) state change to {}'.format(self.dm[devid].name, value), 0, "WEBSERVER")
                 isintensity = str(postvars[b'isintensity'][0].decode('utf-8'))
                 skiptime = postvars[b'skiptime'][0].decode(
                     'utf-8') in ['true', True]

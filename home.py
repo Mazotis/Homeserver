@@ -97,7 +97,6 @@ class HomeServer(object):
 
         finally:
             debug.write('Closing connection.', 0)
-            dm.set_lock(0)
             dm.reinit()
             client.close()
             self.scheduled_disconnect = threading.Timer(

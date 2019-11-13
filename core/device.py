@@ -72,58 +72,61 @@ class device(object):
         return self.parent_config.has_option("DEVICE" + str(self.devid), option)
 
     def pre_run(self, color):
-        if self.success:
-            return True
-        if (self.color_type == "noop" or self.request_locked):
-            if self.convert(color) != DEVICE_SKIP:
-                debug.write("Device ({}) {} does not handle requests."
-                            .format(self.device_type, self.device), 0)
-            self.success = True
-            return True
-        if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
-            debug.write("Device ({}) {} is still executing previous request."
-                        .format(self.device_type, self.device), 0)
-            self.state = DEVICE_STANDBY
-            return True
-        if color == DEVICE_SKIP:
-            self.success = True
-            return True
-        if not self.get_time_check():
-            return True
-        if not self.ignoremode:
-            if not self.auto_mode and self.request_auto_mode and not self.reset_mode:
-                # AUTO mode request on MANUAL device
-                debug.write("{} device {} is set in MANUAL mode, skipping."
-                            .format(self.device_type, self.device), 0)
+        try:
+            if self.success:
+                return True
+            if (self.color_type == "noop" or self.request_locked):
+                if self.convert(color) != DEVICE_SKIP:
+                    debug.write("Device ({}) {} does not handle requests."
+                                .format(self.device_type, self.device), 0)
                 self.success = True
                 return True
-            if self.auto_mode and not self.request_auto_mode and not self.reset_mode:
-                debug.write("{} device {} set to MANUAL mode."
+            if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
+                debug.write("Device ({}) {} is still executing previous request."
                             .format(self.device_type, self.device), 0)
-                self.auto_mode = False
-            if self.reset_mode:
-                if not self.auto_mode:
-                    debug.write("{} device {} set back to AUTO mode."
+                self.state = DEVICE_STANDBY
+                return True
+            if color == DEVICE_SKIP:
+                self.success = True
+                return True
+            if not self.get_time_check():
+                return True
+            if not self.ignoremode:
+                if not self.auto_mode and self.request_auto_mode and not self.reset_mode:
+                    # AUTO mode request on MANUAL device
+                    debug.write("{} device {} is set in MANUAL mode, skipping."
                                 .format(self.device_type, self.device), 0)
-                self.auto_mode = True
-        else:
-            debug.write("Skipping mode evaluation for {} device {}."
-                        .format(self.device_type, self.device), 0)
-        if self.state == self.convert(color) and str(color) not in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
-            self.success = True
-            debug.write("Device ({}) {} is already of the requested state, skipping."
-                        .format(self.device_type, self.device), 0)
-            return True
+                    self.success = True
+                    return True
+                if self.auto_mode and not self.request_auto_mode and not self.reset_mode:
+                    debug.write("{} device {} set to MANUAL mode."
+                                .format(self.device_type, self.device), 0)
+                    self.auto_mode = False
+                if self.reset_mode:
+                    if not self.auto_mode:
+                        debug.write("{} device {} set back to AUTO mode."
+                                    .format(self.device_type, self.device), 0)
+                    self.auto_mode = True
+            else:
+                debug.write("Skipping mode evaluation for {} device {}."
+                            .format(self.device_type, self.device), 0)
+            if self.state == self.convert(color) and str(color) not in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
+                self.success = True
+                debug.write("Device ({}) {} is already of the requested state, skipping."
+                            .format(self.device_type, self.device), 0)
+                return True
 
-        if self.state == self.convert(color) and str(color) in [DEVICE_OFF, DEVICE_INFERRED_OFF] and not self.forceoff:
-            self.success = True
-            debug.write("Device ({}) {} is already off and forcing-off disabled, skipping."
-                        .format(self.device_type, self.device), 0)
-            return True
+            if self.state == self.convert(color) and str(color) in [DEVICE_OFF, DEVICE_INFERRED_OFF] and not self.forceoff:
+                self.success = True
+                debug.write("Device ({}) {} is already off and forcing-off disabled, skipping."
+                            .format(self.device_type, self.device), 0)
+                return True
 
-        if self.action_delay != 0:
-            self.last_action_timestamp = time.time()
-        return self.run(color)
+            if self.action_delay != 0:
+                self.last_action_timestamp = time.time()
+            return self.run(color)
+        except NewRequestException:
+            return False
 
     def convert(self, color):
         if self.color_type is None:
@@ -141,6 +144,23 @@ class device(object):
     def get_state(self):
         """ Getter for the actual state """
         return self.state
+
+    def get_inferred_group_state(self, dm, expected_state):
+        _states = []
+        for _cnt, dev in enumerate(dm):
+            if _cnt != self.devid and self.state_inference_group in dm[_cnt].group:
+                _states.append(str(dm[_cnt].state))
+        if all(x == DEVICE_ON for x in _states):
+            if expected_state != DEVICE_ON:
+                debug.write("Device '{}' actual state inferred as ON from its group state".format(
+                    self.name), 0)
+                return DEVICE_INFERRED_ON
+        elif all(x == DEVICE_OFF for x in _states):
+            if expected_state != DEVICE_OFF:
+                debug.write("Device '{}' actual state inferred as OFF from its group state".format(
+                    self.name), 0)
+                return DEVICE_INFERRED_OFF
+        return expected_state
 
     def set_state(self, state):
         """ Setter for the actual state """

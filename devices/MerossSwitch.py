@@ -11,6 +11,8 @@
 from core.common import *
 from core.meross import Meross
 from core.device import device
+from meross_iot.cloud.exceptions.CommandTimeoutException import CommandTimeoutException
+from meross_iot.cloud.exceptions.OfflineDeviceException import OfflineDeviceException
 
 
 class MerossSwitch(device):
@@ -63,12 +65,12 @@ class MerossSwitch(device):
                         self.state = "1"
                     else:
                         self.state = "0"
-            except self.meross.meross_iot.cloud.exceptions.OfflineDeviceException.OfflineDeviceException:
+            except OfflineDeviceException:
                 debug.write(
                     "Device {} is offline. Set as disabled.".format(self.device), 1)
                 self.state = DEVICE_DISABLED
                 return self.state
-            except self.meross.meross_iot.cloud.exceptions.CommandTimeoutException.CommandTimeoutException:
+            except CommandTimeoutException:
                 debug.write(
                     "Failed to obtain current state for device {}. Fallback to server-side reported state.".format(self.device), 1)
                 return self.state

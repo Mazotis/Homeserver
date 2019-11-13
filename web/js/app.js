@@ -1,7 +1,6 @@
 lastupdate = 0
 var xhr
-var runningRequests = 0
-var deduceAbortableRequest = false
+var xhrAbortable = false
 var hasRoomGroups = false
 var modulesToRefresh = new Array()
 var dmconfig
@@ -27,17 +26,14 @@ $(document).ready(function() {
 });
 
 function abortPendingRequests() {
-    xhr.abort()
-    if (deduceAbortableRequest && runningRequests > 0) {
-        runningRequests--
+    if (xhrAbortable) {
+        xhr.abort()
     }
-    deduceAbortableRequest = false
     $("#update-spin").hide()
 }
 
 function getResult() {
     getConfig()
-    runningRequests++
     $("#preloader").show()
     $.ajax({
         type: "POST",
@@ -45,7 +41,8 @@ function getResult() {
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "getstate"
+                reqtype: "getstate",
+                isasync: "True"
             },
         success: function(data){
             $("#preloader").hide()
@@ -93,7 +90,7 @@ function getResult() {
 
                 $("#rooms-section").show()
                 for (cnt in rgroups) {
-                    rhtml += '<div class="card rcard mb-3 noselect-nooverflow" id="rcard-' + rgroups[cnt] + '"><h4 class="card-header title-header bg-danger text-white" style="font-weight:bold;">' + rgroups[cnt].charAt(0).toUpperCase() + rgroups[cnt].substr(1).toLowerCase() + '</h4><div class="card-body d-body card-columns" style="display:none;"></div><h5 class="card-header bg-danger d-count text-white title-footer"><div class="btn-group btn-group-sm" role="group" style="float:right;"><button type="button" class="btn btn-danger goffbuttons">_(OFF)</button><button type="button" class="btn btn-success gonbuttons">_(ON)</button></div></h5></div>'
+                    rhtml += '<div class="card rcard mb-3 noselect-nooverflow" id="rcard-' + rgroups[cnt] + '"><h4 class="card-header title-header bg-danger text-white" style="font-weight:bold;">' + rgroups[cnt].charAt(0).toUpperCase() + rgroups[cnt].substr(1).toLowerCase() + '</h4><div class="card-body d-body card-columns" style="display:none;"></div><h5 class="card-header bg-danger d-count text-white title-footer"><div style="float:right"><input type="checkbox" class="rcard-toggle" data-onstyle="success" data-offstyle="danger" data-size="sm"></div></h5></div>'
                 }
 
                 $(".rcolumns").html(rhtml)
@@ -117,16 +114,14 @@ function getResult() {
 
             $("#resultid").html(html)
             computeCards()
-            getResultPost()
+            $("#update-spin").hide()
         }
     })
 }
 
-function getResultRefresh() {
-    runningRequests++
-    $("#spin-text").html("_(Running requests and getting cached state status...)")
+function getResultRefresh(abortable=true) {
     $("#update-spin").show()
-    deduceAbortableRequest = true
+    xhrAbortable = abortable
 
     xhr = $.ajax({
         type: "POST",
@@ -134,87 +129,32 @@ function getResultRefresh() {
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "getstate"
+                reqtype: "getstate",
+                isasync: "False"
             },
         success: function(data){
+            xhrAbortable = false
             oldstateJSON = stateJSON
             stateJSON = JSON.parse(decodeURIComponent(data))
-            deduceAbortableRequest = false
-            has_errors = false
             var i;
             for (i = 0; i < modulesToRefresh.length; i++) { 
                 getContent(modulesToRefresh[i]);
             }
-            for (cnt in stateJSON.state) {
-                if (oldstateJSON.state[cnt] != stateJSON.state[cnt]) {
-                    has_errors = true
-                }
-                if (oldstateJSON.intensity[cnt] != stateJSON.intensity[cnt]) {
-                    has_errors = true
-                }
-                if (oldstateJSON.mode[cnt] != stateJSON.mode[cnt]) {
-                    has_errors = true
-                }
-            }
-            if (has_errors) {
-                computeCards()
-            }
-            getResultPost()
+            computeCards()
+            $("#update-spin").hide()
         }
     })  
 }
 
-function getResultPost() {
-    if (runningRequests == 1) {
-        deduceAbortableRequest = true
-        $("#spin-text").html("_(Querying device state...)")
-        $("#update-spin").show()
-        xhr = $.ajax({
-            type: "POST",
-            url: ".",
-            dataType: "text",
-            data: {
-                    request: "True",
-                    reqtype: "getstatepost"
-                },
-            success: function(data){
-                oldstateJSON = stateJSON
-                stateJSON = JSON.parse(decodeURIComponent(data))
-                deduceAbortableRequest = false
-                has_errors = false
-                for (cnt in stateJSON.state) {
-                    if (oldstateJSON.state[cnt] != stateJSON.state[cnt]) {
-                        has_errors = true
-                    }
-                    if (oldstateJSON.intensity[cnt] != stateJSON.intensity[cnt]) {
-                        has_errors = true
-                    }
-                    if (oldstateJSON.mode[cnt] != stateJSON.mode[cnt]) {
-                        has_errors = true
-                    }
-                }
-                if (has_errors) {
-                    computeCards()
-                }
-                runningRequests--
-                $("#update-spin").hide()
-            }
-        })
-    } else {
-        deduceAbortableRequest = false
-        runningRequests--
-    }
-}
-
 function getOneResult(devid) {
-    runningRequests++
     $.ajax({
         type: "POST",
         url: ".",
         dataType: "text",
         data: {
                 request: "True",
-                reqtype: "getstate"
+                reqtype: "getstate",
+                isasync: "True"
             },
         success: function(data){
             oldstateJSON = stateJSON
@@ -223,7 +163,6 @@ function getOneResult(devid) {
             generateCard(devid, stateJSON, $(".card[cid=" + devid + "]"))
             computeCards()
             $(".card[cid=" + devid + "]").removeClass("disabledbutton")
-            getResultPost()
         }
     })
 }
@@ -246,51 +185,13 @@ function generateCard(devid, data, a_this = null) {
 
 function computeCards() {
     $(".dcard").each(function() {
-        var cid
+        var cid, cinit, hascontrols
         cid = parseInt($(this).attr("cid"))
         cinit = $(this).attr("cinit")
+        hascontrols = false
 
         $(this).find(".sliderpick").hide()
-        $(this).find(".card-header").removeClass("bg-danger")
-        $(this).find(".card-header").removeClass("bg-warning")
-        $(this).find(".card-header").removeClass("bg-success")
-        $(this).find(".card-header").removeClass("progress-bar-striped")
-        $(this).removeClass("border-danger")
-        $(this).removeClass("border-warning")
-        $(this).removeClass("border-success")
-        if (stateJSON.state[cid] == "0" || (!isNaN(stateJSON.state[cid]) && parseInt(stateJSON.state[cid]) == 0) || stateJSON.state[cid] == "*0") {
-            $(this).find(".offbuttons").attr('disabled', true)
-            $(this).find(".onbuttons").attr('disabled', false)
-            $(this).find(".card-header").addClass("bg-danger")
-            $(this).addClass("border-danger")
-        } else if (stateJSON.state[cid] == "-2") {
-            $(this).find(".offbuttons").attr('disabled', true)
-            $(this).find(".onbuttons").attr('disabled', true)
-            $(this).find(".card-header").addClass("bg-warning")
-            $(this).addClass("border-warning")
-        } else if (stateJSON.state[cid] != "X") {
-            $(this).find(".offbuttons").attr('disabled', false)
-            $(this).find(".onbuttons").attr('disabled', true)
-            $(this).find(".card-header").addClass("bg-success")
-            $(this).addClass("border-success")
-        }
-
-        if (stateJSON.state[cid] == "X") {
-            $(this).find(".onbuttons").attr('disabled', true)
-            $(this).find(".offbuttons").attr('disabled', true)
-            $(this).find(".card-header").removeClass("text-white")
-            $(this).find(".card-header").append('<i class="fas fa-wrench wrench-btn" onclick="reconnectDevice(' + cid + ')" title="_(Attempt device reconnection)"></i>')
-        }
-
-        if (stateJSON.state[cid] == "*0" || stateJSON.state[cid] == "*1") {
-            $(this).find(".card-header").addClass("progress-bar-striped")
-            $(this).find(".card-header").append('<i class="fas fa-check check-btn" onclick="confirmState(' + cid + ',&apos;' + stateJSON.state[cid] + '&apos;)" title="_(Confirm device state)"></i>')
-        } else {
-            $(this).find(".check-btn").remove()
-        }
-
         if (["noop"].includes(stateJSON.colortype[cid])) {
-            $(this).find(".btn-group").hide()
             $(this).find(".noop").show()
         } else {
             $(this).find(".card-footer").append('<i class="fas fa-cog text-white cog-btn" onclick="getConfigDevice('+ cid + ')" title="_(Device configuration)"></i>')
@@ -328,6 +229,7 @@ function computeCards() {
             }
 
             if (["argb", "rgb", "255"].includes(stateJSON.colortype[cid])) {
+                hascontrols = true
                 if (stateJSON.state[cid].length == 6) {
                     $(this).find(".colorpick input").attr("value", "#" + stateJSON.state[cid])
                 }
@@ -341,8 +243,8 @@ function computeCards() {
             }
 
             if (["100", "255", "argb", "rgb"].includes(stateJSON.colortype[cid])) {
+                hascontrols = true
                 $(this).find(".sliderpick").show()
-                $(this).find(".btn-group-lg").hide()
                 if (cinit != "1") {
                     var slider = $(this).find(".slider")
                     slider.roundSlider({
@@ -379,6 +281,10 @@ function computeCards() {
                 }
             }
 
+            if (!hascontrols && cinit != "1") {   
+                $(this).find(".controls-div").prepend('<input type="checkbox" class="dcard-toggle" data-onstyle="success" data-offstyle="danger" data-size="lg">')
+            }
+
             $(this).find(".slider").roundSlider("setValue", parseInt(stateJSON.intensity[cid]))
             var sliderVal = $(this).find(".slider").roundSlider("getValue")
             if (parseInt(sliderVal) == 0) {
@@ -391,17 +297,55 @@ function computeCards() {
                 $(this).find(".radiomode :input").on('change', function() {
                     sendModeRequest(cid, $(this).val())
                 })
-                $(this).find(".offbuttons").on('click', function() {
-                    sendPowerRequest(cid, 0)
-                })
-                $(this).find(".onbuttons").on('click', function() {
-                    sendPowerRequest(cid, 1)
+
+                $(this).find(".dcard-toggle").bootstrapToggle()
+                $(this).find(".dcard-toggle").change(function() {
+                    sendPowerRequest(cid, this.checked ? 1 : 0)
                 })
 
                 if (stateJSON.deviceroom[cid] != "") {
                     $(this).prependTo($("#rcard-" + stateJSON.deviceroom[cid] + " > .card-body"))
                 }
             }
+        }
+
+        $(this).find(".card-header").removeClass("bg-danger")
+        $(this).find(".card-header").removeClass("bg-warning")
+        $(this).find(".card-header").removeClass("bg-success")
+        $(this).find(".card-header").removeClass("progress-bar-striped")
+        $(this).removeClass("border-danger")
+        $(this).removeClass("border-warning")
+        $(this).removeClass("border-success")
+        $(this).find(".dcard-toggle").prop('disabled', false)
+        if (stateJSON.state[cid] == "0" || (!isNaN(stateJSON.state[cid]) && parseInt(stateJSON.state[cid]) == 0) || stateJSON.state[cid] == "*0") {
+            if ($(this).find(".dcard-toggle").prop('checked')) {
+                $(this).find(".dcard-toggle").bootstrapToggle('off', true)
+            }
+            $(this).find(".card-header").addClass("bg-danger")
+            $(this).addClass("border-danger")
+        } else if (stateJSON.state[cid] == "-2") {
+            $(this).find(".dcard-toggle").prop('disabled', true)
+            $(this).find(".card-header").addClass("bg-warning")
+            $(this).addClass("border-warning")
+        } else if (stateJSON.state[cid] != "X") {
+            if (!$(this).find(".dcard-toggle").prop('checked')) {
+                $(this).find(".dcard-toggle").bootstrapToggle('on', true)
+            }
+            $(this).find(".card-header").addClass("bg-success")
+            $(this).addClass("border-success")
+        }
+
+        if (stateJSON.state[cid] == "X") {
+            $(this).find(".dcard-toggle").attr('disabled', true)
+            $(this).find(".card-header").removeClass("text-white")
+            $(this).find(".card-header").append('<i class="fas fa-wrench wrench-btn" onclick="reconnectDevice(' + cid + ')" title="_(Attempt device reconnection)"></i>')
+        }
+
+        if (stateJSON.state[cid] == "*0" || stateJSON.state[cid] == "*1") {
+            $(this).find(".card-header").addClass("progress-bar-striped")
+            $(this).find(".card-header").append('<i class="fas fa-check check-btn" onclick="confirmState(' + cid + ',&apos;' + stateJSON.state[cid] + '&apos;)" title="_(Confirm device state)"></i>')
+        } else {
+            $(this).find(".check-btn").remove()
         }
 
         if (stateJSON.icon[cid] != "none") {
@@ -418,17 +362,19 @@ function computeCards() {
         cid = $(this).attr("id")
 
         if (cinit != "1") {
-            $(this).find(".goffbuttons").on('click', function() {
-                sendGroupPowerRequest(group, 0, cid)
-            })
-            $(this).find(".gonbuttons").on('click', function() {
-                sendGroupPowerRequest(group, 1, cid)
+            $(this).find(".gcard-toggle").bootstrapToggle()
+            $(this).find(".gcard-toggle").change(function() {
+                sendGroupPowerRequest(group, this.checked ? 1 : 0, cid)
             })
         }
 
         $(this).attr("cinit", "1")
     })
 
+    computeRCards()
+}
+
+function computeRCards() {
     $(".rcard").each(function() {
         var cinit, cgroup, hasoffdevices, hasondevices
         cinit = $(this).attr("cinit")
@@ -447,34 +393,6 @@ function computeCards() {
                 hasdefectdevices = true
             }
         })
-
-        $(this).removeClass("border-danger")
-        $(this).removeClass("border-warning")
-        $(this).removeClass("border-success")
-        $(this).find(".title-header").removeClass("bg-danger")
-        $(this).find(".title-header").removeClass("bg-warning")
-        $(this).find(".title-header").removeClass("bg-success")
-        $(this).find(".d-count").removeClass("bg-danger")
-        $(this).find(".d-count").removeClass("bg-warning")
-        $(this).find(".d-count").removeClass("bg-success")
-        if (hasoffdevices == false && hasdefectdevices == false) {
-            $(this).addClass("border-success")
-            $(this).find(".title-header").addClass("bg-success")
-            $(this).find(".d-count").addClass("bg-success")
-        } else if (hasondevices == false && hasdefectdevices == false) {
-            $(this).addClass("border-danger")
-            $(this).find(".title-header").addClass("bg-danger")
-            $(this).find(".d-count").addClass("bg-danger")
-        } else if (hasdefectdevices == false) {
-            $(this).addClass("border-warning")
-            $(this).find(".title-header").addClass("bg-warning")
-            $(this).find(".d-count").addClass("bg-warning")
-        } else {
-            $(this).find(".title-header").removeClass("text-white")
-            $(this).find(".title-footer").removeClass("text-white")
-            $(this).find(".gonbuttons").prop("disabled", true)
-            $(this).find(".goffbuttons").prop("disabled", true)
-        }
 
         if (cinit != "1") {
             $(this).find(".title-header").on("click", function() {
@@ -508,12 +426,49 @@ function computeCards() {
                 $(this).find(".d-count").prepend(devlen + " _(devices)")
             }
 
-            $(this).find(".goffbuttons").on('click', function() {
-                sendGroupPowerRequest(cgroup, 0, "rcard-" + cgroup.toLowerCase())
+            $(this).find(".rcard-toggle").bootstrapToggle({
+                width: "60px"
             })
-            $(this).find(".gonbuttons").on('click', function() {
-                sendGroupPowerRequest(cgroup, 1, "rcard-" + cgroup.toLowerCase())
+            $(this).find(".rcard-toggle").change(function() {
+                sendGroupPowerRequest(cgroup, this.checked ? 1 : 0, "rcard-" + cgroup.toLowerCase())
             })
+        }
+
+        $(this).removeClass("border-danger")
+        $(this).removeClass("border-warning")
+        $(this).removeClass("border-success")
+        $(this).find(".title-header").removeClass("bg-danger")
+        $(this).find(".title-header").removeClass("bg-warning")
+        $(this).find(".title-header").removeClass("bg-success")
+        $(this).find(".d-count").removeClass("bg-danger")
+        $(this).find(".d-count").removeClass("bg-warning")
+        $(this).find(".d-count").removeClass("bg-success")
+        $(this).find(".rcard-toggle").prop("disabled", false)
+        if (hasoffdevices == false && hasdefectdevices == false) {
+            $(this).addClass("border-success")
+            $(this).find(".title-header").addClass("bg-success")
+            $(this).find(".d-count").addClass("bg-success")
+            if (!$(this).find(".rcard-toggle").prop('checked')) {
+                $(this).find(".rcard-toggle").bootstrapToggle('on', true)
+            }
+        } else if (hasondevices == false && hasdefectdevices == false) {
+            $(this).addClass("border-danger")
+            $(this).find(".title-header").addClass("bg-danger")
+            $(this).find(".d-count").addClass("bg-danger")
+            if ($(this).find(".rcard-toggle").prop('checked')) {
+                $(this).find(".rcard-toggle").bootstrapToggle('off', true)
+            }
+        } else if (hasdefectdevices == false) {
+            $(this).addClass("border-warning")
+            $(this).find(".title-header").addClass("bg-warning")
+            $(this).find(".d-count").addClass("bg-warning")
+            if ($(this).find(".rcard-toggle").prop('checked')) {
+                $(this).find(".rcard-toggle").bootstrapToggle('off', true)
+            }
+        } else {
+            $(this).find(".title-header").removeClass("text-white")
+            $(this).find(".title-footer").removeClass("text-white")
+            $(this).find(".rcard-toggle").prop("disabled", true)
         }
 
         $(this).attr("cinit", "1")
@@ -544,7 +499,6 @@ function sendPowerRequest(devid, value, is_intensity=0) {
 function sendGroupPowerRequest(group, value, devid) {
     abortPendingRequests()
     $("#"+devid).addClass("disabledbutton")
-    runningRequests++
     $.ajax({
         type: "POST",
         url: ".",
@@ -558,7 +512,7 @@ function sendGroupPowerRequest(group, value, devid) {
             },
         success: function(data){
             $("#"+devid).removeClass("disabledbutton")
-            getResultPost()
+            getResultRefresh(false)
         }
     })
 }
@@ -585,7 +539,6 @@ function sendModeRequest(devid, auto) {
 function sendAllModeAuto() {
     abortPendingRequests()
     $(".dcard").addClass("disabledbutton")
-    runningRequests++
     $.ajax({
         type: "POST",
         url: ".",
@@ -596,7 +549,7 @@ function sendAllModeAuto() {
             },
         success: function(data){
             $(".dcard").removeClass("disabledbutton")
-            getResultPost()
+            getResultRefresh(false)
         }
     })
 }

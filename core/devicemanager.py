@@ -14,8 +14,11 @@ import time
 import queue
 from core.common import *
 from core.convert import convert_to_web_rgb, convert_color
-from multiprocessing.pool import ThreadPool
-from threading import Timer
+from concurrent.futures import ThreadPoolExecutor
+from threading import Timer, Lock
+
+
+lock = Lock()
 
 
 class DeviceManager(object):
@@ -49,8 +52,6 @@ class DeviceManager(object):
         self.states = self.get_state()
         self.skip_time = False
         debug.write("Got initial device states {}".format(self.states), 0)
-        self.set_lock(0)
-        self.lockcount = 0
         self.threaded = False
         self.light_threads = [None] * len(self)
         self.light_pool = None
@@ -216,7 +217,7 @@ class DeviceManager(object):
     def start_threaded(self):
         """ Enables multithreaded light change requests """
         self.threaded = True
-        self.light_pool = ThreadPool(processes=4)
+        self.light_pool = ThreadPoolExecutor(max_workers=len(self))
 
     def set_serverwide_skiptime(self):
         """ Enables skipping time check all the time"""
@@ -302,14 +303,16 @@ class DeviceManager(object):
             _sched.start()
             self.scheduled_changes.append(_sched)
             return
-        if self.check_event_time(request, request.skip_time or self.always_skip_time):
-            self.queue.put(request)
-            # TODO Manage locking out when the run thread hangs
-            debug.write("Locked status: {}".format(self.locked), 0)
-            if not self.locked or self.lockcount == 2:
-                self._set_lights()
-            else:
-                self.lockcount = self.lockcount + 1
+        # TODO Manage locking out when the run thread hangs
+        debug.write("Locked status: {}".format(lock.locked()), 0)
+        self.queue.put(request)
+        if not lock.locked():
+            self._set_lights()
+        elif self.threaded:
+            for _thread in self.light_threads:
+                if not _thread.done():
+                    _thread.set_exception(NewRequestException)
+                    _thread.cancel()
 
     def get_descriptions(self, as_list=False):
         """ Getter for configured devices descriptions """
@@ -386,10 +389,6 @@ class DeviceManager(object):
             return False
         return True
 
-    def set_lock(self, is_locked):
-        """ Locks the light change request """
-        self.locked = is_locked
-
     def get_state(self, devid=None, async=False, webcolors=False, intensity=False):
         """ Getter for configured devices actual colors """
         states = [None] * len(self)
@@ -411,32 +410,15 @@ class DeviceManager(object):
                 "All devices state status updated from devices get_state()", 0)
         if devid is not None:
             if self[devid].state_inference_group is not None:
-                states[devid] = self.get_inferred_group_state(
-                    devid, states[devid])
+                states[devid] = self[devid].get_inferred_group_state(
+                    self, states[devid])
             return states[devid]
         for _cnt, dev in enumerate(self):
             # Has to be called after device states all updated ? Only relevant on non-async requests ?
             if self[_cnt].state_inference_group is not None:
-                states[_cnt] = self.get_inferred_group_state(
-                    _cnt, states[_cnt])
+                states[_cnt] = self[_cnt].get_inferred_group_state(
+                    self, states[_cnt])
         return states
-
-    def get_inferred_group_state(self, devid, expected_state):
-        _states = []
-        for _cnt, dev in enumerate(self):
-            if _cnt != devid and self[devid].state_inference_group in self[_cnt].group:
-                _states.append(str(self[_cnt].state))
-        if all(x == DEVICE_ON for x in _states):
-            if expected_state != DEVICE_ON:
-                debug.write("Device '{}' actual state inferred as ON from its group state".format(
-                    self[devid].name), 0)
-                return DEVICE_INFERRED_ON
-        elif all(x == DEVICE_OFF for x in _states):
-            if expected_state != DEVICE_OFF:
-                debug.write("Device '{}' actual state inferred as OFF from its group state".format(
-                    self[devid].name), 0)
-                return DEVICE_INFERRED_OFF
-        return expected_state
 
     def set_light_stream(self, devid, color, is_group):
         """ Simplified function for quick, streamed light change requests """
@@ -535,24 +517,22 @@ class DeviceManager(object):
         return colors
 
     def _set_lights(self):
+        lock.acquire()
         debug.write("Running a change of states...", 0)
-        self.lockcount = 0
         firstran = False
+        colors = None
         try:
             while not self.queue.empty():
-                colors = None
                 _req = self.queue.get()
                 if firstran:
                     debug.write("Getting remainder of queue", 0)
                     self.reinit()
-                    self.run(_req)
-                    return
                 colors = self._decode_colors(
                     _req.colors)  # TODO Check performance
+                self.check_event_time(_req, _req.skip_time or self.always_skip_time)
                 if all(c == DEVICE_SKIP for c in colors):
                     debug.write("All device requests skipped", 0)
                     break
-                self.set_lock(1)
                 i = 0
                 tries = 0
                 firstran = True
@@ -563,7 +543,7 @@ class DeviceManager(object):
 
                         if _color != DEVICE_SKIP:
                             self.states[i] = self.get_state(i)
-                            if _color != self.states[i]:
+                            if _color != self.states[i] or _color == DEVICE_OFF:
                                 debug.write(("Device '{}', change {} => "
                                              "{} (Automatic mode: {})")
                                             .format(self[i].name,
@@ -573,10 +553,9 @@ class DeviceManager(object):
                         if self.threaded:
                             if not self.queue.empty():
                                 break
-                            self.light_threads[i] = self.light_pool.apply_async(self._set_device,
-                                                                                args=(i, _color,))
+                            self.light_threads[i] = self.light_pool.submit(self[i].pre_run, _color)
                         else:
-                            self._set_device(i, _color)
+                            self[i].pre_run(_color)
                     i += 1
 
                     if i == len(self):
@@ -587,10 +566,14 @@ class DeviceManager(object):
                                     break
                                 if _thread is not None:
                                     try:
-                                        if not _thread.ready() and _thread.get(5) is not None:
+                                        if not _thread.done() and _thread.result(5) is not None:
                                             i = 0
-                                    except:
+                                    except NewRequestException:
+                                        break
+                                    except Exception as ex:
                                         # TODO is this still necessary ?
+                                        debug.write("Got exception on thread getter", 1)
+                                        debug.write("ex: {}".format(ex), 1)
                                         i = 0
                             tries = tries + 1
                             if tries == 5:
@@ -611,18 +594,15 @@ class DeviceManager(object):
             pass
 
         finally:
+            lock.release()
             debug.write("Clearing up device change queues.", 0)
             if colors:
                 self.queue.task_done()
             self.reinit()
-            self.set_lock(0)
-            if firstran:
+            if self.threaded:
                 self.states = self.get_state()
 
         debug.write("Change of device states completed.", 0)
-
-    def _set_device(self, count, color):
-        return self[count].pre_run(color)
 
     @staticmethod
     def _update_sunset_time(localization):
@@ -797,5 +777,5 @@ class StateRequestObject(object):
         debug.write("Arguments are OK", 0)
         self.request_is_validated = True
         if not called_on_run:
-            self.run(dm)
+            self(dm)
         return True
