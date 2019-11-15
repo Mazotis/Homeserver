@@ -145,22 +145,22 @@ class device(object):
         """ Getter for the actual state """
         return self.state
 
-    def get_inferred_group_state(self, dm, expected_state):
+    def get_inferred_group_state(self, dm):
         _states = []
         for _cnt, dev in enumerate(dm):
             if _cnt != self.devid and self.state_inference_group in dm[_cnt].group:
                 _states.append(str(dm[_cnt].state))
         if all(x == DEVICE_ON for x in _states):
-            if expected_state != DEVICE_ON:
+            if self.state != DEVICE_ON:
                 debug.write("Device '{}' actual state inferred as ON from its group state".format(
                     self.name), 0)
                 return DEVICE_INFERRED_ON
         elif all(x == DEVICE_OFF for x in _states):
-            if expected_state != DEVICE_OFF:
+            if self.state != DEVICE_OFF:
                 debug.write("Device '{}' actual state inferred as OFF from its group state".format(
                     self.name), 0)
                 return DEVICE_INFERRED_OFF
-        return expected_state
+        return self.state
 
     def set_state(self, state):
         """ Setter for the actual state """

@@ -317,8 +317,7 @@ if __name__ == "__main__":
             from dnn.dnn import run_tensorflow
         if args.notime:
             dm.set_serverwide_skiptime()
-        if args.threaded:
-            dm.start_threaded()
+        dm.threaded = args.threaded
 
         runServer()
 

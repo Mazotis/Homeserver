@@ -5,6 +5,7 @@ var hasRoomGroups = false
 var modulesToRefresh = new Array()
 var dmconfig
 var oldstateJSON, stateJSON
+var pendingRequests = 0
 
 $(document).ready(function() {
     getResult();
@@ -119,10 +120,10 @@ function getResult() {
     })
 }
 
-function getResultRefresh(abortable=true) {
+function getResultRefresh() {
     $("#update-spin").show()
-    xhrAbortable = abortable
 
+    xhrAbortable = true
     xhr = $.ajax({
         type: "POST",
         url: ".",
@@ -136,6 +137,7 @@ function getResultRefresh(abortable=true) {
             xhrAbortable = false
             oldstateJSON = stateJSON
             stateJSON = JSON.parse(decodeURIComponent(data))
+            lastupdate = new Date()
             var i;
             for (i = 0; i < modulesToRefresh.length; i++) { 
                 getContent(modulesToRefresh[i]);
@@ -146,7 +148,7 @@ function getResultRefresh(abortable=true) {
     })  
 }
 
-function getOneResult(devid) {
+function getOneResult() {
     $.ajax({
         type: "POST",
         url: ".",
@@ -157,12 +159,13 @@ function getOneResult(devid) {
                 isasync: "True"
             },
         success: function(data){
+            pendingRequests--
             oldstateJSON = stateJSON
             stateJSON = JSON.parse(decodeURIComponent(data))
             lastupdate = new Date()
-            generateCard(devid, stateJSON, $(".card[cid=" + devid + "]"))
-            computeCards()
-            $(".card[cid=" + devid + "]").removeClass("disabledbutton")
+            if (pendingRequests == 0) {
+                computeCards()
+            }
         }
     })
 }
@@ -184,6 +187,7 @@ function generateCard(devid, data, a_this = null) {
 }
 
 function computeCards() {
+    $(".card").removeClass("disabledbutton")
     $(".dcard").each(function() {
         var cid, cinit, hascontrols
         cid = parseInt($(this).attr("cid"))
@@ -316,7 +320,7 @@ function computeCards() {
         $(this).removeClass("border-danger")
         $(this).removeClass("border-warning")
         $(this).removeClass("border-success")
-        $(this).find(".dcard-toggle").prop('disabled', false)
+        $(this).find(".dcard-toggle").bootstrapToggle('enable')
         if (stateJSON.state[cid] == "0" || (!isNaN(stateJSON.state[cid]) && parseInt(stateJSON.state[cid]) == 0) || stateJSON.state[cid] == "*0") {
             if ($(this).find(".dcard-toggle").prop('checked')) {
                 $(this).find(".dcard-toggle").bootstrapToggle('off', true)
@@ -324,7 +328,7 @@ function computeCards() {
             $(this).find(".card-header").addClass("bg-danger")
             $(this).addClass("border-danger")
         } else if (stateJSON.state[cid] == "-2") {
-            $(this).find(".dcard-toggle").prop('disabled', true)
+            $(this).find(".dcard-toggle").bootstrapToggle('disable')
             $(this).find(".card-header").addClass("bg-warning")
             $(this).addClass("border-warning")
         } else if (stateJSON.state[cid] != "X") {
@@ -336,7 +340,7 @@ function computeCards() {
         }
 
         if (stateJSON.state[cid] == "X") {
-            $(this).find(".dcard-toggle").attr('disabled', true)
+            $(this).find(".dcard-toggle").bootstrapToggle('disable')
             $(this).find(".card-header").removeClass("text-white")
             $(this).find(".card-header").append('<i class="fas fa-wrench wrench-btn" onclick="reconnectDevice(' + cid + ')" title="_(Attempt device reconnection)"></i>')
         }
@@ -443,7 +447,7 @@ function computeRCards() {
         $(this).find(".d-count").removeClass("bg-danger")
         $(this).find(".d-count").removeClass("bg-warning")
         $(this).find(".d-count").removeClass("bg-success")
-        $(this).find(".rcard-toggle").prop("disabled", false)
+        $(this).find(".rcard-toggle").bootstrapToggle('enable')
         if (hasoffdevices == false && hasdefectdevices == false) {
             $(this).addClass("border-success")
             $(this).find(".title-header").addClass("bg-success")
@@ -468,7 +472,7 @@ function computeRCards() {
         } else {
             $(this).find(".title-header").removeClass("text-white")
             $(this).find(".title-footer").removeClass("text-white")
-            $(this).find(".rcard-toggle").prop("disabled", true)
+            $(this).find(".rcard-toggle").bootstrapToggle('disable')
         }
 
         $(this).attr("cinit", "1")
@@ -477,6 +481,7 @@ function computeRCards() {
 
 function sendPowerRequest(devid, value, is_intensity=0) {
     abortPendingRequests()
+    pendingRequests++
     $(".card[cid=" + devid + "]").addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -488,16 +493,17 @@ function sendPowerRequest(devid, value, is_intensity=0) {
                 devid: devid,
                 value: value,
                 isintensity: is_intensity,
-                skiptime: $('input[name=skiptime2]').is(":checked")
+                skiptime: $('input[name=skiptime2]').parent().hasClass("active")
             },
         success: function(data){
-            getOneResult(devid)
+            getOneResult()
         }
     })
 }
 
 function sendGroupPowerRequest(group, value, devid) {
     abortPendingRequests()
+    pendingRequests++
     $("#"+devid).addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -508,17 +514,18 @@ function sendGroupPowerRequest(group, value, devid) {
                 reqtype: "setgroup",
                 group: group,
                 value: value,
-                skiptime: $('input[name=skiptime2]').is(":checked")
+                skiptime: $('input[name=skiptime2]').parent().hasClass("active")
             },
         success: function(data){
+            getOneResult()
             $("#"+devid).removeClass("disabledbutton")
-            getResultRefresh(false)
         }
     })
 }
 
 function sendModeRequest(devid, auto) {
     abortPendingRequests()
+    pendingRequests++
     $(".card[cid=" + devid + "]").addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -531,13 +538,14 @@ function sendModeRequest(devid, auto) {
                 devid: devid
             },
         success: function(data){
-            getOneResult(devid)
+            getOneResult()
         }
     })
 }
 
 function sendAllModeAuto() {
     abortPendingRequests()
+    pendingRequests++
     $(".dcard").addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -548,14 +556,15 @@ function sendAllModeAuto() {
                 reqtype: "setallmode"
             },
         success: function(data){
+            getOneResult()
             $(".dcard").removeClass("disabledbutton")
-            getResultRefresh(false)
         }
     })
 }
 
 function setLockDevice(lock, devid) {
     $("#"+devid).addClass("disabledbutton")
+    pendingRequests++
     $.ajax({
         type: "POST",
         url: ".",
@@ -567,7 +576,7 @@ function setLockDevice(lock, devid) {
                 devid: devid
             },
         success: function(data){
-            getOneResult(devid)
+            getOneResult()
         },
         error: function(data){
             console.log(data)
@@ -678,6 +687,7 @@ function saveConfig(section) {
 
 function reconnectDevice(devid) {
     abortPendingRequests()
+    pendingRequests++
     $(".card[cid=" + devid + "]").addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -689,7 +699,7 @@ function reconnectDevice(devid) {
                 devid: devid
             },
         success: function(data){
-            getOneResult(devid)
+            getOneResult()
         }
     })
 }
@@ -697,6 +707,7 @@ function reconnectDevice(devid) {
 function confirmState(devid, state) {
     state = state.replace("*", "")
     abortPendingRequests()
+    pendingRequests++
     $(".card[cid=" + devid + "]").addClass("disabledbutton")
     $.ajax({
         type: "POST",
@@ -709,7 +720,7 @@ function confirmState(devid, state) {
                 devid: devid
             },
         success: function(data){
-            getOneResult(devid)
+            getOneResult()
         }
     })    
 }
