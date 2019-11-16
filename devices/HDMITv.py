@@ -8,6 +8,7 @@
     A specialized GenericOnOff for HDMI-connected TV with CEC capabilities
 '''
 
+import os
 import subprocess
 from core.common import *
 from core.device import device
@@ -27,7 +28,7 @@ class HDMITv(device):
     def get_state(self):
         if not self.success:
             try:
-                _stdout = subprocess.check_output("echo 'pow 0' | cec-client -s >/dev/null",
+                _stdout = subprocess.check_output("echo 'pow 0' | cec-client -s",
                                                   shell=True).decode('UTF-8')
             except subprocess.CalledProcessError:
                 self.state = 0
