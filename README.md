@@ -13,7 +13,6 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 * It is portable - the server can be executed on any python3 compatible machine. You may also have multiple servers if, for example, your bluetooth devices are too far away.
 * It supports delayed changes (open x device for n seconds, or change y device state after n seconds).
 * Compatible with IFTTT (can be interfaced with Google Assistant/Google home and other voice devices) to add vocal commands to any non-smart device.
-* Allows indoor localization with [FIND3](https://github.com/schollz/find3) to turn on/off devices depending on where you are located inside your home.
 * Can receive commands from any IoT device/detectors that can connect via TCP wifi socket (see [WIKI](https://github.com/Mazotis/Homeserver/wiki/Connecting-a-Arduino-ESP8266-other-devices-via-TCP-socket) page on this) 
 * Can receive commands from a mobile-friendly web interface (for a rpi3, default address is raspberrypi:WEBSERVER_PORT - as defined in home.ini)
 * Can automatically schedule - or start from the webserver - rsync backups between linux computers via the backup module.
@@ -211,5 +210,4 @@ class mynewmodule(Thread):
 * albertogeniola for the [Meross API](https://github.com/albertogeniola/MerossIot)
 * moosd for the [Milight BLE protocol](https://github.com/moosd/ReverseEngineeredMiLightBluetooth)
 * tlyakhov for the [Decora WIFI API](https://github.com/tlyakhov/python-decora_wifi)
-* schollz for the [FIND3](https://github.com/schollz/find3) protocol
 * GadgetReactor for the [TPLink switches](https://github.com/GadgetReactor/pyHS100) support

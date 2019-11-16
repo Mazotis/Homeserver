@@ -27,7 +27,7 @@ class HDMITv(device):
     def get_state(self):
         if not self.success:
             try:
-                _stdout = subprocess.check_output("echo 'pow 0' | cec-client -s",
+                _stdout = subprocess.check_output("echo 'pow 0' | cec-client -s >/dev/null",
                                                   shell=True).decode('UTF-8')
             except subprocess.CalledProcessError:
                 self.state = 0

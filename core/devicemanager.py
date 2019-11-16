@@ -2,11 +2,12 @@
 '''
     File name: devicemanager.py
     Author: Maxime Bergeron
-    Date last modified: 05/11/2019
+    Date last modified: 15/11/2019
     Python Version: 3.5
 
     The device and modules manager for the homeserver. Not a module per-se
 '''
+import ast
 import datetime
 import re
 import subprocess
@@ -52,7 +53,6 @@ class DeviceManager(object):
         self.states = self.get_state()
         self.skip_time = False
         debug.write("Got initial device states {}".format(self.states), 0)
-        self.threaded = False
         self.light_threads = [None] * len(self)
         self.light_pool = None
         self.all_groups = None
@@ -694,11 +694,30 @@ class StateRequestObject(object):
         self.colors[position] = color
 
     def set(self, **kwargs):
-        allowed_keys = {'hexvalues', 'off', 'on', 'restart', 'toggle', 'group',
+        allowed_keys = ['hexvalues', 'off', 'on', 'restart', 'toggle', 'group',
                         'notime', 'delay', 'preset', 'manual_mode', 'reset_location_data',
-                        'force_auto_mode', 'auto_mode', 'reset_mode', 'skip_time', 'set_mode_for_devid'}
+                        'force_auto_mode', 'auto_mode', 'reset_mode', 'skip_time', 'set_mode_for_devid']
+        for _dev in getDevices(True):
+            allowed_keys.append(_dev)
+        for k, v in kwargs.items():
+            if k not in allowed_keys:
+                debug.write(
+                    "Missing or unallowed variable in request: {}".format(k), 1)
         self.__dict__.update((k, v)
                              for k, v in kwargs.items() if k in allowed_keys)
+
+    def from_string(self, json_str):
+        if json_str is None or json_str == "":
+            return False
+        debug.write("Parsing request: {}".format(json_str), 0)
+        try:
+            _args = ast.literal_eval(json_str)
+            self.set(**_args)
+            return True
+        except ValueError:
+            debug.write(
+                "Request {} is incorrectly formed.".format(json_str), 1)
+            return False
 
     def parse_args(self, args):
         for _arg in vars(args):

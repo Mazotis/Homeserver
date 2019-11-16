@@ -2,7 +2,7 @@
 '''
     File name: detector.py
     Author: Maxime Bergeron
-    Date last modified: 22/10/2019
+    Date last modified: 15/11/2019
     Python Version: 3.5
 
     The device-pinging detector module for the homeserver
@@ -10,7 +10,6 @@
 
 import datetime
 import os
-import requests
 from core.common import *
 from core.devicemanager import StateRequestObject
 from threading import Thread, Event
@@ -19,8 +18,8 @@ from threading import Thread, Event
 class detector(Thread):
     def __init__(self, config, dm):
         Thread.__init__(self)
-        self.detector_config = config['DETECTOR']
-        self.find3_config = config['FIND3-PRESETS']
+        self.config = config
+        self.detector_config = self.config['DETECTOR']
         self.stopevent = Event()
         self.TRACKED_IPS = self.detector_config['TRACKED_IPS'].split(",")
         self.device_state_level = [
@@ -29,14 +28,13 @@ class detector(Thread):
             'MAX_STATE_LEVEL')
         self.device_status = [
             0] * len(self.TRACKED_IPS)
-        self.FIND3_SERVER = self.detector_config.getboolean(
-            'FIND3_SERVER_ENABLE')
         self.DETECTOR_START_HOUR = datetime.datetime.strptime(
             self.detector_config['START_HOUR'], '%H:%M').time()
         self.DETECTOR_END_HOUR = datetime.datetime.strptime(
             self.detector_config['END_HOUR'], '%H:%M').time()
-        self.status = 0
-        self.delayed_start = 0
+        # This represents an active state (a device is connected) + event time is reached
+        self.status = True
+        self.delayed_start = False
         self.dm = dm
         if config.has_option("DETECTOR", "TRACKED_PICTURES"):
             if len(self.detector_config["TRACKED_PICTURES"].split(',')) == len(self.detector_config["TRACKED_IPS"].split(',')):
@@ -72,28 +70,6 @@ class detector(Thread):
 
     def first_detect(self):
         debug.write("Starting ping-based device detector", 0, "DETECTOR")
-
-        if self.FIND3_SERVER:
-            debug.write("Starting FIND3 localization server", 0, "DETECTOR")
-            self.tracked_find3_devs = self.detector_config['FIND3_TRACKED_DEVICES'].split(
-                ",")
-            self.tracked_find3_times = [0] * len(self.tracked_find3_devs)
-            self.tracked_find3_local = [""] * len(self.tracked_find3_devs)
-            for _cnt, _dev in enumerate(self.tracked_find3_devs):
-                # Get last update times
-                if _dev != "_":
-                    try:
-                        _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.detector_config['FIND3_SERVER_URL'],
-                                                                                   self.detector_config['FIND3_FAMILY_NAME'],
-                                                                                   _dev))
-                    except requests.exceptions.ConnectionError:
-                        debug.write(
-                            "Cannot connect to FIND3 server using provided config. Disabling", 1, "DETECTOR")
-                        self.FIND3_SERVER = False
-                        break
-
-                    self.tracked_find3_times[_cnt] = _r.json()['sensors']['t']
-
         for _cnt, device in enumerate(self.TRACKED_IPS):
             if device != "_" and int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
                 self.device_state_level[_cnt] = self.DEVICE_STATE_MAX
@@ -111,102 +87,84 @@ class detector(Thread):
 
     def detect_devices(self):
         EVENT_TIME = self.dm.update_event_time()
+        ACTUAL_TIME = datetime.datetime.now().time()
+
+        if self.status and all(s == 0 for s in self.device_state_level):
+            debug.write(
+                "All devices are disconnected, running ON_DISCONNECT.", 0, "DETECTOR")
+            req = StateRequestObject()
+            if self.detector_config.getboolean('FALLBACK_AUTO_ON_DISCONNECT'):
+                self.run_state_request(
+                    "ON_ALL_DISCONNECT_EVENT", reset_mode=True)
+            else:
+                self.run_state_request("ON_ALL_DISCONNECT_EVENT")
+            self.status = False
+            self.delayed_start = False
+
+        if ACTUAL_TIME == EVENT_TIME and self.delayed_start:
+            debug.write(
+                "Event time reached and devices are connected.", 0, "DETECTOR")
+            self.run_state_request("ON_EVENT_HOUR_EVENT")
+            self.delayed_start = False
+            self.status = True
+
+        if self.DEVICE_STATE_MAX in self.device_state_level and not self.delayed_start:
+            if datetime.datetime.now().time() < EVENT_TIME:
+                debug.write("Scheduling ON_EVENT_HOUR state change at {}".format(
+                    EVENT_TIME), 0, "DETECTOR")
+                self.delayed_start = True
+                self.status = False
+
+        if self.DEVICE_STATE_MAX in self.device_state_level and not self.status and ACTUAL_TIME >= EVENT_TIME:
+            debug.write(
+                "Devices connected between event time and detector off-time.", 0, "DETECTOR")
+            self.run_state_request("ON_EVENT_HOUR_EVENT")
+            self.status = True
+            self.delayed_start = False
+
+        if all(s == 0 for s in self.device_state_level) and not self.status and self.delayed_start:
+            debug.write(
+                "Devices disconnected. Aborting scheduled event.", 0, "DETECTOR")
+            self.delayed_start = False
+
         for _cnt, device in enumerate(self.TRACKED_IPS):
-            # TODO Maintain the two pings requirement for status change ?
-            if device != "_" and int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
-                if self.device_state_level[_cnt] == self.DEVICE_STATE_MAX and self.device_status[_cnt] == 0:
+            if device == "_":
+                continue
+
+            if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
+                if self.device_status[_cnt] == 0:
                     debug.write("Device {} CONnected".format(
                         device), 0, "DETECTOR")
                     self.device_status[_cnt] = 1
-                elif self.device_state_level[_cnt] != self.DEVICE_STATE_MAX:
-                    self.device_state_level[_cnt] = self.device_state_level[_cnt] + 1
-                if self.FIND3_SERVER and self.tracked_find3_devs[_cnt] != "_":
-                    self.tracked_find3_local = [
-                        ""] * len(self.tracked_find3_devs)
-                    _r = requests.get("http://{}/api/v1/location/{}/{}".format(self.detector_config['FIND3_SERVER_URL'],
-                                                                               self.detector_config['FIND3_FAMILY_NAME'],
-                                                                               self.tracked_find3_devs[_cnt]))
-                    if self.tracked_find3_times[_cnt] != _r.json()['sensors']['t'] and \
-                       self.tracked_find3_local[_cnt] != _r.json()['analysis']['guesses'][0]['location']:
-                        if _r.json()['analysis']['guesses'][0]['location'] in self.find3_config:
-                            if self.find3_config.getboolean('AUTOMATIC_MODE'):
-                                req = StateRequestObject(auto_mode=True, hexvalues=self.find3_config[_r.json()[
-                                    'analysis']['guesses'][0]['location']])
-                            else:
-                                req = StateRequestObject(hexvalues=self.find3_config[_r.json()[
-                                    'analysis']['guesses'][0]['location']])
-                            req(self.dm)
-                            debug.write("Device {} found in '{}'. Running change of lights."
-                                        .format(self.tracked_find3_devs[_cnt],
-                                                _r.json()['analysis']['guesses'][0]['location']), 0, "DETECTOR")
-
-                        else:
-                            debug.write("Device {} found in '{}' but preset is not self.configured."
-                                        .format(self.tracked_find3_devs[_cnt],
-                                                _r.json()['analysis']['guesses'][0]['location']), 0, "DETECTOR")
-                        if self.tracked_find3_local[_cnt] + "-off" in self.find3_config:
-                            if self.find3_config.getboolean('AUTOMATIC_MODE'):
-                                req = StateRequestObject(
-                                    auto_mode=True, hexvalues=self.find3_config[self.tracked_find3_local][_cnt] + "-off")
-                            else:
-                                req = StateRequestObject(
-                                    hexvalues=self.find3_config[self.tracked_find3_local][_cnt] + "-off")
-                            req(self.dm)
-                            debug.write("Device {} left '{}'. Running change of lights."
-                                        .format(self.tracked_find3_devs[_cnt],
-                                                self.tracked_find3_local[_cnt]), 0, "DETECTOR")
-                        self.tracked_find3_times[_cnt] = _r.json()[
-                            'sensors']['t']
-                        self.tracked_find3_local[_cnt] = _r.json(
-                        )['analysis']['guesses'][0]['location']
-            elif device != "_":
+                    self.device_state_level[_cnt] = self.DEVICE_STATE_MAX
+                    if ACTUAL_TIME >= EVENT_TIME:
+                        self.run_state_request(
+                            "ON_EVENT_HOUR_DEVICE_CONNECT_EVENT")
+                    else:
+                        self.run_state_request("ON_DEVICE_CONNECT_EVENT")
+            else:
                 if self.device_state_level[_cnt] == 0 and self.device_status[_cnt] == 1:
                     debug.write("DEVICE {} DISconnected".format(
                         device), 0, "DETECTOR")
                     self.device_status[_cnt] = 0
+                    if ACTUAL_TIME >= EVENT_TIME:
+                        self.run_state_request(
+                            "ON_EVENT_HOUR_DEVICE_DISCONNECT_EVENT")
+                    else:
+                        self.run_state_request("ON_DEVICE_DISCONNECT_EVENT")
                 elif self.device_state_level[_cnt] != 0:
-                    # Decrease state level down to zero (OFF)
-                    self.device_state_level[_cnt] = self.device_state_level[_cnt] - 1
+                    self.device_state_level[_cnt] -= 1
 
-        if self.status == 1 and all(s == 0 for s in self.device_state_level):
-            debug.write("STATE changed to {} and DELAYED_START {}, turned off"
-                        .format(self.device_state_level, self.delayed_start), 0, "DETECTOR")
-            if self.detector_config.getboolean('FALLBACK_AUTO_ON_DISCONNECT'):
-                req = StateRequestObject(reset_mode=True, off=True,
-                                         notime=True)
+    def run_state_request(self, request, reset_mode=False):
+        if self.config.has_option("DETECTOR", request) and self.detector_config[request] not in [None, ""]:
+            debug.write("Running event: {}".format(request), 0, "DETECTOR")
+            req = StateRequestObject()
+            if reset_mode:
+                req.set(reset_mode=True)
             else:
-                req = StateRequestObject(auto_mode=True, off=True,
-                                         notime=True)
-            req(self.dm)
-            self.status = 0
-            self.delayed_start = 0
-        if datetime.datetime.now().time() == EVENT_TIME and self.delayed_start == 1:
-            debug.write("DELAYED STATE with actual state {}, turned on".format(self.device_state_level),
-                        0, "DETECTOR")
-            req = StateRequestObject(
-                auto_mode=True, on=True, group=self.detector_config['AUTO_ON_GROUP'])
-            req(self.dm)
-            self.delayed_start = 0
-            self.status = 1
-        if self.DEVICE_STATE_MAX in self.device_state_level and self.delayed_start == 0:
-            if datetime.datetime.now().time() < EVENT_TIME:
-                debug.write("Scheduling state change, with actual state {}"
-                            .format(self.device_state_level), 0, "DETECTOR")
-                self.delayed_start = 1
-                self.status = 0
-        if self.DEVICE_STATE_MAX in self.device_state_level and self.status == 0 and datetime.datetime.now().time() \
-           >= EVENT_TIME:
-            debug.write("STATE changed to {}, turned on".format(
-                self.device_state_level), 0, "DETECTOR")
-            req = StateRequestObject(
-                auto_mode=True, on=True, group=self.detector_config['AUTO_ON_GROUP'])
-            req(self.dm)
-            self.status = 1
-            self.delayed_start = 0
-        if all(s == 0 for s in self.device_state_level) and self.status == 0 and self.delayed_start == 1:
-            debug.write("Aborting light change, with actual state {}"
-                        .format(self.device_state_level), 0, "DETECTOR")
-            self.delayed_start = 0
+                req.set(auto_mode=True)
+            if req.from_string(self.detector_config[request]):
+                req(self.dm)
 
     def get_web(self):
         web = ""

@@ -139,12 +139,11 @@ class HomeServer(object):
             if data[3:] in self.config["TCP-PRESETS"]:
                 debug.write("Running TCP preset {}".format(
                     data[3:]), 0)
+                req = StateRequestObject()
                 if self.config["TCP-PRESETS"].getboolean('AUTOMATIC_MODE'):
-                    StateRequestObject(
-                        auto_mode=True, hexvalues=self.config["TCP-PRESETS"][data[3:]]).run(self.lm)
-                else:
-                    StateRequestObject(
-                        hexvalues=self.config["TCP-PRESETS"][data[3:]]).run(self.lm)
+                    req.set(auto_mode=True)
+                if req.from_string(self.config["TCP-PRESETS"][data[3:]]):
+                    req.run(self.lm)
             else:
                 debug.write("TCP preset {} is not configured".format(
                     data[3:]), 1)
