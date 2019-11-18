@@ -65,7 +65,7 @@ class backup(Thread):
                 timedelta(hours=self.backup_interval)
             debug.write("Will do another backup at: {}".format(_next_run.strftime('%d %B, %H:%M')),
                         0, "BACKUP")
-        self.stop()
+        debug.write("Stopped.", 0, "BACKUP")
         return
 
     def run_backup(self, clientid=None):
@@ -187,7 +187,7 @@ class backup(Thread):
         _col[int(devid)] = state
         req.set_colors(_col, len(self.dm))
         req.set(skip_time=True, auto_mode=False)
-        req(self.dm)
+        req()
 
     def stop(self):
         debug.write("Stopping.", 0, "BACKUP")
@@ -196,7 +196,7 @@ class backup(Thread):
             debug.write("Killing remaining backup.", 0, "BACKUP")
             os.killpg(os.getpgid(self.rsync.pid), signal.SIGTERM)
         self.stopevent.set()
-        pass
+        return
 
     def get_web(self):
         web = """

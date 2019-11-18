@@ -12,6 +12,7 @@ import json
 import requests
 import ssl
 from core.common import *
+from core.devicemanager import StateRequestObject
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from threading import Thread
 
@@ -35,16 +36,20 @@ class DFServer(BaseHTTPRequestHandler):
         self._set_response()
         action = request['queryResult']['parameters']['LightserverAction']
         groups = request['queryResult']['parameters']['LightserverGroups']
-        if config['DIALOGFLOW'].getboolean('AUTOMATIC_MODE'):
-            request = "./homeclient.py --{} --auto-mode --notime --group {}".format(
-                action, ' '.join(groups))
+
+        req = StateRequestObject()
+        if action == "on":
+            req.set(on=True)
         else:
-            request = "./homeclient.py --{} --notime --group {}".format(
-                action, ' '.join(groups))
+            req.set(off=True)
+
+        if config['DIALOGFLOW'].getboolean('AUTOMATIC_MODE'):
+            req.set(auto_mode=True)
+        req.set(skip_time=True, group=' '.join(groups))
 
         debug.write('Running detected request: {}'.format(
             request), 0, "DIALOGFLOW")
-        os.system(request)
+        req()
 
 
 class dialogflow(Thread):

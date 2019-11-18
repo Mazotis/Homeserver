@@ -27,7 +27,7 @@ class detector(Thread):
         self.DEVICE_STATE_MAX = self.detector_config.getint(
             'MAX_STATE_LEVEL')
         self.device_status = [
-            0] * len(self.TRACKED_IPS)
+            False] * len(self.TRACKED_IPS)
         self.DETECTOR_START_HOUR = datetime.datetime.strptime(
             self.detector_config['START_HOUR'], '%H:%M').time()
         self.DETECTOR_END_HOUR = datetime.datetime.strptime(
@@ -44,11 +44,16 @@ class detector(Thread):
                     "You must provide enough TRACKED_PICTURES to match the TRACKED_IPS.", 1, "DETECTOR")
 
     def run(self):
-        _is_running = False
+        _is_running = True
         self.first_detect()
         while not self.stopevent.is_set():
-            if self.DETECTOR_START_HOUR > datetime.datetime.now().time() or \
-                    self.DETECTOR_END_HOUR < datetime.datetime.now().time():
+            self.actual_time = datetime.datetime.now().time()
+
+            if self.DETECTOR_START_HOUR > self.actual_time or \
+                    self.DETECTOR_END_HOUR < self.actual_time:
+                if _is_running:
+                    debug.write("Standby. Running between {} and {}".format(self.DETECTOR_START_HOUR,
+                                                                            self.DETECTOR_END_HOUR), 0, "DETECTOR")
                 _is_running = False
                 self.stopevent.wait(30)
                 continue
@@ -57,10 +62,10 @@ class detector(Thread):
                     "Setting back all devices to AUTO mode for new day", 0, "DETECTOR")
                 req = StateRequestObject(force_auto_mode=True,
                                          notime=True)
-                req(self.dm)
-                _is_running = True
+                req()
+            _is_running = True
             self.detect_devices()
-            self.stopevent.wait(int(self.detector_config['PING_FREQ_SEC']))
+            self.stopevent.wait(self.detector_config.getint('PING_FREQ_SEC'))
         debug.write("Stopped.", 0, "DETECTOR")
         return
 
@@ -71,23 +76,20 @@ class detector(Thread):
     def first_detect(self):
         debug.write("Starting ping-based device detector", 0, "DETECTOR")
         for _cnt, device in enumerate(self.TRACKED_IPS):
-            if device != "_" and int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
+            if device == "_":
+                continue
+
+            if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
                 self.device_state_level[_cnt] = self.DEVICE_STATE_MAX
-                self.device_status[_cnt] = 1
+                self.device_status[_cnt] = True
             else:
                 self.device_state_level[_cnt] = 0
-                self.device_status[_cnt] = 0
+                self.device_status[_cnt] = False
         debug.write("Got initial states {} and status {}".format(
             self.device_state_level, self.status), 0, "DETECTOR")
 
-        if self.DETECTOR_START_HOUR > datetime.datetime.now().time() or \
-           self.DETECTOR_END_HOUR < datetime.datetime.now().time():
-            debug.write("Standby. Running between {} and {}".format(self.DETECTOR_START_HOUR,
-                                                                    self.DETECTOR_END_HOUR), 0, "DETECTOR")
-
     def detect_devices(self):
-        EVENT_TIME = self.dm.update_event_time()
-        ACTUAL_TIME = datetime.datetime.now().time()
+        event_time = self.dm.update_event_time()
 
         if self.status and all(s == 0 for s in self.device_state_level):
             debug.write(
@@ -101,7 +103,7 @@ class detector(Thread):
             self.status = False
             self.delayed_start = False
 
-        if ACTUAL_TIME == EVENT_TIME and self.delayed_start:
+        if self.actual_time == event_time and self.delayed_start:
             debug.write(
                 "Event time reached and devices are connected.", 0, "DETECTOR")
             self.run_state_request("ON_EVENT_HOUR_EVENT")
@@ -109,13 +111,13 @@ class detector(Thread):
             self.status = True
 
         if self.DEVICE_STATE_MAX in self.device_state_level and not self.delayed_start:
-            if datetime.datetime.now().time() < EVENT_TIME:
+            if datetime.datetime.now().time() < event_time:
                 debug.write("Scheduling ON_EVENT_HOUR state change at {}".format(
-                    EVENT_TIME), 0, "DETECTOR")
+                    event_time), 0, "DETECTOR")
                 self.delayed_start = True
                 self.status = False
 
-        if self.DEVICE_STATE_MAX in self.device_state_level and not self.status and ACTUAL_TIME >= EVENT_TIME:
+        if self.DEVICE_STATE_MAX in self.device_state_level and not self.status and self.actual_time >= event_time:
             debug.write(
                 "Devices connected between event time and detector off-time.", 0, "DETECTOR")
             self.run_state_request("ON_EVENT_HOUR_EVENT")
@@ -132,22 +134,22 @@ class detector(Thread):
                 continue
 
             if int(os.system("ping -c 1 -W 1 {} >/dev/null".format(device))) == 0:
-                if self.device_status[_cnt] == 0:
-                    debug.write("Device {} CONnected".format(
-                        device), 0, "DETECTOR")
-                    self.device_status[_cnt] = 1
-                    self.device_state_level[_cnt] = self.DEVICE_STATE_MAX
-                    if ACTUAL_TIME >= EVENT_TIME:
+                self.device_state_level[_cnt] = self.DEVICE_STATE_MAX
+                if not self.device_status[_cnt]:
+                    self.device_status[_cnt] = True
+                    debug.write("Device {} CONnected (with actual state levels: {})".format(
+                        device, self.device_state_level), 0, "DETECTOR")
+                    if self.actual_time >= event_time:
                         self.run_state_request(
                             "ON_EVENT_HOUR_DEVICE_CONNECT_EVENT")
                     else:
                         self.run_state_request("ON_DEVICE_CONNECT_EVENT")
             else:
-                if self.device_state_level[_cnt] == 0 and self.device_status[_cnt] == 1:
-                    debug.write("DEVICE {} DISconnected".format(
-                        device), 0, "DETECTOR")
-                    self.device_status[_cnt] = 0
-                    if ACTUAL_TIME >= EVENT_TIME:
+                if self.device_state_level[_cnt] == 0 and self.device_status[_cnt]:
+                    self.device_status[_cnt] = False
+                    debug.write("Device {} DISconnected (with actual state levels: {})".format(
+                        device, self.device_state_level), 0, "DETECTOR")
+                    if self.actual_time >= event_time:
                         self.run_state_request(
                             "ON_EVENT_HOUR_DEVICE_DISCONNECT_EVENT")
                     else:
@@ -164,7 +166,7 @@ class detector(Thread):
             else:
                 req.set(auto_mode=True)
             if req.from_string(self.detector_config[request]):
-                req(self.dm)
+                req()
 
     def get_web(self):
         web = ""
@@ -174,7 +176,7 @@ class detector(Thread):
                 debug.write(
                     "Max amount of pictures for detector web module is 5. Hiding the rest.", 1, "DETECTOR")
                 break
-            if self.device_state_level[_cnt] != self.DEVICE_STATE_MAX and self.TRACKED_IPS[_cnt] != "_":
+            if not self.device_status[_cnt] and self.TRACKED_IPS[_cnt] != "_":
                 web += '<img src={} class="mx-auto d-block border-danger" style="width:85px; height:85px; border-radius:50%; margin-right:3px !important; border:5px solid; -webkit-filter: grayscale(100%); filter: grayscale(100%);">'.format(
                     "/images/" + pic)
             else:

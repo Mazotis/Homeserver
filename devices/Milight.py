@@ -38,7 +38,6 @@ class Milight(Bulb):
         self.device_type = "Milight"
         self.id1 = config["DEVICE" + str(devid)]["ID1"]
         self.id2 = config["DEVICE" + str(devid)]["ID2"]
-        self.state = "0"
         if self.color_type is None:
             self.color_type = "255"
         self.color_temp = int(config["DEVICE" + str(devid)]["DEFAULT_TEMP"])
@@ -72,7 +71,7 @@ class Milight(Bulb):
         """ Helper function to change color """
         debug.write("Setting ({}) to COLOR {}".format(
             self.description, color), 0, self.device_type)
-        if self.state == "0":
+        if self.state == DEVICE_OFF:
             if not self.turn_on():
                 return False
         if type(color) is tuple:

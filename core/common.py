@@ -88,11 +88,13 @@ class DebugLog(object):
 
                 _cdebugtext = "({}) - [{}{}\033[0m] {}[{}] {}\033[0m".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
                                                                              self.COLOR_LEVELS[level], self.LEVELS[level], _dcolor, devicetype, msg)
+                _debugtext = "({}) - [{}] [{}] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                                          self.LEVELS[level], devicetype, msg)
             else:
                 _cdebugtext = "({}) - [{}{}\033[0m] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
                                                                self.COLOR_LEVELS[level], self.LEVELS[level], msg)
-            _debugtext = "({}) - [{}] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-                                                 self.LEVELS[level], msg)
+                _debugtext = "({}) - [{}] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                                     self.LEVELS[level], msg)
             print(_cdebugtext)
             if ast.literal_eval(self.config['SERVER']['JOURNALING']):
                 try:

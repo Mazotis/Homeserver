@@ -53,14 +53,14 @@ class GenericOnOff(device):
                 self.device), 0, self.device_type)
             os.system(self.config["OFF"])
             self.success = True
-            self.state = 0
+            self.state = DEVICE_OFF
             return True
         elif color == DEVICE_ON and self.config["ON"]:
             debug.write("Turning device {} ON".format(
                 self.device), 0, self.device_type)
             os.system(self.config["ON"])
             self.success = True
-            self.state = 1
+            self.state = DEVICE_ON
             return True
         debug.write("Request for state {} cannot be handled for device {}".format(
             color, self.device), 1, self.device_type)

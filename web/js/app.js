@@ -116,6 +116,7 @@ function getResult() {
             $("#resultid").html(html)
             computeCards()
             $("#update-spin").hide()
+            getResultRefresh()
         }
     })
 }

@@ -15,11 +15,27 @@ import time
 import queue
 from core.common import *
 from core.convert import convert_to_web_rgb, convert_color
-from concurrent.futures import ThreadPoolExecutor
-from threading import Timer, Lock
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from threading import Thread, Timer, Lock
 
 
 lock = Lock()
+request_queue = queue.Queue()
+
+
+class ExecutionState():
+    exec_lock = Lock()
+    executing = False
+
+    @staticmethod
+    def get():
+        with ExecutionState().exec_lock:
+            return ExecutionState().executing
+
+    @staticmethod
+    def set(exec_state):
+        with ExecutionState().exec_lock:
+            ExecutionState().executing = exec_state
 
 
 class DeviceManager(object):
@@ -71,6 +87,7 @@ class DeviceManager(object):
             self.devices.append(device)
 
     def __call__(self, async=True):
+        lock.acquire()
         dm_status = {}
         dm_status["state"] = self.get_state(
             async=async, webcolors=True)
@@ -93,6 +110,7 @@ class DeviceManager(object):
         if self.config.has_option("WEBSERVER", "ROOM_GROUPS"):
             dm_status["roomgroups"] = self.config["WEBSERVER"]["ROOM_GROUPS"]
         dm_status["deviceroom"] = self.room_groups
+        lock.release()
         return dm_status
 
     @property
@@ -282,43 +300,6 @@ class DeviceManager(object):
                 request[i] = request.device_type_args[_cnt]
         return True
 
-    def run(self, request):
-        """ Validates the request and runs the light change """
-        if not request.request_is_validated and not request.validate_request(self, self.config, called_on_run=True):
-            return
-        self.clean_delayed_changes()
-
-        if request.colors is None:
-            request.colors = [DEVICE_SKIP] * len(self)
-
-        self.skip_time = request.skip_time
-        self.set_mode(request)
-        if request.device_type is not None:
-            if not self.set_typed_colors(request):
-                return
-        if request.group is not None:
-            self.get_group(request)
-
-        if request.delay is not 0:
-            delay = request.delay
-            debug.write(
-                "Delaying request for {} seconds".format(request.delay), 0)
-            request.delay = 0
-            _sched = Timer(int(delay), self.run, (request,))
-            _sched.start()
-            self.scheduled_changes.append(_sched)
-            return
-        # TODO Manage locking out when the run thread hangs
-        debug.write("Locked status: {}".format(lock.locked()), 0)
-        self.queue.put(request)
-        if not lock.locked():
-            self._set_lights()
-        elif self.threaded:
-            for _thread in self.light_threads:
-                if _thread is not None and not _thread.done():
-                    _thread.set_exception(NewRequestException)
-                    _thread.cancel()
-
     def get_descriptions(self, as_list=False):
         """ Getter for configured devices descriptions """
         desclist = []
@@ -368,7 +349,6 @@ class DeviceManager(object):
                 self.starttime = datetime.datetime.strptime(
                     self.config['SERVER']['EVENT_HOUR'], '%H:%M').time()
             else:
-                self.lastupdate = datetime.date.today()
                 self.starttime = self._update_sunset_time(
                     self.config['SERVER']['EVENT_LOCALIZATION'])
                 debug.write("State change event time set as sunset time: {}".format(
@@ -514,7 +494,7 @@ class DeviceManager(object):
                         req.set(skip_time=True)
                     debug.write("Scheduling device state change ({}) after {} seconds".format(
                         _delay_colors, _delay), 0)
-                    _sched = Timer(int(_delay), self.run, (req,))
+                    _sched = Timer(int(_delay), req.run, ())
                     _sched.start()
                     self.scheduled_changes.append(_sched)
         return colors
@@ -575,7 +555,7 @@ class DeviceManager(object):
                                     break
                                 if _thread is not None:
                                     try:
-                                        _res = _thread.result(5)
+                                        _res = _thread.result(self.config["SERVER"].getint("REQUEST_TIMEOUT"))
                                         if not _res:
                                             debug.write("Repeating failed request for device: {}".format(
                                                 self[_cnt].name), 1)
@@ -594,6 +574,7 @@ class DeviceManager(object):
                                     i = 0
                         tries = tries + 1
                         if tries == 5:
+                            debug.write("Failed to change all states. Aborting", 1)
                             break
 
         except queue.Empty:
@@ -606,6 +587,7 @@ class DeviceManager(object):
                 self.queue.task_done()
             self.reinit()
             lock.release()
+            ExecutionState().set(False)
             if self.threaded:
                 self.light_pool.shutdown()
                 self.states = self.get_state()
@@ -669,11 +651,10 @@ class StateRequestObject(object):
         self.auto_mode = False
         self.reset_mode = False
         self.force_auto_mode = False
-        self.request_is_validated = False
         self.set(**kwargs)
 
-    def __call__(self, dm):
-        dm.run(self)
+    def __call__(self):
+        self.run()
 
     def __str__(self):
         _str = ""
@@ -738,89 +719,140 @@ class StateRequestObject(object):
             if self[i] != _color:
                 self[i] = _color
 
-    def validate_request(self, dm, config, called_on_run=False):
+    def run(self):
+        request_queue.put(self)
+
+
+class RequestExecutor(object):
+    """ This will connect all threads with the DM on the main thread """
+    def __init__(self):
+        ExecutionState().set(False)
+
+    def run(self, dm):
+        try:
+            while True:
+                self.execute(request_queue.get(), dm)
+        except (KeyboardInterrupt, SystemExit):
+            pass
+
+    def execute(self, request, dm):
+        """ Validates the request and runs the light change """
+        ExecutionState().set(True)
+        if not self.validate_request(dm, dm.config, request):
+            return
+        dm.clean_delayed_changes()
+
+        if request.colors is None:
+            request.colors = [DEVICE_SKIP] * len(dm)
+
+        dm.skip_time = request.skip_time
+        dm.set_mode(request)
+        if request.device_type is not None:
+            if not dm.set_typed_colors(request):
+                return
+        if request.group is not None:
+            dm.get_group(request)
+
+        if request.delay is not 0:
+            delay = request.delay
+            debug.write(
+                "Delaying request for {} seconds".format(request.delay), 0)
+            request.delay = 0
+            _sched = Timer(int(delay), self.execute, (request,))
+            _sched.start()
+            dm.scheduled_changes.append(_sched)
+            return
+        debug.write("Locked status: {}".format(lock.locked()), 0)
+        dm.queue.put(request)
+        if not lock.locked():
+            _thr = Thread(target=dm._set_lights).start()
+        elif dm.threaded:
+            for _thread in dm.light_threads:
+                if _thread is not None and not _thread.done():
+                    _thread.set_exception(NewRequestException)
+                    _thread.cancel()
+
+    @staticmethod
+    def validate_request(dm, config, request):
         debug.write("Validating arguments", 0)
-        if self.reset_location_data:
+        if request.reset_location_data:
             # TODO eventually add training data cleanup
             os.remove("../dnn/train.log")
             debug.write("Purged location and RTT data", 0)
 
         has_device_requests = False
         for _dev in getDevices(True):
-            if getattr(self, _dev, None) is not None:
+            if getattr(request, _dev, None) is not None:
                 has_device_requests = True
-        if (self.colors is not None and len(self.colors) == len(dm.devices)) or self.set_mode_for_devid is not None:
+        if (request.colors is not None and len(request.colors) == len(dm.devices)) or request.set_mode_for_devid is not None:
             has_device_requests = True
 
-        if self.hexvalues and has_device_requests:
+        if request.hexvalues and has_device_requests:
             debug.write("Got color hexvalues for multiple devices in the same request, which is not \
                         supported. Use '{} -h' for help. Quitting".format(sys.argv[0]),
                         2)
             return False
 
-        if len(self.hexvalues) != len(dm.devices) and not any([self.notime, self.off, self.on,
-                                                               self.toggle, self.preset, self.restart,
-                                                               self.group, has_device_requests,
-                                                               self.force_auto_mode]):
+        if len(request.hexvalues) != len(dm.devices) and not any([request.notime, request.off, request.on,
+                                                               request.toggle, request.preset, request.restart,
+                                                               request.group, has_device_requests,
+                                                               request.force_auto_mode]):
             debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting"
-                        .format(len(self.hexvalues), len(dm.devices), sys.argv[0]), 2)
+                        .format(len(request.hexvalues), len(dm.devices), sys.argv[0]), 2)
             return False
-        if self.hexvalues:
+        if request.hexvalues:
             debug.write("Received color hexvalues length {} for {} devices"
-                        .format(len(self.hexvalues), len(dm.devices)), 0)
-            self.set_colors(self.hexvalues, len(dm.devices))
+                        .format(len(request.hexvalues), len(dm.devices)), 0)
+            request.set_colors(request.hexvalues, len(dm.devices))
         else:
-            if self.set_mode_for_devid is not None:
+            if request.set_mode_for_devid is not None:
                 try:
                     debug.write("Received mode change request for devid {}".format(
-                        self.set_mode_for_devid), 0)
+                        request.set_mode_for_devid), 0)
                 except KeyError:
                     debug.write("Devid {} does not exist".format(
-                        self.set_mode_for_devid), 1)
+                        request.set_mode_for_devid), 1)
                     return False
 
             for _dev in getDevices(True):
-                if getattr(self, _dev, None) is not None:
+                if getattr(request, _dev, None) is not None:
                     debug.write("Received {} change request".format(_dev), 0)
-                    self.device_type = _dev
-                    self.device_type_args = getattr(self, _dev, None)
+                    request.device_type = _dev
+                    request.device_type_args = getattr(request, _dev, None)
 
-            if self.preset is not None:
+            if request.preset is not None:
                 debug.write(
-                    "Received change to preset [{}] request".format(self.preset), 0)
+                    "Received change to preset [{}] request".format(request.preset), 0)
                 try:
-                    preset_colors = config["PRESETS"][self.preset].split(',')
+                    preset_colors = config["PRESETS"][request.preset].split(',')
                     if len(preset_colors) != len(dm.devices):
                         debug.write("Preset '{}' does not have the adequate number of states, {} expected.".format(
-                            self.preset, len(dm.devices)), 1)
+                            request.preset, len(dm.devices)), 1)
                         return False
-                    self.set_colors(
-                        config["PRESETS"][self.preset].split(','), len(dm.devices))
-                    self.auto_mode = config["PRESETS"].getboolean(
+                    request.set_colors(
+                        config["PRESETS"][request.preset].split(','), len(dm.devices))
+                    request.auto_mode = config["PRESETS"].getboolean(
                         "AUTOMATIC_MODE")
                 except KeyError:
                     debug.write(
-                        "Preset '{}' not found in home.ini. Quitting.".format(self.preset), 3)
+                        "Preset '{}' not found in home.ini. Quitting.".format(request.preset), 3)
                     return False
-            if self.off:
+            if request.off:
                 debug.write("Received OFF change request", 0)
-                self.set_colors(
+                request.set_colors(
                     [DEVICE_OFF] * len(dm.devices), len(dm.devices))
-            if self.on:
+            if request.on:
                 debug.write("Received ON change request", 0)
-                self.set_colors([DEVICE_ON] * len(dm.devices), len(dm.devices))
-            if self.restart:
+                request.set_colors([DEVICE_ON] * len(dm.devices), len(dm.devices))
+            if request.restart:
                 debug.write("Received RESTART change request", 0)
-                self.device_type = "GenericOnOff"
-                self.device_type_args = ["2"]
-            if self.toggle:
+                request.device_type = "GenericOnOff"
+                request.device_type_args = ["2"]
+            if request.toggle:
                 debug.write("Received TOGGLE change request", 0)
-                self.set_colors(dm.get_toggle(), len(dm.devices))
-        if self.notime or self.off:
-            self.skip_time = True
+                request.set_colors(dm.get_toggle(), len(dm.devices))
+        if request.notime or request.off:
+            request.skip_time = True
 
         debug.write("Arguments are OK", 0)
-        self.request_is_validated = True
-        if not called_on_run:
-            self(dm)
         return True

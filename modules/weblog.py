@@ -16,7 +16,6 @@ class weblog(Thread):
     def __init__(self, config, dm):
         Thread.__init__(self)
         self.config = config
-        self.dm = dm
         self.running = True
         self.rsync = None
         self.web = "weblog.html"

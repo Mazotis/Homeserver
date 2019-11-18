@@ -108,7 +108,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 debug.write(
                     "No priority groups called. Setting back to AUTO mode.", 0, "IFTTT")
                 req.set(reset_mode=True)
-            req(self.dm)
+            req()
 
             if "delay" in postvars and int(postvars['delay'][0]) != 0:
                 if func == "on":
@@ -119,7 +119,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                     req.set_colors(
                         [DEVICE_ON] * len(self.dm), len(self.dm))
                 req.set(delay=int(postvars['delay'][0]) * 60)
-                req.run(self.dm)
+                req()
 
         try:
             # TODO rewrite this more elegantly

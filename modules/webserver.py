@@ -12,9 +12,10 @@ import json
 import os
 import re
 import requests
+import time
 import urllib.parse
 from core.common import *
-from core.devicemanager import StateRequestObject
+from core.devicemanager import StateRequestObject, ExecutionState
 from functools import partial
 from http.server import SimpleHTTPRequestHandler
 from io import BytesIO
@@ -45,189 +46,204 @@ class WebServerHandler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
-        if ".html" in self.path or ".js" in self.path or self.headers.get('Referer') is None:
-            _path = self.translate_path(self.path)
-            if self.headers.get('Referer') is None:
-                _path = os.path.join(_path, "index.html")
-            with open(_path, 'rb') as f:
-                _page = str(f.read().decode("unicode_escape"))
-                match = re.findall(r'\_\((.*?)\)', _page)
-                for _translatable in match:
-                    _page = _page.replace(
-                        "_(" + _translatable + ")", getTextHTML(_translatable.replace("\\", "")))
-                self.send_response(200)
-                self.send_header("Content-type", super().guess_type(_path))
-                self.send_header("Content-length", len(_page))
-                self.end_headers()
-                self.wfile.write(_page.encode('utf-8'))
-        else:
-            super().do_GET()
+        try:
+            if ".html" in self.path or ".js" in self.path or self.headers.get('Referer') is None:
+                _path = self.translate_path(self.path)
+                if self.headers.get('Referer') is None:
+                    _path = os.path.join(_path, "index.html")
+                with open(_path, 'rb') as f:
+                    _page = str(f.read().decode("unicode_escape"))
+                    match = re.findall(r'\_\((.*?)\)', _page)
+                    for _translatable in match:
+                        _page = _page.replace(
+                            "_(" + _translatable + ")", getTextHTML(_translatable.replace("\\", "")))
+                    self.send_response(200)
+                    self.send_header("Content-type", super().guess_type(_path))
+                    self.send_header("Content-length", len(_page))
+                    self.end_headers()
+                    self.wfile.write(_page.encode('utf-8'))
+            else:
+                super().do_GET()
+        except Exception as ex:
+            debug.write("Got exception in GET request: {}".format(ex), 1)
 
     def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        postvars = urllib.parse.parse_qs(
-            self.rfile.read(content_length), keep_blank_values=1)
-        request = postvars[b'request'][0].decode('utf-8') in ["True", "true", True]
-        reqtype = postvars[b'reqtype'][0].decode('utf-8')
-        self._set_response()
-        response = BytesIO()
-        if request:
-            if reqtype == "getstate":
-                async = postvars[b'isasync'][0].decode('utf-8') in ["True", "true", True]
-                response.write(json.dumps(self.dm(async=async)).encode('UTF-8'))
+        try:
+            content_length = int(self.headers['Content-Length'])
+            postvars = urllib.parse.parse_qs(
+                self.rfile.read(content_length), keep_blank_values=1)
+            request = postvars[b'request'][0].decode('utf-8') in ["True", "true", True]
+            reqtype = postvars[b'reqtype'][0].decode('utf-8')
+            self._set_response()
+            response = BytesIO()
+            if request:
+                if reqtype == "getstate":
+                    async = postvars[b'isasync'][0].decode('utf-8') in ["True", "true", True]
+                    response.write(json.dumps(self.dm(async=async)).encode('UTF-8'))
 
-            if reqtype == "setstate":
-                # TODO GET SUCCESS STATE ?
-                req = StateRequestObject()
-                devid = int(postvars[b'devid'][0].decode('utf-8'))
-                value = str(postvars[b'value'][0].decode('utf-8'))
-                debug.write(
-                    'Running a single device ({}) state change to {}'.format(self.dm[devid].name, value), 0, "WEBSERVER")
-                isintensity = str(postvars[b'isintensity'][0].decode('utf-8'))
-                skiptime = postvars[b'skiptime'][0].decode(
-                    'utf-8') in ['true', True]
-                _col = ["-1"] * len(self.dm)
-                try:
-                    value = int(value)
-                    if isintensity == "1" and self.dm[devid].color_type == "255":
-                        value = (None, value)
-                except ValueError:
-                    # Must be hexadecimal AARRGGBB
-                    value = value[2:9]
-                _col[devid] = value
-                req.set_colors(_col, len(self.dm))
-                if skiptime:
-                    req.set(skip_time=True)
-                req(self.dm)
-                response.write("1".encode("UTF-8"))
-
-            if reqtype == "setmode":
-                # TODO GET SUCCESS STATE ?
-                cmode = postvars[b'mode'][0].decode('utf-8') in ['true', True]
-                devid = int(postvars[b'devid'][0].decode('utf-8'))
-                req = StateRequestObject()
-                debug.write(
-                    'Running a single device mode change', 0, "WEBSERVER")
-                req.set(set_mode_for_devid=devid)
-                if cmode:
-                    req.set(auto_mode=True)
-                req(self.dm)
-                debug.write('Device modes: {}'.format(
-                    self.dm.modes), 0, "WEBSERVER")
-                response.write("1".encode("UTF-8"))
-
-            if reqtype == "setgroup":
-                # TODO GET SUCCESS STATE
-                group = str(postvars[b'group'][0].decode('utf-8')).strip()
-                value = int(postvars[b'value'][0].decode('utf-8'))
-                skiptime = postvars[b'skiptime'][0].decode(
-                    'utf-8') in ['true', True]
-                req = StateRequestObject()
-                debug.write('Running a group change of state', 0, "WEBSERVER")
-                _col = ["0"] * len(self.dm)
-                if skiptime:
-                    req.set(skip_time=True)
-                if value == 1:
-                    _col = ["1"] * len(self.dm)
-                req.set_colors(_col, len(self.dm))
-                req.set(group=[group.replace("0", "").lower()])
-                req(self.dm)
-                response.write("1".encode("UTF-8"))
-
-            if reqtype == "setallmode":
-                # TODO GET SUCCESS STATE ?
-                req = StateRequestObject()
-                debug.write(
-                    'Running an all-devices mode change', 0, "WEBSERVER")
-                req.set(force_auto_mode=True)
-                req(self.dm)
-                debug.write('Device modes: {}'.format(
-                    self.dm.modes), 0)
-                response.write("1".encode("UTF-8"))
-
-            if reqtype == "getmodule":
-                module = str(postvars[b'module'][0].decode('utf-8'))
-                debug.write(
-                    'Getting module "{}" web content'.format(module), 0, "WEBSERVER")
-                content = None
-                for _mod in self.dm.modules:
-                    if _mod.__class__.__name__ == module:
-                        content = _mod.get_web()
-                if content is None:
-                    debug.write('Cannot find module', 1, "WEBSERVER")
-                    response.write("0".encode("UTF-8"))
-                else:
-                    response.write(content.encode("UTF-8"))
-
-            if reqtype == "dobackup":
-                clientid = int(postvars[b'clientid'][0].decode('utf-8'))
-                debug.write('Scheduling backup', 0, "WEBSERVER")
-                for _mod in self.dm.modules:
-                    if _mod.__class__.__name__ == "backup":
-                        content = _mod.backup_queue.put(clientid)
-                response.write("1".encode("UTF-8"))
-
-            if reqtype == "setlock":
-                lock = int(postvars[b'lock'][0].decode('utf-8'))
-                devid = int(postvars[b'devid'][0].decode('utf-8'))
-                self.dm[devid].lock_unlock_requests(lock)
-                response.write("1".encode("UTF-8"))
-
-            if reqtype == "getconfig":
-                _conf_dict = {s: dict(self.config.items(s))
-                              for s in self.config.sections()}
-                response.write(json.dumps(_conf_dict).encode('UTF-8'))
-
-            if reqtype == "setconfig":
-                section = str(postvars[b'section'][0].decode('utf-8'))
-                configdata = json.loads(urllib.parse.unquote(
-                    postvars[b'configdata'][0].decode('utf-8')))
-                has_changes = False
-                for entry in configdata:
-                    if self.config[section.upper()][entry] != configdata[entry]:
-                        debug.write("Changing configuration entry {} to {}".format(
-                            entry.upper(), configdata[entry]), 0, "WEBSERVER")
-                        self.config.set(section.upper(),
-                                        entry.upper(), configdata[entry])
-                        has_changes = True
-                if has_changes:
+                if reqtype == "setstate":
+                    # TODO GET SUCCESS STATE ?
+                    req = StateRequestObject()
+                    devid = int(postvars[b'devid'][0].decode('utf-8'))
+                    value = str(postvars[b'value'][0].decode('utf-8'))
                     debug.write(
-                        "Changing local config file and creating backup 'home.old'", 0, "WEBSERVER")
-                    with open('home.ini', 'w') as configfile:
-                        copyfile('home.ini', 'home.old')
-                        self.config.write(configfile)
-                    self.dm.reload_configs()
+                        'Running a single device ({}) state change to {}'.format(self.dm[devid].name, value), 0, "WEBSERVER")
+                    isintensity = str(postvars[b'isintensity'][0].decode('utf-8'))
+                    skiptime = postvars[b'skiptime'][0].decode(
+                        'utf-8') in ['true', True]
+                    _col = ["-1"] * len(self.dm)
+                    try:
+                        value = int(value)
+                        if isintensity == "1" and self.dm[devid].color_type == "255":
+                            value = (None, value)
+                    except ValueError:
+                        # Must be hexadecimal AARRGGBB
+                        value = value[2:9]
+                    _col[devid] = value
+                    req.set_colors(_col, len(self.dm))
+                    if skiptime:
+                        req.set(skip_time=True)
+                    req()
+                    while ExecutionState().get():
+                        time.sleep(0.5)
                     response.write("1".encode("UTF-8"))
 
-            if reqtype == "getdebuglog":
-                debuglevel = postvars[b'debuglevel'][0].decode('utf-8')
-                debug.write(
-                    'Getting debug log for weblog module', 0, "WEBSERVER")
-                for _mod in self.dm.modules:
-                    if _mod.__class__.__name__ == "weblog":
-                        content = _mod.get_web(debuglevel)
-                if content is None:
-                    debug.write('Cannot find module', 1, "WEBSERVER")
-                    response.write("0".encode("UTF-8"))
-                else:
-                    response.write(content.encode("UTF-8"))
+                if reqtype == "setmode":
+                    # TODO GET SUCCESS STATE ?
+                    cmode = postvars[b'mode'][0].decode('utf-8') in ['true', True]
+                    devid = int(postvars[b'devid'][0].decode('utf-8'))
+                    req = StateRequestObject()
+                    debug.write(
+                        'Running a single device mode change', 0, "WEBSERVER")
+                    req.set(set_mode_for_devid=devid)
+                    if cmode:
+                        req.set(auto_mode=True)
+                    req()
+                    while ExecutionState().get():
+                        time.sleep(0.5)
+                    debug.write('Device modes: {}'.format(
+                        self.dm.modes), 0, "WEBSERVER")
+                    response.write("1".encode("UTF-8"))
 
-            if reqtype == "reconnect":
-                devid = int(postvars[b'devid'][0].decode('utf-8'))
-                self.dm[devid].reconnect()
-                response.write("1".encode("UTF-8"))
+                if reqtype == "setgroup":
+                    # TODO GET SUCCESS STATE
+                    group = str(postvars[b'group'][0].decode('utf-8')).strip()
+                    value = int(postvars[b'value'][0].decode('utf-8'))
+                    skiptime = postvars[b'skiptime'][0].decode(
+                        'utf-8') in ['true', True]
+                    req = StateRequestObject()
+                    debug.write('Running a group change of state', 0, "WEBSERVER")
+                    _col = ["0"] * len(self.dm)
+                    if skiptime:
+                        req.set(skip_time=True)
+                    if value == 1:
+                        _col = ["1"] * len(self.dm)
+                    req.set_colors(_col, len(self.dm))
+                    req.set(group=[group.replace("0", "").lower()])
+                    req()
+                    while ExecutionState().get():
+                        time.sleep(0.5)
+                    response.write("1".encode("UTF-8"))
 
-            if reqtype == "confirmstate":
-                devid = int(postvars[b'devid'][0].decode('utf-8'))
-                state = str(postvars[b'state'][0].decode('utf-8'))
-                self.dm[devid].set_state(state)
-                response.write("1".encode("UTF-8"))
+                if reqtype == "setallmode":
+                    # TODO GET SUCCESS STATE ?
+                    req = StateRequestObject()
+                    debug.write(
+                        'Running an all-devices mode change', 0, "WEBSERVER")
+                    req.set(force_auto_mode=True)
+                    req()
+                    while ExecutionState().get():
+                        time.sleep(0.5)
+                    debug.write('Device modes: {}'.format(
+                        self.dm.modes), 0)
+                    response.write("1".encode("UTF-8"))
 
-            # ADD NECESSARY WEBSERVER REQUESTS HERE #
+                if reqtype == "getmodule":
+                    module = str(postvars[b'module'][0].decode('utf-8'))
+                    debug.write(
+                        'Getting module "{}" web content'.format(module), 0, "WEBSERVER")
+                    content = None
+                    for _mod in self.dm.modules:
+                        if _mod.__class__.__name__ == module:
+                            content = _mod.get_web()
+                    if content is None:
+                        debug.write('Cannot find module', 1, "WEBSERVER")
+                        response.write("0".encode("UTF-8"))
+                    else:
+                        response.write(content.encode("UTF-8"))
 
-        else:
-            response.write("No request or unknown request".encode("UTF-8"))
-        self.wfile.write(response.getvalue())
+                if reqtype == "dobackup":
+                    clientid = int(postvars[b'clientid'][0].decode('utf-8'))
+                    debug.write('Scheduling backup', 0, "WEBSERVER")
+                    for _mod in self.dm.modules:
+                        if _mod.__class__.__name__ == "backup":
+                            content = _mod.backup_queue.put(clientid)
+                    response.write("1".encode("UTF-8"))
+
+                if reqtype == "setlock":
+                    lock = int(postvars[b'lock'][0].decode('utf-8'))
+                    devid = int(postvars[b'devid'][0].decode('utf-8'))
+                    self.dm[devid].lock_unlock_requests(lock)
+                    response.write("1".encode("UTF-8"))
+
+                if reqtype == "getconfig":
+                    _conf_dict = {s: dict(self.config.items(s))
+                                  for s in self.config.sections()}
+                    response.write(json.dumps(_conf_dict).encode('UTF-8'))
+
+                if reqtype == "setconfig":
+                    section = str(postvars[b'section'][0].decode('utf-8'))
+                    configdata = json.loads(urllib.parse.unquote(
+                        postvars[b'configdata'][0].decode('utf-8')))
+                    has_changes = False
+                    for entry in configdata:
+                        if self.config[section.upper()][entry] != configdata[entry]:
+                            debug.write("Changing configuration entry {} to {}".format(
+                                entry.upper(), configdata[entry]), 0, "WEBSERVER")
+                            self.config.set(section.upper(),
+                                            entry.upper(), configdata[entry])
+                            has_changes = True
+                    if has_changes:
+                        debug.write(
+                            "Changing local config file and creating backup 'home.old'", 0, "WEBSERVER")
+                        with open('home.ini', 'w') as configfile:
+                            copyfile('home.ini', 'home.old')
+                            self.config.write(configfile)
+                        self.dm.reload_configs()
+                        response.write("1".encode("UTF-8"))
+
+                if reqtype == "getdebuglog":
+                    debuglevel = postvars[b'debuglevel'][0].decode('utf-8')
+                    debug.write(
+                        'Getting debug log for weblog module', 0, "WEBSERVER")
+                    for _mod in self.dm.modules:
+                        if _mod.__class__.__name__ == "weblog":
+                            content = _mod.get_web(debuglevel)
+                    if content is None:
+                        debug.write('Cannot find module', 1, "WEBSERVER")
+                        response.write("0".encode("UTF-8"))
+                    else:
+                        response.write(content.encode("UTF-8"))
+
+                if reqtype == "reconnect":
+                    devid = int(postvars[b'devid'][0].decode('utf-8'))
+                    self.dm[devid].reconnect()
+                    response.write("1".encode("UTF-8"))
+
+                if reqtype == "confirmstate":
+                    devid = int(postvars[b'devid'][0].decode('utf-8'))
+                    state = str(postvars[b'state'][0].decode('utf-8'))
+                    self.dm[devid].set_state(state)
+                    response.write("1".encode("UTF-8"))
+
+                # ADD NECESSARY WEBSERVER REQUESTS HERE #
+
+            else:
+                response.write("No request or unknown request".encode("UTF-8"))
+            self.wfile.write(response.getvalue())
+
+        except Exception as ex:
+            debug.write("Got exception in POST request: {}".format(ex), 1)
 
 
 class webserver(Thread):

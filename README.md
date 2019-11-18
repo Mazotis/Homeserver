@@ -3,7 +3,7 @@ New - [Read the WIKI](https://github.com/Mazotis/Homeserver/wiki)
 
 A python home IoT control suite, featuring a websocket server/client to control various cheap IoT RGB BLE lightbulbs, DIY devices and programmable ON/OFF devices (TVs via HDMI-CEC, sound systems using LIRC, HTPCs using shutdown/wake-on-lan functions...) and various modules (such as an automatic file backup wrapper around rsync)
 
-The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and waits for requests, either from IFTTT (using a webhook Then That), dialogflow, from a device on-connection event (detected by pinging a static local IP, ie. for a mobile phone), from the included webserver or by a direct command-line call using homeclient.py (for example, when called on a specific event/via a menu button on Kodi - or other HTPC softwares). 
+The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and waits for requests, either from IFTTT (using a webhook Then That), dialogflow, from a device on-connection event (detected by pinging a static local IP, ie. for a mobile phone), from the included webserver or by a direct command-line call using home.py (for example, when called on a specific event/via a menu button on Kodi - or other HTPC softwares). 
 
 ## Why Homeserver ?
 * It allows to control multiple devices that uses different protocols at the same time.
@@ -22,7 +22,7 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 - Milight BLE light bulbs
 - Mipow Playbulbs (tested with Rainbow, other BLE Pb devices should work)
 - Decora Leviton switches (all switches that are accessible via the MyLeviton app)
-- Generic ON/OFF devices (devices that can be turned ON, OFF or restarted using a sh/bash command. Includes TVs with cec-client commands, HTPCs with wakeonlan commands, IR Devices with LIRC irsend commands and everything else. TIP - Group them together with a similar name (for example GROUP = livingroom) and call "./homeclient.py --on --group livingroom" to turn them all ON simultaneously)
+- Generic ON/OFF devices (devices that can be turned ON, OFF or restarted using a sh/bash command. Includes TVs with cec-client commands, HTPCs with wakeonlan commands, IR Devices with LIRC irsend commands and everything else. TIP - Group them together with a similar name (for example GROUP = livingroom) and call "./home.py --on --group livingroom" to turn them all ON simultaneously)
 - Meross smart switches MSS110, MSS210, MSS310 and MSS425E (ON/OFF functions - via the Meross cloud app)
 - Input devices (arduinos, esp8266 and other wifi-enable boards) to link various sensors to the homeserver setup
 - TPLink smart switches (HS200, HS210, HS220)
@@ -71,19 +71,19 @@ dynamic DNS for your local LAN and forward the server port (as set by the PORT v
 
 ### On a client device
 1) Setup python3 + required pip imports
-2) You can also trigger device state changes/HDMI-CEC requests by runing ./homeclient.py OPTIONS
+2) You can also trigger device state changes/HDMI-CEC requests by running ./home.py OPTIONS
 ```
 Examples:
 To turn everything on:
-./homeclient.py --on
+./home.py --on
 To turn everything on any time of day:
-./homeclient.py --on --notime
+./home.py --on --notime
 To turn the living room (group) devices on any time:
-./homeclient.py --on --notime --group livingroom
+./home.py --on --notime --group livingroom
 To turn the living room (group) devices off any time, after a 50 seconds delay:
-./homeclient.py --off --notime --group livingroom --delay 50
+./home.py --off --notime --group livingroom --delay 50
 To turn off the living room lights over the tv any time:
-./homeclient.py --off --notime --group livingroom tvlights
+./home.py --off --notime --group livingroom tvlights
 
 ```
 

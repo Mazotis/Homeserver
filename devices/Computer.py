@@ -55,21 +55,21 @@ class Computer(device):
             os.system("ssh {}@{} 'sudo shutdown now'".format(
                 self.user, self.ip))
             self.success = True
-            self.state = 0
+            self.state = DEVICE_OFF
             return True
         elif color == DEVICE_ON:
             debug.write("Turning device {} ON".format(
                 self.device), 0, self.device_type)
             os.system("/usr/bin/wakeonlan {}".format(self.mac))
             self.success = True
-            self.state = 1
+            self.state = DEVICE_ON
             return True
         elif color == "2":
             debug.write("Restarting device {}".format(
                 self.device), 0, self.device_type)
             os.system("ssh {}@{} 'sudo reboot'".format(self.user, self.ip))
             self.success = True
-            self.state = 1
+            self.state = DEVICE_ON
             return True
         debug.write("Request for state {} cannot be handled for device {}".format(
             color, self.device), 1, self.device_type)

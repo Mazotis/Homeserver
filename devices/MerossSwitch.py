@@ -25,7 +25,6 @@ class MerossSwitch(device):
         self.has_pseudodevice = 'Meross'
         self.device = config["DEVICE" + str(devid)]["ADDRESS"]
         self.device_type = "MerossSwitch"
-        self.state = "0"
         if self.color_type is None:
             self.color_type = "io"
         debug.write("Created device MerossSwitch with MAC {}.".format(
@@ -38,23 +37,22 @@ class MerossSwitch(device):
                 debug.write(
                     "Turning Meross device {} OFF.".format(self.device), 0)
                 self.meross_dev.turn_off()
-                self.state = "0"
+                self.state = DEVICE_OFF
                 self.success = True
                 return True
             elif color == DEVICE_ON:
                 debug.write(
                     "Turning Meross device {} ON.".format(self.device), 0)
                 self.meross_dev.turn_on()
-                self.state = "1"
+                self.state = DEVICE_ON
                 self.success = True
                 return True
-            else:
-                debug.write("Unknown state {} for device {}, falling back to OFF."
-                            .format(color, self.device), 0, self.device_type)
-                self.meross_dev.turn_off()
-                self.state = "0"
-                self.success = True
-                return True
+            debug.write("Unknown state {} for device {}, falling back to OFF."
+                        .format(color, self.device), 0, self.device_type)
+            self.meross_dev.turn_off()
+            self.state = DEVICE_OFF
+            self.success = True
+            return True
 
     def get_state(self):
         # TODO Is this the proper limit for ON/OFF ?
@@ -62,9 +60,9 @@ class MerossSwitch(device):
             try:
                 if self.meross_dev.supports_electricity_reading():
                     if int(self.meross_dev.get_electricity()['current']) > 100:
-                        self.state = "1"
+                        self.state = DEVICE_ON
                     else:
-                        self.state = "0"
+                        self.state = DEVICE_OFF
             except OfflineDeviceException:
                 debug.write(
                     "Device {} is offline. Set as disabled.".format(self.device), 1)
