@@ -8,7 +8,6 @@
     The homeserver request server
 '''
 import configparser
-import datetime
 import pickle
 import socket
 import traceback
@@ -22,18 +21,15 @@ class HomeServer(Thread):
     def __init__(self, dm):
         Thread.__init__(self)
         self.dm = dm
-        self.config = configparser.ConfigParser()
-        self.config.read('home.ini')
-        self.host = self.config['SERVER']['HOST']
-        self.port = int(self.config['SERVER'].getint('PORT'))
+        self.config = HOMECONFIG.set_section("SERVER")
+        self.host = self.config['HOST']
+        self.port = self.config.get_value('PORT', int)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.host, self.port))
         self.scheduled_disconnect = None
-        self.tcp_start_hour = datetime.datetime.strptime(
-            self.config['SERVER']['TCP_START_HOUR'], '%H:%M').time()
-        self.tcp_end_hour = datetime.datetime.strptime(
-            self.config['SERVER']['TCP_END_HOUR'], '%H:%M').time()
+        self.tcp_start_hour = self.config.get_value('TCP_START_HOUR', "hours")
+        self.tcp_end_hour = self.config.get_value('TCP_END_HOUR', "hours")
         self.conn_sockets = []
         self.stopevent = Event()
 
@@ -131,13 +127,13 @@ class HomeServer(Thread):
                 debug.write('TCP requests disabled until {}'.format(
                     self.tcp_start_hour), 0, "SERVER")
                 return True
-            if data[3:] in self.config["TCP-PRESETS"]:
+            if data[3:] in self.config.get_value(None, parent="TCP-PRESETS"):
                 debug.write("Running TCP preset {}".format(
                     data[3:]), 0, "SERVER")
                 req = StateRequestObject()
-                if self.config["TCP-PRESETS"].getboolean('AUTOMATIC_MODE'):
+                if self.config.get_value("AUTOMATIC_MODE", bool, parent="TCP-PRESETS"):
                     req.set(auto_mode=True)
-                if req.from_string(self.config["TCP-PRESETS"][data[3:]]):
+                if req.from_string(self.config.get_value(data[3:], str, parent="TCP-PRESETS")):
                     req.run()
             else:
                 debug.write("TCP preset {} is not configured".format(
@@ -149,7 +145,7 @@ class HomeServer(Thread):
                 client.recv(1024).decode("UTF-8"))
             debug.write('Recording a training location for room: {}'.format(
                 locationData["room"]), 0, "SERVER")
-            with open(self.config['SERVER']['JOURNAL_DIR'] + "/dnn/train.log", "a") as jfile:
+            with open(self.config['JOURNAL_DIR'] + "/dnn/train.log", "a") as jfile:
                 jfile.write("{},{},{},{},{},{},{}\n".format(locationData["room"], locationData["r1_mean"],
                                                             locationData["r1_rssi"], locationData["r2_mean"], locationData["r2_rssi"], locationData["r3_mean"], locationData["r3_rssi"]))
             return True

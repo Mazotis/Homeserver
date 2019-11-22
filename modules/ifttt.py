@@ -27,8 +27,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
         self.dm = dm
         self.priority_groups = []
         if self.config.has_option("IFTTT", "PRIORITY_GROUPS"):
-            self.priority_groups = self.config["IFTTT"]["PRIORITY_GROUPS"].split(
-                ",")
+            self.priority_groups = self.config["PRIORITY_GROUPS"].split(",")
         super().__init__(*args, **kwargs)
 
     def _set_response(self):
@@ -41,7 +40,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
 
     def do_POST(self):
         """ Receives and handles POST request """
-        SALT = self.config["IFTTT"]["SALT"]
+        SALT = self.config["SALT"]
         debug.write('Getting request', 0, "IFTTT")
         content_length = int(self.headers['Content-Length'])
         postvars = urllib.parse.parse_qs(self.rfile.read(
@@ -57,10 +56,10 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 debug.write('Unauthorized action {}. Hash verification failed.'.format(
                     action), 1, "IFTTT")
 
-            if action in self.config["IFTTT"]:
+            if action in self.config:
                 debug.write('Running action : {}'.format(
-                    self.config["IFTTT"][action]), 0, "IFTTT")
-                os.system("./homeclient.py " + self.config["IFTTT"][action])
+                    self.config[action]), 0, "IFTTT")
+                os.system("./homeclient.py " + self.config[action])
             else:
                 debug.write('Unknown action: {}'.format(action), 1, "IFTTT")
 
@@ -102,7 +101,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 return
             debug.write("Running function '{}' on group(s) {}".format(
                 func, changed_groups), 0, "IFTTT")
-            if self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
+            if self.config.get_value('AUTOMATIC_MODE', bool):
                 req.set(auto_mode=True)
             elif not has_priority_group:
                 debug.write(
@@ -130,13 +129,13 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 debug.write('Will run action {} in {} seconds'.format(
                     post_action, delay + 5), 0, "IFTTT")
                 time.sleep(5)
-                if post_action in self.config["IFTTT"]:
-                    if not self.config["IFTTT"].getboolean('AUTOMATIC_MODE'):
+                if post_action in self.config:
+                    if not self.config.get_value('AUTOMATIC_MODE', bool):
                         os.system(
-                            "./homeclient.py --delay {} {}".format(delay, self.config["IFTTT"][post_action]))
+                            "./homeclient.py --delay {} {}".format(delay, self.config[post_action]))
                     else:
                         os.system("./homeclient.py --delay {} --auto-mode {}".format(
-                            delay, self.config["IFTTT"][post_action]))
+                            delay, self.config[post_action]))
                 else:
                     #
                     # Complex delayed actions should be hardcoded here if needed
@@ -148,18 +147,13 @@ class IFTTTServer(BaseHTTPRequestHandler):
 
 
 class ifttt(Thread):
-    def __init__(self, config, dm):
+    def __init__(self, dm):
         Thread.__init__(self)
-        self.config = config
-        self.port = self.config['SERVER'].getint('VOICE_SERVER_PORT')
-        self.protocol = self.config['IFTTT']['PROTOCOL']
+        self.init_from_config()
         self.dm = dm
-        if self.protocol == "https":
-            self.key = self.config['IFTTT']['IFTTT_HTTPS_CERTS_KEY']
-            self.cert = self.config['IFTTT']['IFTTT_HTTPS_CERTS_CERT']
-        self.running = True
 
     def run(self):
+        self.running = True
         debug.write('Getting lightserver POST requests on port {} using {} protocol'
                     .format(self.port, self.protocol), 0, "IFTTT")
         IFTTTServerPartial = partial(IFTTTServer, self.config, self.dm)
@@ -176,6 +170,14 @@ class ifttt(Thread):
             debug.write('Stopped.', 0, "IFTTT")
             return
 
+    def init_from_config(self):
+        self.config = HOMECONFIG.set_section("IFTTT")
+        self.port = self.config.get_value('VOICE_SERVER_PORT', int, parent="SERVER")
+        self.protocol = self.config['PROTOCOL']
+        if self.protocol == "https":
+            self.key = self.config['IFTTT_HTTPS_CERTS_KEY']
+            self.cert = self.config['IFTTT_HTTPS_CERTS_CERT']
+
     def stop(self):
         debug.write('Stopping.', 0, "IFTTT")
         self.running = False
@@ -184,7 +186,3 @@ class ifttt(Thread):
             requests.get("http://localhost:{}/".format(self.port))
         except requests.exceptions.ConnectionError:
             pass
-
-
-def run(config, dm):
-    runIFTTTServer(config, dm)

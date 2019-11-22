@@ -663,27 +663,28 @@ function saveConfig(section) {
       jsonData[this.name] = this.value;
     });
     $("#settingsmodal").find('button').prop("disabled", true)
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "setconfig",
-                section: section,
-                configdata: encodeURIComponent(JSON.stringify(jsonData))
+    setTimeout(function() {
+        $.ajax({
+            type: "POST",
+            url: ".",
+            dataType: "text",
+            data: {
+                    request: "True",
+                    reqtype: "setconfig",
+                    section: section,
+                    configdata: encodeURIComponent(JSON.stringify(jsonData))
+                },
+            success: function(data){
             },
-        success: function(data){
-            $("#settingsmodal").find('button').prop("disabled", false)
-            $("#settingsmodal").modal('hide')
-            setTimeout(function() {
-                window.location.reload()
-            }, 500)
-        },
-        error: function(data){
-            console.log(data)
-        }
-    })
+            error: function(data){
+                console.log(data)
+            }
+        })
+
+        $("#settingsmodal").find('button').prop("disabled", false)
+        $("#settingsmodal").modal('hide')
+        window.location.reload()
+    }, 3000)
 }
 
 function reconnectDevice(devid) {

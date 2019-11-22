@@ -15,9 +15,8 @@ from core.device import device
 
 
 class HDMITv(device):
-    def __init__(self, devid, config):
-        super().__init__(devid, config)
-        self.config = config["DEVICE" + str(devid)]
+    def __init__(self, devid):
+        super().__init__(devid)
         self.device = self.config["DEVICE"]
         self.device_type = "HDMITv"
         if self.color_type is None:

@@ -15,11 +15,10 @@ from core.device import device
 
 
 class GenericOnOff(device):
-    def __init__(self, devid, config):
-        super().__init__(devid, config)
-        self.config = config["DEVICE" + str(devid)]
+    def __init__(self, devid):
+        super().__init__(devid)
         self.state_check = None
-        if config.has_option("DEVICE" + str(devid), "STATE") and self.config["STATE"] != "":
+        if self.config.dev_has_option("STATE") and self.config["STATE"] != "":
             self.state_check = self.config["STATE"]
             self.state_expect = self.config["STATE_ON_EXPECT"]
         self.device = self.config["DEVICE"]

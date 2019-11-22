@@ -13,9 +13,9 @@ from threading import Thread
 
 
 class weblog(Thread):
-    def __init__(self, config, dm):
+    def __init__(self, dm):
         Thread.__init__(self)
-        self.config = config
+        self.init_from_config()
         self.running = True
         self.rsync = None
         self.web = "weblog.html"
@@ -25,9 +25,12 @@ class weblog(Thread):
         pass
 
     def stop(self):
-        debug.write("Stopping.", 0, "WEBLOG")
+        debug.write("Stopped.", 0, "WEBLOG")
         self.running = False
         pass
+
+    def init_from_config(self):
+        self.config = HOMECONFIG
 
     def get_web(self, level="all"):
         web = """

@@ -13,6 +13,7 @@ import os
 import re
 import requests
 import time
+import traceback
 import urllib.parse
 from core.common import *
 from core.devicemanager import StateRequestObject, ExecutionState
@@ -34,7 +35,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
         self.config = config
         self.dm = dm
         self.dm_host = self.config['SERVER']['HOST']
-        self.dm_port = self.config['SERVER'].getint('PORT')
+        self.dm_port = self.config.get_value('PORT', int, parent="SERVER")
         super().__init__(*args, **kwargs)
 
     def translate_path(self, path):
@@ -57,6 +58,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     for _translatable in match:
                         _page = _page.replace(
                             "_(" + _translatable + ")", getTextHTML(_translatable.replace("\\", "")))
+                    time.sleep(0.5)
                     self.send_response(200)
                     self.send_header("Content-type", super().guess_type(_path))
                     self.send_header("Content-length", len(_page))
@@ -210,7 +212,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                             copyfile('home.ini', 'home.old')
                             self.config.write(configfile)
                         self.dm.reload_configs()
-                        response.write("1".encode("UTF-8"))
+                        return
 
                 if reqtype == "getdebuglog":
                     debuglevel = postvars[b'debuglevel'][0].decode('utf-8')
@@ -243,18 +245,17 @@ class WebServerHandler(SimpleHTTPRequestHandler):
             self.wfile.write(response.getvalue())
 
         except Exception as ex:
-            debug.write("Got exception in POST request: {}".format(ex), 1)
+            debug.write("Got exception in POST request: ({}) - {}, {}".format(type(ex).__name__, ex, traceback.format_exc()), 1)
 
 
 class webserver(Thread):
-    def __init__(self, config, dm):
+    def __init__(self, dm):
         Thread.__init__(self)
-        self.config = config
+        self.init_from_config()
         self.dm = dm
-        self.port = self.config['SERVER'].getint('WEBSERVER_PORT')
-        self.running = True
 
     def run(self):
+        self.running = True
         debug.write("Starting control webserver on port {}".format(
             self.port), 0, "WEBSERVER")
         TCPServer.allow_reuse_address = True
@@ -269,6 +270,10 @@ class webserver(Thread):
             httpd.server_close()
             debug.write("Stopped.", 0, "WEBSERVER")
             return
+
+    def init_from_config(self):
+        self.config = HOMECONFIG
+        self.port = self.config.get_value('WEBSERVER_PORT', int, parent="SERVER")
 
     def stop(self):
         debug.write("Stopping.", 0, "WEBSERVER")

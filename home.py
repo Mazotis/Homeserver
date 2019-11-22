@@ -26,10 +26,8 @@ from __main__ import *
 
 """ Script executed directly """
 if __name__ == "__main__":
-    HOMECONFIG = configparser.ConfigParser()
-    HOMECONFIG.read('home.ini')
-
-    parser = argparse.ArgumentParser(description='Home server manager script', formatter_class=RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description='Home server manager script', formatter_class=RawTextHelpFormatter)
     parser.add_argument('hexvalues', metavar='N', type=str, nargs="*",
                         help='state values for the devices (see list below)')
 
@@ -90,26 +88,9 @@ if __name__ == "__main__":
         sys.exit()
 
     if args.server:
-        dm = DeviceManager(HOMECONFIG)
+        dm = DeviceManager()
 
-        loaded_modules = HOMECONFIG['SERVER']['MODULES'].split(",")
-        # TODO put that check in some module?
-        if all(x in loaded_modules for x in ['ifttt', 'dialogflow']):
-            debug.write(
-                "You cannot load ifttt and dialogflow at the same time. Quitting.", 2)
-            sys.exit()
-
-        for _cnt, _mod in enumerate(loaded_modules):
-            if _mod in getModules():
-                _module = __import__("modules." + _mod)
-                # TODO Needed twice ? looks unpythonic
-                _class = getattr(_module, _mod)
-                _class = getattr(_class, _mod)
-                dm.modules.append(_class(HOMECONFIG, dm))
-                dm.modules[_cnt].start()
-            else:
-                debug.write('Unsupported module {}'
-                            .format(_mod), 1)
+        dm.get_modules_list()
 
         if HOMECONFIG['SERVER'].getboolean('ENABLE_WIFI_RTT'):
             from dnn.dnn import run_tensorflow

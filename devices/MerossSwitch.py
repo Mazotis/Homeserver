@@ -18,12 +18,11 @@ from meross_iot.cloud.exceptions.OfflineDeviceException import OfflineDeviceExce
 class MerossSwitch(device):
     """ Methods for driving a Meross wifi switch """
 
-    def __init__(self, devid, config):
-        super().__init__(devid, config)
+    def __init__(self, devid):
+        super().__init__(devid)
         self.device_id = devid
-        self.config = config
         self.has_pseudodevice = 'Meross'
-        self.device = config["DEVICE" + str(devid)]["ADDRESS"]
+        self.device = self.config["ADDRESS"]
         self.device_type = "MerossSwitch"
         if self.color_type is None:
             self.color_type = "io"
@@ -77,7 +76,7 @@ class MerossSwitch(device):
         return self.state
 
     def create_pseudodevice(self):
-        return Meross(self.device_id, self.config)
+        return Meross(self.device_id)
 
     def get_pseudodevice(self, meross):
         debug.write("Linking Meross {} to pseudodevice {}.".format(

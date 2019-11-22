@@ -16,9 +16,9 @@ from core.device import device
 class Bulb(device):
     """ Global bulb functions and variables """
 
-    def __init__(self, devid, config):
-        super().__init__(devid, config)
-        self.device = config["DEVICE" + str(devid)]["ADDRESS"]
+    def __init__(self, devid):
+        super().__init__(devid)
+        self.device = self.config["ADDRESS"]
 
     def disconnect(self):
         """ Disconnects the device """

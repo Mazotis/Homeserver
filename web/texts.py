@@ -12,9 +12,11 @@ import gettext
 from core.common import *
 
 if language.getLanguage() == "fr":
+    debug.write("Setting language as fr", 0)
     lang = gettext.translation('base', localedir='locales', languages=['fr'])
     lang.install()
 else:
+    debug.write("Setting language as en", 0)
     lang = gettext.translation('base', localedir='locales', languages=['en'])
     lang.install()
 _ = lang.gettext

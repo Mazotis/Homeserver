@@ -15,12 +15,11 @@ from core.decora import Decora
 class DecoraSwitch(device):
     """ Methods for driving a Decora wifi switch """
 
-    def __init__(self, devid, config):
-        super().__init__(devid, config)
+    def __init__(self, devid):
+        super().__init__(devid)
         self.device_id = devid
-        self.config = config
         self.has_pseudodevice = 'Decora'
-        self.device = config["DEVICE" + str(devid)]["DEVICE"]
+        self.device = self.config["DEVICE"]
         self.device_type = "DecoraSwitch"
         self.state = "0"
         if self.color_type is None:
@@ -58,7 +57,7 @@ class DecoraSwitch(device):
             return True
 
     def create_pseudodevice(self):
-        return Decora(self.device_id, self.config)
+        return Decora(self.device_id)
 
     def get_pseudodevice(self, decora):
         debug.write("Linking Decora {} to pseudodevice {}.".format(

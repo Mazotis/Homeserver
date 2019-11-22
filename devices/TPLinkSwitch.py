@@ -15,17 +15,16 @@ from core.device import device
 
 
 class TPLinkSwitch(device):
-    def __init__(self, devid, config):
-        super().__init__(devid, config)
+    def __init__(self, devid):
+        super().__init__(devid)
         # TODO Support multiple TP-Link KASA cloud accounts at the same time ?
-        self.config = config["DEVICE" + str(devid)]
         self.ip = self.config["IP"]
         self.device_type = "TP-LinkSwitch"
         self.device = self.config["DEVICE"]
         self.plug = None
         self.dimmable = False
-        if config.has_option("DEVICE" + str(devid), "DIMMABLE"):
-            self.dimmable = self.config.getboolean("DIMMABLE")
+        if self.config.dev_has_option("DIMMABLE"):
+            self.dimmable = self.config.get_value("DIMMABLE", bool)
             if self.dimmable and self.color_type is None:
                 self.color_type = "100"
         elif self.color_type is None:

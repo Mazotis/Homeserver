@@ -12,6 +12,7 @@ import datetime
 import re
 import subprocess
 import time
+import traceback
 import queue
 from core.common import *
 from core.convert import convert_to_web_rgb, convert_color
@@ -41,10 +42,10 @@ class ExecutionState():
 class DeviceManager(object):
     """ Methods for instanciating and managing devices """
 
-    def __init__(self, config=None):
+    def __init__(self):
         debug.get_set_lock()
         debug.enable_debug()
-        self.config = config
+        self.config = HOMECONFIG
         self.devices = []
         self.pseudodevices = {}
         debug.write(
@@ -72,7 +73,6 @@ class DeviceManager(object):
         self.light_threads = [None] * len(self)
         self.light_pool = None
         self.all_groups = None
-        self.modules = []
 
     def __len__(self):
         return len(self.devices)
@@ -224,23 +224,45 @@ class DeviceManager(object):
         i = 0
         while True:
             try:
-                if self.config["DEVICE" + str(i)]["TYPE"] in getDevices():
+                _devtype = self.config.get_device(i, "TYPE")
+                if _devtype in getDevices():
                     _module = __import__(
-                        "devices." + self.config["DEVICE" + str(i)]["TYPE"])
+                        "devices." + _devtype)
                     # TODO Needed twice ? looks unpythonic
                     _class = getattr(
-                        _module, self.config["DEVICE" + str(i)]["TYPE"])
+                        _module, _devtype)
                     _class = getattr(
-                        _class, self.config["DEVICE" + str(i)]["TYPE"])
-                    self[i] = _class(i, self.config)
+                        _class, _devtype)
+                    self[i] = _class(i)
                     self.get_and_link_pseudodevice(i)
                 else:
                     debug.write('Unsupported device type {}'
-                                .format(self.config["DEVICE" + str(i)]["TYPE"]), 1)
+                                .format(_devtype), 1)
             except KeyError:
                 debug.write('Loaded {} devices'.format(i), 0)
                 break
             i = i + 1
+
+    def get_modules_list(self):
+        loaded_modules = HOMECONFIG['SERVER']['MODULES'].split(",")
+        # TODO put that check in some module?
+        if all(x in loaded_modules for x in ['ifttt', 'dialogflow']):
+            debug.write(
+                "You cannot load ifttt and dialogflow at the same time. Quitting.", 2)
+            sys.exit()
+
+        self.modules = []
+        for _cnt, _mod in enumerate(loaded_modules):
+            if _mod in getModules():
+                _module = __import__("modules." + _mod)
+                # TODO Needed twice ? looks unpythonic
+                _class = getattr(_module, _mod)
+                _class = getattr(_class, _mod)
+                self.modules.append(_class(self))
+                self.modules[_cnt].start()
+            else:
+                debug.write('Unsupported module {}'
+                            .format(_mod), 1)
 
     def set_serverwide_skiptime(self):
         """ Enables skipping time check all the time"""
@@ -328,18 +350,18 @@ class DeviceManager(object):
         return oplist
 
     def reload_configs(self):
-        self.config.read('home.ini')
+        self.config.load_config()
         for _dev in self:
             try:
-                _dev.config = self.config
                 _dev.init_from_config()
             except NameError:
                 pass
-        for _mod in self.modules:
+        for _cnt, _mod in enumerate(self.modules):
             try:
-                _mod.config = self.config
+                _mod.stop()
             except NameError:
                 pass
+        self.get_modules_list()
 
     def update_event_time(self):
         if self.lastupdate != datetime.date.today():
@@ -561,6 +583,7 @@ class DeviceManager(object):
                                                 self[_cnt].name), 1)
                                             i = 0
                                     except NewRequestException:
+                                        debug.write("Got exception NewRequestException - {}".format(traceback.format_exc()), 1)
                                         break
                                     except TimeoutError:
                                         debug.write(
@@ -769,6 +792,7 @@ class RequestExecutor(object):
         elif dm.threaded:
             for _thread in dm.light_threads:
                 if _thread is not None and not _thread.done():
+                    debug.write("Canceling thread {}".format(_thread), 1)
                     _thread.set_exception(NewRequestException)
                     _thread.cancel()
 

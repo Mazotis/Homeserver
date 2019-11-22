@@ -33,14 +33,14 @@ def connect_ble(_f):
 class Milight(Bulb):
     """ Methods for driving a milight BLE lightbulb """
 
-    def __init__(self, devid, config):
-        super().__init__(devid, config)
+    def __init__(self, devid):
+        super().__init__(devid)
         self.device_type = "Milight"
-        self.id1 = config["DEVICE" + str(devid)]["ID1"]
-        self.id2 = config["DEVICE" + str(devid)]["ID2"]
+        self.id1 = self.config["ID1"]
+        self.id2 = self.config["ID2"]
         if self.color_type is None:
             self.color_type = "255"
-        self.color_temp = int(config["DEVICE" + str(devid)]["DEFAULT_TEMP"])
+        self.color_temp = self.config.get_value("DEFAULT_TEMP", int)
         if self.color_temp < 2000 or self.color_temp > 6500:
             debug.write(
                 "Default color temperature should be between 2000K and 6500K. Quitting.", 2, self.device_type)

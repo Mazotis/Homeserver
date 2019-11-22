@@ -17,10 +17,10 @@ from threading import Timer
 
 
 class Decora(object):
-    def __init__(self, devid, config):
+    def __init__(self, devid):
         # TODO Support multiple MyLeviton accounts at the same time ?
-        self.email = config["DEVICE" + str(devid)]["EMAIL"]
-        self.password = config["DEVICE" + str(devid)]["PASSWORD"]
+        self.email = HOMECONFIG.get_device(devid, "EMAIL")
+        self.password = HOMECONFIG.get_device(devid, "PASSWORD")
         self.residences = None
         self._connected = False
         self.disabled = False

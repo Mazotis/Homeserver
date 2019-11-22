@@ -14,10 +14,10 @@ from core.common import *
 
 
 class Meross(object):
-    def __init__(self, devid, config):
+    def __init__(self, devid):
         # TODO Support multiple Meross cloud accounts at the same time ?
-        self.email = config["DEVICE" + str(devid)]["EMAIL"]
-        self.password = config["DEVICE" + str(devid)]["PASSWORD"]
+        self.email = HOMECONFIG.get_device(devid, "EMAIL")
+        self.password = HOMECONFIG.get_device(devid, "PASSWORD")
         self.manager = False
         self.meross_devices = None
         self.meross_data = []

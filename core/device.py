@@ -15,7 +15,7 @@ from core.convert import convert_color
 
 
 class device(object):
-    def __init__(self, devid, config):
+    def __init__(self, devid):
         self.devid = devid
         self.success = False
         self._connection = None
@@ -40,36 +40,31 @@ class device(object):
         self.has_pseudodevice = None
         self.request_locked = False
         self.state_inference_group = None
-        self.parent_config = config
-        self.config = config["DEVICE" + str(self.devid)]
         self.init_from_config()
 
     def init_from_config(self):
+        self.config = HOMECONFIG.set_section(device=self.devid)
         self.description = self.config["DESCRIPTION"]
-        if self.config_has_option("GROUP"):
+        if self.config.dev_has_option("GROUP"):
             self.group = self.config["GROUP"].split(',')
-        if self.config_has_option("DEFAULT_INTENSITY"):
+        if self.config.dev_has_option("DEFAULT_INTENSITY"):
             self.intensity = self.config["DEFAULT_INTENSITY"]
-        if self.config_has_option("COLOR_TYPE"):
+        if self.config.dev_has_option("COLOR_TYPE"):
             self.color_type = self.config["COLOR_TYPE"]
-        if self.config_has_option("SKIPTIME"):
-            self.default_skip_time = self.config.getboolean("SKIPTIME")
-        if self.config_has_option("FORCEOFF"):
-            self.forceoff = self.config.getboolean("FORCEOFF")
-        if self.config_has_option("IGNOREMODE"):
-            self.ignoremode = self.config.getboolean("IGNOREMODE")
-        if self.config_has_option("NAME"):
+        if self.config.dev_has_option("SKIPTIME"):
+            self.default_skip_time = self.config.get_value("SKIPTIME", bool)
+        if self.config.dev_has_option("FORCEOFF"):
+            self.forceoff = self.config.get_value("FORCEOFF", bool)
+        if self.config.dev_has_option("IGNOREMODE"):
+            self.ignoremode = self.config.get_value("IGNOREMODE", bool)
+        if self.config.dev_has_option("NAME"):
             self.name = self.config["NAME"]
-        if self.config_has_option("ICON"):
+        if self.config.dev_has_option("ICON"):
             self.icon = self.config["ICON"]
-        if self.config_has_option("ACTION_DELAY"):
-            self.action_delay = int(
-                self.config["ACTION_DELAY"])
-        if self.config_has_option("STATE_INFERENCE_GROUP"):
+        if self.config.dev_has_option("ACTION_DELAY"):
+            self.action_delay = self.config.get_value("ACTION_DELAY", int)
+        if self.config.dev_has_option("STATE_INFERENCE_GROUP"):
             self.state_inference_group = self.config["STATE_INFERENCE_GROUP"]
-
-    def config_has_option(self, option):
-        return self.parent_config.has_option("DEVICE" + str(self.devid), option)
 
     def pre_run(self, color):
         try:

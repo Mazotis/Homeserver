@@ -2,7 +2,7 @@
 '''
     File name: backup.py
     Author: Maxime Bergeron
-    Date last modified: 07/11/2019
+    Date last modified: 19/11/2019
     Python Version: 3.5
 
     A backup manager/rsync wrapper module for the homeserver
@@ -13,20 +13,18 @@ import queue
 import shlex
 import signal
 import subprocess
-from datetime import datetime, timedelta
 from core.common import *
+from core.devicemanager import StateRequestObject
+from configparser import NoOptionError
+from datetime import datetime, timedelta
 from threading import Thread, Event
 
 
 class backup(Thread):
-    def __init__(self, config, dm):
+    def __init__(self, dm):
         Thread.__init__(self)
-        self.config = config
+        self.init_from_config()
         self.dm = dm
-        self.backup_interval = config["BACKUP"].getint("DELAY_BETWEEN_BACKUPS")
-        self.backup_server = config["BACKUP"]["BACKUP_SERVER"]
-        self.backup_server_forceon = config["BACKUP"].getboolean(
-            "BACKUP_SERVER_FORCE_ON")
         self.stopevent = Event()
         self.last_backup = 0
         self.running = True
@@ -53,7 +51,7 @@ class backup(Thread):
         debug.write("Will do another backup at: {}".format(_next_run.strftime('%d %B, %H:%M')),
                     0, "BACKUP")
         while not self.stopevent.is_set():
-            if _next_run > datetime.datetime.now():
+            if _next_run > datetime.now():
                 if not self.backup_queue.empty():
                     needs_backup = self.backup_queue.get()
                     self.run_backup(needs_backup)
@@ -69,14 +67,14 @@ class backup(Thread):
         return
 
     def run_backup(self, clientid=None):
-        self.last_backup = datetime.datetime.now()
+        self.last_backup = datetime.now()
         debug.write("Starting backups", 0, "BACKUP")
         backup_server = None
         server_was_off = False
         if self.backup_server != "local":
             backup_server = self.dm[int(self.backup_server)]
             if str(backup_server.get_state()) != DEVICE_ON:
-                if self.config["BACKUP"].getboolean("BACKUP_SERVER_FORCE_ON"):
+                if self.config.get_value("BACKUP_SERVER_FORCE_ON", bool):
                     server_was_off = True
                     debug.write("Turning on backup server", 0, "BACKUP")
                     self.change_state_for_device(self.backup_server, DEVICE_ON)
@@ -98,16 +96,17 @@ class backup(Thread):
                 continue
             try:
                 destination = ""
-                if self.config["BACKUP"]["CLIENT" + str(i)] != "local":
-                    client = self.dm[self.config["BACKUP"].getint(
-                        "CLIENT" + str(i))]
+                if self.config["CLIENT" + str(i)] != "local":
+                    client = self.dm[self.config.get_value(
+                        "CLIENT" + str(i), int)]
                     client_was_off = False
                     if str(client.get_state()) != DEVICE_ON:
-                        if self.config["BACKUP"].getboolean("CLIENT" + str(i) + "_FORCE_ON"):
+                        if self.config.get_value("CLIENT" + str(i) + "_FORCE_ON", bool):
                             client_was_off = True
                             debug.write(
                                 "Turning ON CLIENT{}".format(i), 0, "BACKUP")
-                            self.change_state_for_device(self.config["BACKUP"].getint("CLIENT" + str(i)), DEVICE_ON)
+                            self.change_state_for_device(
+                                self.config.get_value("CLIENT" + str(i), int), DEVICE_ON)
 
                             while str(client.get_state()) != DEVICE_ON:
                                 debug.write(
@@ -121,19 +120,19 @@ class backup(Thread):
 
                 debug.write('Backing up client: {}'.format(
                     client.name), 0, "BACKUP")
-                if self.backup_server != "local" and self.backup_server != self.config["BACKUP"]["CLIENT" + str(i)]:
+                if self.backup_server != "local" and self.backup_server != self.config["CLIENT" + str(i)]:
                     destination = "{}@{}:{}".format(
-                        backup_server.user, backup_server.ip, self.config["BACKUP"]["CLIENT" + str(i) + "_DESTINATION"])
+                        backup_server.user, backup_server.ip, self.config["CLIENT" + str(i) + "_DESTINATION"])
                 else:
-                    destination = self.config["BACKUP"]["CLIENT" +
-                                                        str(i) + "_DESTINATION"]
+                    destination = self.config["CLIENT" +
+                                              str(i) + "_DESTINATION"]
 
                 folders = []
-                folders = self.config["BACKUP"]["CLIENT" +
-                                                str(i) + "_FOLDERS"].split(",")
+                folders = self.config["CLIENT" +
+                                      str(i) + "_FOLDERS"].split(",")
                 for _folder in folders:
                     command = ""
-                    if self.config["BACKUP"].getboolean("CLIENT" + str(i) + "_DELETE"):
+                    if self.config.get_value("CLIENT" + str(i) + "_DELETE", bool):
                         command = "/usr/bin/rsync -az --delete"
                     else:
                         command = "/usr/bin/rsync -az"
@@ -164,7 +163,8 @@ class backup(Thread):
                 if client_was_off:
                     debug.write(
                         "Turning back OFF CLIENT{}".format(i), 0, "BACKUP")
-                    self.change_state_for_device(self.config["BACKUP"].getint("CLIENT" + str(i)), DEVICE_OFF)
+                    self.change_state_for_device(self.config.get_value(
+                        "CLIENT" + str(i), int), DEVICE_OFF)
 
             except KeyError:
                 debug.write('Backups are done', 0, "BACKUP")
@@ -188,6 +188,14 @@ class backup(Thread):
         req.set_colors(_col, len(self.dm))
         req.set(skip_time=True, auto_mode=False)
         req()
+
+    def init_from_config(self):
+        self.config = HOMECONFIG.set_section("BACKUP")
+        self.backup_interval = self.config.get_value(
+            "DELAY_BETWEEN_BACKUPS", int)
+        self.backup_server = self.config["BACKUP_SERVER"]
+        self.backup_server_forceon = self.config.get_value(
+            "BACKUP_SERVER_FORCE_ON", bool)
 
     def stop(self):
         debug.write("Stopping.", 0, "BACKUP")
@@ -214,16 +222,16 @@ class backup(Thread):
         has_devices = False
         while True:
             try:
-                client = self.dm.devices[self.config["BACKUP"].getint(
-                    "CLIENT" + str(i))]
+                client = self.dm.devices[self.config.get_value(
+                    "CLIENT" + str(i), int)]
                 web += '<tr><th scope="row">{}</th>'.format(i + 1)
                 web += '<td>{}</td>'.format(client.name)
                 web += '<td class="d-none d-md-table-cell" style="font-size:x-small;">{}</td>'.format(
-                    self.config["BACKUP"]["CLIENT" + str(i) + "_FOLDERS"].replace(',', ', '))
+                    self.config["CLIENT" + str(i) + "_FOLDERS"].replace(',', ', '))
                 web += '<td><center><button id="backupbtn{}" type="button" class="btn btn-warning" onclick="doBackup({})">Backup</button></center></td></tr>'.format(
                     i, i)
                 has_devices = True
-            except TypeError:
+            except NoOptionError:
                 break
             i = i + 1
         if not has_devices:

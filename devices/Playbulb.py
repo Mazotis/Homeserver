@@ -35,8 +35,8 @@ def connect_ble(_f):
 class Playbulb(Bulb):
     """ Methods for driving a rainbow BLE lightbulb """
 
-    def __init__(self, devid, config):
-        super().__init__(devid, config)
+    def __init__(self, devid):
+        super().__init__(devid)
         self.device_type = "Playbulb"
         # TODO get actual color at instanciation
         self.state = "00000000"
