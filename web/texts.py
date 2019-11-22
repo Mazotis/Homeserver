@@ -8,18 +8,7 @@
     A python text internationalization handler for the webserver
 '''
 
-import gettext
 from core.common import *
-
-if language.getLanguage() == "fr":
-    debug.write("Setting language as fr", 0)
-    lang = gettext.translation('base', localedir='locales', languages=['fr'])
-    lang.install()
-else:
-    debug.write("Setting language as en", 0)
-    lang = gettext.translation('base', localedir='locales', languages=['en'])
-    lang.install()
-_ = lang.gettext
 
 
 def getTextHTML(textid):
@@ -79,5 +68,5 @@ def getTextHTML(textid):
     try:
         return textDB[textid]
     except KeyError:
-        debug.write("Text: {} not found in database", 1)
+        debug.write("Text: {} not found in database".format(textid), 1)
         return textid

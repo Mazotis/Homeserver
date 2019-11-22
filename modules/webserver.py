@@ -19,6 +19,7 @@ from core.common import *
 from core.devicemanager import StateRequestObject, ExecutionState
 from functools import partial
 from http.server import SimpleHTTPRequestHandler
+from html.parser import HTMLParser
 from io import BytesIO
 from shutil import copyfile
 from socketserver import ThreadingMixIn, TCPServer
@@ -28,6 +29,26 @@ from web.texts import getTextHTML
 
 class ThreadingSimpleServer(ThreadingMixIn, TCPServer):
     pass
+
+
+class HTMLGettextTranslator(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.has_tag = False
+        self.data = []
+
+    def handle_starttag(self, tag, attributes):
+        if tag != 'tl':
+            return
+        self.has_tag = True
+
+    def handle_endtag(self, tag):
+        if tag == 'tl':
+            self.has_tag = False
+
+    def handle_data(self, data):
+        if self.has_tag:
+            self.data.append(data)
 
 
 class WebServerHandler(SimpleHTTPRequestHandler):
@@ -48,17 +69,25 @@ class WebServerHandler(SimpleHTTPRequestHandler):
 
     def do_GET(self):
         try:
-            if ".html" in self.path or ".js" in self.path or self.headers.get('Referer') is None:
+            if ".html" in self.path or ".js" in self.path or self.path == "/":
                 _path = self.translate_path(self.path)
-                if self.headers.get('Referer') is None:
+                if self.path == "/":
                     _path = os.path.join(_path, "index.html")
                 with open(_path, 'rb') as f:
                     _page = str(f.read().decode("unicode_escape"))
+                    tagmatch = []
+                    if ".html" in _path:
+                        _parser = HTMLGettextTranslator()
+                        _parser.feed(_page)
+                        tagmatch = _parser.data
+                        _parser.close()
                     match = re.findall(r'\_\((.*?)\)', _page)
+                    for _translatable in tagmatch:
+                        _page = _page.replace(
+                            "<tl>" + _translatable + "</tl>", getTextHTML(_translatable.replace("\\", "")))
                     for _translatable in match:
                         _page = _page.replace(
                             "_(" + _translatable + ")", getTextHTML(_translatable.replace("\\", "")))
-                    time.sleep(0.5)
                     self.send_response(200)
                     self.send_header("Content-type", super().guess_type(_path))
                     self.send_header("Content-length", len(_page))
@@ -74,14 +103,17 @@ class WebServerHandler(SimpleHTTPRequestHandler):
             content_length = int(self.headers['Content-Length'])
             postvars = urllib.parse.parse_qs(
                 self.rfile.read(content_length), keep_blank_values=1)
-            request = postvars[b'request'][0].decode('utf-8') in ["True", "true", True]
+            request = postvars[b'request'][0].decode(
+                'utf-8') in ["True", "true", True]
             reqtype = postvars[b'reqtype'][0].decode('utf-8')
             self._set_response()
             response = BytesIO()
             if request:
                 if reqtype == "getstate":
-                    async = postvars[b'isasync'][0].decode('utf-8') in ["True", "true", True]
-                    response.write(json.dumps(self.dm(async=async)).encode('UTF-8'))
+                    async = postvars[b'isasync'][0].decode(
+                        'utf-8') in ["True", "true", True]
+                    response.write(json.dumps(
+                        self.dm(async=async)).encode('UTF-8'))
 
                 if reqtype == "setstate":
                     # TODO GET SUCCESS STATE ?
@@ -90,7 +122,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     value = str(postvars[b'value'][0].decode('utf-8'))
                     debug.write(
                         'Running a single device ({}) state change to {}'.format(self.dm[devid].name, value), 0, "WEBSERVER")
-                    isintensity = str(postvars[b'isintensity'][0].decode('utf-8'))
+                    isintensity = str(
+                        postvars[b'isintensity'][0].decode('utf-8'))
                     skiptime = postvars[b'skiptime'][0].decode(
                         'utf-8') in ['true', True]
                     _col = ["-1"] * len(self.dm)
@@ -112,7 +145,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
 
                 if reqtype == "setmode":
                     # TODO GET SUCCESS STATE ?
-                    cmode = postvars[b'mode'][0].decode('utf-8') in ['true', True]
+                    cmode = postvars[b'mode'][0].decode(
+                        'utf-8') in ['true', True]
                     devid = int(postvars[b'devid'][0].decode('utf-8'))
                     req = StateRequestObject()
                     debug.write(
@@ -134,7 +168,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     skiptime = postvars[b'skiptime'][0].decode(
                         'utf-8') in ['true', True]
                     req = StateRequestObject()
-                    debug.write('Running a group change of state', 0, "WEBSERVER")
+                    debug.write('Running a group change of state',
+                                0, "WEBSERVER")
                     _col = ["0"] * len(self.dm)
                     if skiptime:
                         req.set(skip_time=True)
@@ -245,7 +280,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
             self.wfile.write(response.getvalue())
 
         except Exception as ex:
-            debug.write("Got exception in POST request: ({}) - {}, {}".format(type(ex).__name__, ex, traceback.format_exc()), 1)
+            debug.write("Got exception in POST request: ({}) - {}, {}".format(
+                type(ex).__name__, ex, traceback.format_exc()), 1)
 
 
 class webserver(Thread):
@@ -273,7 +309,8 @@ class webserver(Thread):
 
     def init_from_config(self):
         self.config = HOMECONFIG
-        self.port = self.config.get_value('WEBSERVER_PORT', int, parent="SERVER")
+        self.port = self.config.get_value(
+            'WEBSERVER_PORT', int, parent="SERVER")
 
     def stop(self):
         debug.write("Stopping.", 0, "WEBSERVER")

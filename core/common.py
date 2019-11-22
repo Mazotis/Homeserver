@@ -9,6 +9,7 @@
 '''
 
 import datetime
+import gettext
 import glob
 import os
 import random
@@ -111,15 +112,29 @@ class LanguageHandler(object):
     def __init__(self):
         self.config = HOMECONFIG.set_section("SERVER")
         self.language = self.config['LANGUAGE']
+        self.installed_language = None
 
     def getLanguage(self):
         return self.language
+
+    def installLanguage(self):
+        if self.installed_language is None:
+            if language.getLanguage() == "fr":
+                debug.write("Setting language as fr", 0)
+                lang = gettext.translation('base', localedir='locales', languages=['fr'])
+                lang.install()
+            else:
+                debug.write("Setting language as en", 0)
+                lang = gettext.translation('base', localedir='locales', languages=['en'])
+                lang.install()
+        return lang.gettext
 
 
 decora = None
 meross = None
 debug = DebugLog()
 language = LanguageHandler()
+_ = language.installLanguage()
 
 
 def getDevices(to_lower=False):

@@ -663,6 +663,7 @@ function saveConfig(section) {
       jsonData[this.name] = this.value;
     });
     $("#settingsmodal").find('button').prop("disabled", true)
+    $("#settingsmodal").find('#savemodal').text("...")
     setTimeout(function() {
         $.ajax({
             type: "POST",
@@ -684,7 +685,7 @@ function saveConfig(section) {
         $("#settingsmodal").find('button').prop("disabled", false)
         $("#settingsmodal").modal('hide')
         window.location.reload()
-    }, 3000)
+    }, 4000)
 }
 
 function reconnectDevice(devid) {

@@ -33,64 +33,64 @@
                 <center>
                     <div id="preloader" style="display:none">
                         <div class="spinner-border" style="width: 200px; height: 200px; margin-bottom:20px" role="status">
-                            <span class="sr-only">_(Loading...)</span>
+                            <span class="sr-only"><tl>Loading...</tl></span>
                         </div>
                     </div>
                 </center>
                 <span id="detector-module-location"></span>
                 <div id="update-spin" class="col-12">
                     <center>
-                        <h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;<span id="spin-text">_(Updating device status...)</span></h5>
+                        <h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;<span id="spin-text"><tl>Updating device status...</tl></span></h5>
                     </center>
                 </div>
                 <div id="rooms-section" style="display:none;">
-                    <h4>_(Rooms)</h4>
+                    <h4><tl>Rooms</tl></h4>
                     <div id="open-rcard">
                     </div>
                     <div class="card-columns rcolumns">
                     </div>
                 </div>
-                <h4>_(Devices)</h4>
+                <h4><tl>Devices</tl></h4>
                 <div id="resultid"></div>
                 <div class="row">
                     <div class="col-sm-12">
                         <div class="card bg-info mb-3">
-                            <h4 class="card-header text-white">_(Groups)</h4>
+                            <h4 class="card-header text-white"><tl>Groups</tl></h4>
                             <div class="card-body">
                                 <div id="groups" class="card-text">
-                                    <p class="text-white">_(No available device groups)</p>
+                                    <p class="text-white"><tl>No available device groups</tl></p>
                                 </div>
                             </div>
                         </div>
                         <div id="modulesid"></div>
                         <div class="card text-white bg-dark mb-3">
-                            <h4 class="card-header">_(Options)</h4>
+                            <h4 class="card-header"><tl>Options</tl></h4>
                             <div class="card-body noselect-nooverflow">
-                                <p class="card-text">_(Time check feature. Today's start time:) <span id="suntime">_(N/A)</span></p>
+                                <p class="card-text"><tl>Time check feature. Today's start time:</tl> <span id="suntime"><tl>N/A</tl></span></p>
                                 <p class="card-text">
                                     <div class="btn-group btn-group-toggle" data-toggle="buttons">
                                         <label class="btn btn-secondary active">
-                                            <input type="radio" name="skiptime1" autocomplete="off" checked> _(Check time of day before executing changes)
+                                            <input type="radio" name="skiptime1" autocomplete="off" checked> <tl>Check time of day before executing changes</tl>
                                         </label>
                                         <label class="btn btn-secondary">
-                                            <input type="radio" name="skiptime2" autocomplete="off"> _(Execute changes anytime)
+                                            <input type="radio" name="skiptime2" autocomplete="off"> <tl>Execute changes anytime</tl>
                                         </label>
                                     </div>
                                 </p>
-                                <p class="card-text">_(Automatic mode)</p>
+                                <p class="card-text"><tl>Automatic mode</tl></p>
                                 <p class="card-text">
                                     <div class="btn-group" data-toggle="buttons">
-                                        <button type="button" onclick="sendAllModeAuto()" class="btn btn-secondary">_(Set all devices to automatic mode)</button>
+                                        <button type="button" onclick="sendAllModeAuto()" class="btn btn-secondary"><tl>Set all devices to automatic mode</tl></button>
                                     </div>
                                 </p>
-                                <p class="card-text">_(Mode selection toggles)</p>
+                                <p class="card-text"><tl>Mode selection toggles</tl></p>
                                 <p class="card-text">
                                     <div class="btn-group btn-group-toggle hidemode-toggles" data-toggle="buttons">
                                         <label class="btn btn-secondary active">
-                                            <input type="radio" autocomplete="off" value="0" checked> _(Hide mode selection toggles)
+                                            <input type="radio" autocomplete="off" value="0" checked> <tl>Hide mode selection toggles</tl>
                                         </label>
                                         <label class="btn btn-secondary">
-                                            <input type="radio" autocomplete="off" value="1"> _(Show mode selection toggles)
+                                            <input type="radio" autocomplete="off" value="1"> <tl>Show mode selection toggles</tl>
                                         </label>
                                     </div>
                                 </p>
@@ -114,8 +114,8 @@
                 <p class="card-text c-desc"></p>
                 <div class="controls-div">
                     <!--<div class="btn-group btn-group-lg" role="group" style="margin-bottom:10px;">
-                        <button type="button" class="btn btn-danger offbuttons">_(OFF)</button>
-                        <button type="button" class="btn btn-success onbuttons">_(ON)</button>
+                        <button type="button" class="btn btn-danger offbuttons"><tl>OFF</tl></button>
+                        <button type="button" class="btn btn-success onbuttons"><tl>ON</tl></button>
                     </div>-->
                     <div>
                         <center>
@@ -128,8 +128,8 @@
                         </center>
                     </div>
                     <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons" style="display:none;">
-                        <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> _(Auto)</label>
-                        <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> _(Manual)</label>
+                        <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> <tl>Auto</tl></label>
+                        <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> <tl>Manual</tl></label>
                     </div>
                 </div>
             </div>
@@ -170,8 +170,8 @@
           <div class="modal-body">
           </div>
           <div class="modal-footer">
-            <button type="button" id="savemodal" class="btn btn-primary">_(Save)</button>
-            <button type="button" class="btn btn-secondary" data-dismiss="modal">_(Close)</button>
+            <button type="button" id="savemodal" class="btn btn-primary"><tl>Save</tl></button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal"><tl>Close</tl></button>
           </div>
         </div>
       </div>

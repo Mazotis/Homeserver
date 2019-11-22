@@ -8,15 +8,9 @@
     A python home control server/client
 '''
 import argparse
-import configparser
-import datetime
-import json
 import pickle
 import socket
 import sys
-import threading
-import time
-import traceback
 from core.common import *
 from core.devicemanager import DeviceManager, StateRequestObject, RequestExecutor
 from core.server import HomeServer
