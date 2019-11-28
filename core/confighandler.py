@@ -5,18 +5,20 @@
     Date last modified: 19/11/2019
     Python Version: 3.5
 
-    The configuration file handler. Adds functions that do not 
+    The configuration file handler. Adds functions that do not
     exist yet in configparser
 '''
 
 import datetime
+import xml.etree.ElementTree as ET
+from argparse import ArgumentParser, RawTextHelpFormatter
 from configparser import ConfigParser
-from core.common import *
 
 
 class ConfigHandler(ConfigParser):
     def __init__(self, subsection=None, *args, **kwargs):
         self.subsection = subsection
+        self.configurables = None
         super().__init__(*args, **kwargs)
         self.load_config()
 
@@ -27,13 +29,16 @@ class ConfigHandler(ConfigParser):
 
     @classmethod
     def set_section(cls, subsection=None, device=None):
-        """ Returns another instance of class that points directly to the subsection subsection """
+        """ Returns another instance of class """
+        """ that points directly to the subsection subsection """
         if device is not None:
             subsection = "DEVICE" + str(device)
         return cls(subsection)
 
     def get_value(self, element, a_type=str, parent=None):
-        """ Gets a a_type type value from the config for element value. Parent allows going back to another section (reverses the set_section() function) """
+        """ Gets a a_type type value from the config for element value. """
+        """ Parent allows going back to another section (reverses the set """
+        """ _section() function) """
         if element is None:
             return self
         if a_type == str:
@@ -59,3 +64,42 @@ class ConfigHandler(ConfigParser):
 
     def load_config(self):
         self.read('home.ini')
+        self.configurables = ET.parse('core/configurables.xml').getroot()
+
+    def get_arguments(self):
+        parser = ArgumentParser(description='Home server manager script',
+                                formatter_class=RawTextHelpFormatter)
+
+        for arg in self.configurables.iter('argument'):
+            _name = arg.attrib["name"]
+            if arg.attrib["name"] != "hexvalues":
+                _name = "--" + _name
+            _help = arg.find("description").text
+            if _help is None:
+                _help = arg.find("description").find("tl").text
+            if arg.find("type").text == "str":
+                parser.add_argument(_name,
+                                    metavar=arg.find("metavar").text,
+                                    type=str,
+                                    default=arg.find("default").text or None,
+                                    nargs=arg.find("nargs").text,
+                                    help=_help)
+            elif arg.find("type").text == "bool":
+                parser.add_argument(_name,
+                                    default=arg.find("default").text in ["True", "true"],
+                                    action=arg.find("action").text,
+                                    help=_help)
+            elif arg.find("type").text == "int":
+                parser.add_argument(_name,
+                                    metavar=arg.find("metavar").text,
+                                    type=int,
+                                    default=arg.find("default").text or None,
+                                    nargs=arg.find("nargs").text,
+                                    help=_help)
+
+        from core.common import getDevices
+        for _dev in getDevices(True):
+            parser.add_argument('--' + _dev, type=str, nargs="*",
+                                help='Change {} states only'.format(_dev))
+
+        return parser.parse_args()

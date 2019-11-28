@@ -1,0 +1,214 @@
+<script>
+$(document).ready(function() {
+  getPresets();
+
+  setTimeout(function() {
+    $(".table-click td").on('click', function() {
+      $(".table-click").each(function() {
+        $(this).removeClass("table-info")
+        $(this).addClass("table-light")
+      })
+      $(this).parent().removeClass("table-light")
+      $(this).parent().addClass("table-info")
+
+      jsonstr = JSON.parse($(this).attr("string").replace(/'/g, '"'))
+      console.log(jsonstr)
+      for (var entry in jsonstr) {
+        if ($("#editor-form").find("#" + entry + "-field").attr("type") == "checkbox") {
+          if (jsonstr[entry] == "true") {
+            $("#editor-form").find("#" + entry + "-field").bootstrapToggle('on', false)
+          } else {
+            $("#editor-form").find("#" + entry + "-field").bootstrapToggle('off', false)
+          }
+        } else {
+          $("#editor-form").find("#" + entry + "-field").val(jsonstr[entry])
+        }
+      }
+
+      $("#preset-name").val($(this).attr("preset"))
+    })
+  }, 500)
+})
+
+function getConfigXML(presets) {
+  $.ajax({
+      type: "POST",
+      url: ".",
+      dataType: "xml",
+      data: {
+          request: "True",
+          reqtype: "getconfigxml",            
+      },
+      success: function(data){
+        $(data).find("argument[disallow-editor='yes']").remove()
+        $(data).find("argument type:contains('str')").each(function(){
+          name = $(this).parent().attr("name")
+          desc = $(this).parent().find("description").html()
+          html = '<div class="form-group"><label for="' + name + '-field" class="col-form-label">' + desc + ' <small class="form-text text-muted">' + name + '</small></label><input type="text" id="' + name + '-field" class="form-control" placeholder="' + $(this).parent().find("placeholder").html() + '"></div>'
+          $("#editor-form").append(html)
+        })
+
+        $(data).find("argument type:contains('int')").each(function(){
+          name = $(this).parent().attr("name")
+          desc = $(this).parent().find("description").html()
+          html = '<div class="form-group row"><label for="' + name + '-field" class="col-sm-9 col-form-label">' + desc + '</label><div class="col-sm-3"><input type="number" id="' + name + '-field" class="form-control" placeholder="' + $(this).parent().find("default").html() + '"><small class="form-text text-muted">' + name + '</small></div></div>'
+          $("#editor-form").append(html)
+        })
+
+        $("#editor-form").append("<hr>")
+        html = "<h4>_(Device types) </h4><small class='text-muted'>_(_text2)</small>"
+        for (var preset in presets["devices"]) {
+          name = presets["devices"][preset]
+          html += '<div class="form-group row"><label for="' + name + '-field" class="col-sm-4 col-form-label">' + name + '</label><div class="col-sm-8"><input type="text" id="' + name + '-field" class="form-control"></div></div>'
+        }
+        $("#editor-form").append(html + "<hr>")
+
+        $(data).find("argument type:contains('bool')").each(function(){
+          name = $(this).parent().attr("name")
+          desc = $(this).parent().find("description").html()
+          html = '<div class="form-group row"><label for="' + name + '-field" class="col-sm-10 col-form-label">' + desc + ' <small class="form-text text-muted">' + name + '</small></label><input type="checkbox" id="' + name + '-field" class="col-sm-2" default="' + $(this).parent().find("default").html() + '" data-onstyle="success" data-offstyle="danger" data-on="Yes" data-off="No"></div>'
+          $("#editor-form").append(html)
+
+          if ($(this).parent().find("default").html() == "True") {
+            $("#editor-form").find("#" + name + "-field").bootstrapToggle('on', false)
+          } else {
+            $("#editor-form").find("#" + name + "-field").bootstrapToggle()
+          }
+        })
+      },
+      error: function(data){
+          console.log(data)
+      }
+  })
+}
+
+function getPresets() {
+  presets = ""
+  $.ajax({
+      type: "POST",
+      url: ".",
+      dataType: "text",
+      data: {
+          request: "True",
+          reqtype: "getpresets",            
+      },
+      success: function(data){
+          presets = JSON.parse(data)
+          var table = "_(No preconfigured presets found in home.ini!)"
+          if (Array.isArray(presets["items"]) && presets["items"].length) {
+            table = ""
+            for (var preset in presets["items"]) {
+              table += '<tr><th>' + presets["items"][preset] + '</th></tr><tr class="table-light table-click"><td preset="' + presets["items"][preset] + '" string="' + presets["preset"][preset] + '">' + presets["descriptions"][preset] + '</td></tr>'
+            }
+          }
+
+          $("#preset-table").html(table)
+
+          getConfigXML(presets)
+      },
+      error: function(data){
+          console.log(data)
+      }
+  })
+}
+
+function generatePresetString() {
+  $("#record-preset").prop("disabled", true)
+  $("#editor-error").hide()
+  var jsonobject = {}
+  $("#editor-form input[type='text']").each(function() {
+    if ($(this).val() != "" && $(this).attr("id") != "preset-name") {
+      val = ""
+      if ($(this).val().includes(",")) {
+        val = $(this).val().split(",")
+      } else {
+        val = $(this).val()
+      }
+      jsonobject[$(this).attr("id").replace("-field", "")] = val
+    } 
+  })
+
+  $("#editor-form input[type='number']").each(function() {
+    if ($(this).val() != "" && $(this).val() != "0") {
+      jsonobject[$(this).attr("id").replace("-field", "")] = $(this).val().toString()
+    }
+  })
+
+  $("#editor-form input[type='checkbox']").each(function() {
+    name = $(this).attr("id")
+    val = $(this).prop("checked").toString()
+    if (val != $(this).attr("default").toLowerCase()) {
+      jsonobject[$(this).attr("id").replace("-field", "")] = val
+    }
+  })
+
+  if ($("#preset-name").val() == "") {
+    $("#editor-error").html("_(You need a preset name)")
+    $("#editor-error").show()
+    $("#record-preset").prop("disabled", false)
+  } else {
+    $.ajax({
+      type: "POST",
+      url: ".",
+      dataType: "text",
+      data: {
+          request: "True",
+          reqtype: "setpreset",
+          presetname: $("#preset-name").val(),
+          preset: JSON.stringify(jsonobject)
+      },
+      success: function(data){
+        if (data == "0") {
+          $("#editor-error").html("_(Preset is invalid. Check the debug file for details.)")
+          $("#editor-error").show()      
+        } else {
+          setTimeout(function() {
+            window.location.reload()
+          }, 4000)
+        }
+      },
+      error: function(data){
+          console.log(data)
+      }
+    })
+  }
+
+}
+
+</script>
+<style>
+.table-click {
+  color: black;
+  cursor: pointer;
+}
+</style>
+<div class="modal fade" id="preseteditor" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><tl>Presets editor</tl></h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <h3><tl>Existing presets</tl></h3>
+        <table id="preset-table" class="table table-sm table-dark table-hover"></table>
+        <hr>
+        <h3><tl>Edit preset</tl></h3>
+        <div class="form-group row">
+          <label for="preset-name" class="col-sm-2 col-form-label"><tl>Preset name</tl></label>
+          <div class="col-sm-10">
+            <input type="text" class="form-control" id="preset-name">
+          </div>
+        </div>
+        <div id="editor-form"></div>
+        <div id="editor-error" class="alert alert-danger" style="display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="record-preset" onclick="generatePresetString()" class="btn btn-primary"><tl>Save</tl></button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal"><tl>Close</tl></button>
+      </div>
+    </div>
+  </div>
+</div>

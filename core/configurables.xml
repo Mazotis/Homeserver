@@ -1,0 +1,141 @@
+<?xml version='1.0' encoding='utf8'?>
+<arguments>
+	<argument name="hexvalues">
+		<description><tl>State values for the devices</tl></description>
+		<type>str</type>
+		<metavar>value</metavar>
+		<nargs>*</nargs>
+		<default></default>
+		<placeholder>value_for_device1','value_for_device2'...</placeholder>
+	</argument>
+	<argument name="preset" disallow-editor="yes">
+		<description>Apply state change actions from specified preset name defined in home.ini</description>
+		<type>str</type>
+		<metavar>PRESET_NAME</metavar>
+		<nargs>?</nargs>
+		<action></action>
+		<default></default>
+		<placeholder>Name_of_preset</placeholder>
+	</argument>
+	<argument name="group">
+		<description><tl>Apply state change on specified device group(s)</tl></description>
+		<type>str</type>
+		<metavar>GROUP_NAME</metavar>
+		<nargs>+</nargs>
+		<action></action>
+		<default></default>
+		<placeholder>Name_of_group OR 'group1','group2'...</placeholder>
+	</argument>
+	<argument name="notime">
+		<description><tl>Skip the time check and run the script anyways</tl></description>
+		<type>bool</type>
+		<metavar></metavar>
+		<nargs></nargs>
+		<action>store_true</action>
+		<default>False</default>
+	</argument>
+	<argument name="delay">
+		<description><tl>Run the request after a given number of seconds</tl></description>
+		<type>int</type>
+		<metavar>DELAY_IN_SECS</metavar>
+		<nargs>?</nargs>
+		<action></action>
+		<default>0</default>
+	</argument>
+	<argument name="on">
+		<description><tl>Turn all devices selected in current request ON</tl></description>
+		<type>bool</type>
+		<metavar></metavar>
+		<nargs></nargs>
+		<action>store_true</action>
+		<default>False</default>
+	</argument>
+	<argument name="off">
+		<description><tl>Turn all devices selected in current request OFF</tl></description>
+		<type>bool</type>
+		<metavar></metavar>
+		<nargs></nargs>
+		<action>store_true</action>
+		<default>False</default>
+	</argument>
+	<argument name="restart">
+		<description><tl>Trigger a device restart for compatible devices</tl></description>
+		<type>bool</type>
+		<metavar></metavar>
+		<nargs></nargs>
+		<action>store_true</action>
+		<default>False</default>
+	</argument>
+	<argument name="toggle">
+		<description><tl>Toggle ON/OFF all devices selected in current request</tl></description>
+		<type>bool</type>
+		<metavar></metavar>
+		<nargs></nargs>
+		<action>store_true</action>
+		<default>False</default>
+	</argument>
+	<argument name="server" disallow-editor="yes">
+		<description>Start as a socket server daemon. This is required before running any requests</description>
+		<type>bool</type>
+		<metavar></metavar>
+		<nargs></nargs>
+		<action>store_true</action>
+		<default>False</default>
+	</argument>
+	<argument name="threaded" disallow-editor="yes">
+		<description>Starts the server daemon with threaded light change requests</description>
+		<type>bool</type>
+		<metavar></metavar>
+		<nargs></nargs>
+		<action>store_true</action>
+		<default>False</default>
+	</argument>
+	<argument name="stream-dev" disallow-editor="yes">
+		<description>Stream colors directly to device ID#</description>
+		<type>int</type>
+		<metavar>DEVICE#_TO_STREAM_TO</metavar>
+		<nargs>?</nargs>
+		<action></action>
+		<default></default>
+	</argument>
+	<argument name="stream-group" disallow-editor="yes">
+		<description>Stream colors directly to device group</description>
+		<type>str</type>
+		<metavar>GROUP_TO_STREAM_TO</metavar>
+		<nargs>?</nargs>
+		<action></action>
+		<default></default>
+	</argument>
+	<argument name="reset-mode">
+		<description><tl>Force device state change (whatever the actual mode) and set back devices to AUTO mode</tl></description>
+		<type>bool</type>
+		<metavar></metavar>
+		<nargs></nargs>
+		<action>store_true</action>
+		<default>False</default>
+	</argument>
+	<argument name="auto-mode">
+		<description><tl>Run non-DEVICE_SKIP state requests as AUTO mode</tl></description>
+		<type>bool</type>
+		<metavar></metavar>
+		<nargs></nargs>
+		<action>store_true</action>
+		<default>False</default>
+	</argument>
+	<argument name="set-mode-for-devid">
+		<description><tl>Force device ID# to change mode (as set by auto-mode)</tl></description>
+		<type>int</type>
+		<metavar>DEVICE#_TO_CHANGE_MODE</metavar>
+		<nargs>?</nargs>
+		<action></action>
+		<default></default>
+	</argument>
+	<argument name="reset-location-data">
+		<description><tl>Purge all RTT, locations and location training data</tl></description>
+		<type>bool</type>
+		<metavar></metavar>
+		<nargs></nargs>
+		<action>store_true</action>
+		<default>False</default>
+	</argument>
+</arguments>

@@ -249,6 +249,10 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         self.dm.reload_configs()
                         return
 
+                if reqtype == "reloadconfig":
+                    self.dm.reload_configs()
+                    return
+
                 if reqtype == "getdebuglog":
                     debuglevel = postvars[b'debuglevel'][0].decode('utf-8')
                     debug.write(
@@ -272,6 +276,49 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     state = str(postvars[b'state'][0].decode('utf-8'))
                     self.dm[devid].set_state(state)
                     response.write("1".encode("UTF-8"))
+
+                if reqtype == "getconfigxml":
+                    with open("core/configurables.xml", "r") as _f:
+                        _parser = HTMLGettextTranslator()
+                        _page = _f.read()
+                        _parser.feed(_page)
+                        tagmatch = _parser.data
+                        _parser.close()
+                        for _translatable in tagmatch:
+                            _page = _page.replace(
+                                "<tl>" + _translatable + "</tl>", getTextHTML(_translatable.replace("\\", "")))
+                        response.write(_page.encode("UTF-8"))
+
+                if reqtype == "getpresets":
+                    presets = {}
+                    presets["items"] = []
+                    presets["descriptions"] = []
+                    presets["devices"] = getDevices(True)
+                    presets["preset"] = []
+                    for _preset in self.config["PRESETS"].items():
+                        req = StateRequestObject()
+                        if _preset[0] != "automatic_mode" and req.from_string(_preset[1]):
+                            presets["items"].append(_preset[0])
+                            presets["preset"].append(_preset[1])
+                            presets["descriptions"].append(str(req))
+                    response.write(json.dumps(presets).encode("UTF-8"))
+
+                if reqtype == "setpreset":
+                    preset = str(json.loads(str(postvars[b'preset'][0].decode('utf-8'))))
+                    presetname = str(postvars[b'presetname'][0].decode('utf-8'))
+                    debug.write("Parsing new preset {}, string: {}".format(presetname, preset), 0, "WEBSERVER")
+                    req = StateRequestObject()
+                    if req.from_string(preset):
+                        self.config.set("PRESETS",presetname.upper(), preset)
+                        response.write("1".encode("UTF-8"))
+                        debug.write(
+                            "Changing local config file and creating backup 'home.old'", 0, "WEBSERVER")
+                        with open('home.ini', 'w') as configfile:
+                            copyfile('home.ini', 'home.old')
+                            self.config.write(configfile)
+                        self.dm.reload_configs()
+                    else:
+                        response.write("0".encode("UTF-8"))
 
                 # ADD NECESSARY WEBSERVER REQUESTS HERE #
 
@@ -308,7 +355,7 @@ class webserver(Thread):
             return
 
     def init_from_config(self):
-        self.config = HOMECONFIG
+        self.config = getConfigHandler()
         self.port = self.config.get_value(
             'WEBSERVER_PORT', int, parent="SERVER")
 

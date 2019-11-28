@@ -16,8 +16,8 @@ from core.common import *
 class Meross(object):
     def __init__(self, devid):
         # TODO Support multiple Meross cloud accounts at the same time ?
-        self.email = HOMECONFIG.get_device(devid, "EMAIL")
-        self.password = HOMECONFIG.get_device(devid, "PASSWORD")
+        self.email = getConfigHandler().get_device(devid, "EMAIL")
+        self.password = getConfigHandler().get_device(devid, "PASSWORD")
         self.manager = False
         self.meross_devices = None
         self.meross_data = []

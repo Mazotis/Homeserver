@@ -154,7 +154,7 @@ class detector(Thread):
                 req()
 
     def init_from_config(self):
-        self.config = HOMECONFIG.set_section("DETECTOR")
+        self.config = getConfigHandler().set_section("DETECTOR")
         self.TRACKED_IPS = self.config['TRACKED_IPS'].split(",")
         self.device_state_level = [
             0] * len(self.config['TRACKED_IPS'].split(","))

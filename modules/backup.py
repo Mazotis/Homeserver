@@ -190,7 +190,7 @@ class backup(Thread):
         req()
 
     def init_from_config(self):
-        self.config = HOMECONFIG.set_section("BACKUP")
+        self.config = getConfigHandler().set_section("BACKUP")
         self.backup_interval = self.config.get_value(
             "DELAY_BETWEEN_BACKUPS", int)
         self.backup_server = self.config["BACKUP_SERVER"]

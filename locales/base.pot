@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-07 15:46-0500\n"
+"POT-Creation-Date: 2019-11-28 15:28-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -17,205 +17,303 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: web/texts.py:17 web/texts.py:25
+#: web/texts.py:17 web/texts.py:25 web/texts.py:16
 msgid "Homeserver control panel"
 msgstr ""
 
-#: web/texts.py:18 web/texts.py:26
+#: web/texts.py:18 web/texts.py:26 web/texts.py:17
 msgid "Loading..."
 msgstr ""
 
-#: web/texts.py:19 web/texts.py:27
+#: web/texts.py:19 web/texts.py:27 web/texts.py:18
 msgid "Updating device status..."
 msgstr ""
 
-#: web/texts.py:20 web/texts.py:28
+#: web/texts.py:20 web/texts.py:28 web/texts.py:19
 msgid "Rooms"
 msgstr ""
 
-#: web/texts.py:21 web/texts.py:29
+#: web/texts.py:21 web/texts.py:29 web/texts.py:20
 msgid "Devices"
 msgstr ""
 
-#: web/texts.py:22 web/texts.py:30
+#: web/texts.py:22 web/texts.py:30 web/texts.py:21
 msgid "Groups"
 msgstr ""
 
-#: web/texts.py:23 web/texts.py:31
+#: web/texts.py:23 web/texts.py:31 web/texts.py:22
 msgid "No available device groups"
 msgstr ""
 
-#: web/texts.py:24 web/texts.py:32
+#: web/texts.py:24 web/texts.py:32 web/texts.py:23
 msgid "Options"
 msgstr ""
 
-#: web/texts.py:25 web/texts.py:33
+#: web/texts.py:25 web/texts.py:33 web/texts.py:24
 msgid "Time check feature. Today's start time:"
 msgstr ""
 
-#: web/texts.py:26 web/texts.py:34
+#: web/texts.py:26 web/texts.py:34 web/texts.py:25
 msgid "N/A"
 msgstr ""
 
-#: web/texts.py:27 web/texts.py:35
+#: web/texts.py:27 web/texts.py:35 web/texts.py:26
 msgid "Check time of day before executing changes"
 msgstr ""
 
-#: web/texts.py:28 web/texts.py:36
+#: web/texts.py:28 web/texts.py:36 web/texts.py:27
 msgid "Execute changes anytime"
 msgstr ""
 
-#: web/texts.py:29 web/texts.py:37
+#: web/texts.py:29 web/texts.py:37 web/texts.py:28
 msgid "Automatic mode"
 msgstr ""
 
-#: web/texts.py:30 web/texts.py:38
+#: web/texts.py:30 web/texts.py:38 web/texts.py:29
 msgid "Set all devices to automatic mode"
 msgstr ""
 
-#: web/texts.py:31 web/texts.py:39
+#: web/texts.py:31 web/texts.py:39 web/texts.py:30
 msgid "Mode selection toggles"
 msgstr ""
 
-#: web/texts.py:32 web/texts.py:40
+#: web/texts.py:32 web/texts.py:40 web/texts.py:31
 msgid "Hide mode selection toggles"
 msgstr ""
 
-#: web/texts.py:33 web/texts.py:41
+#: web/texts.py:33 web/texts.py:41 web/texts.py:32
 msgid "Show mode selection toggles"
 msgstr ""
 
-#: web/texts.py:34 web/texts.py:42
+#: web/texts.py:34 web/texts.py:42 web/texts.py:33
 msgid "OFF"
 msgstr ""
 
-#: web/texts.py:35 web/texts.py:43
+#: web/texts.py:35 web/texts.py:43 web/texts.py:34
 msgid "ON"
 msgstr ""
 
-#: web/texts.py:36 web/texts.py:44
+#: web/texts.py:36 web/texts.py:44 web/texts.py:35
 msgid "Auto"
 msgstr ""
 
-#: web/texts.py:37 web/texts.py:45
+#: web/texts.py:37 web/texts.py:45 web/texts.py:36
 msgid "Manual"
 msgstr ""
 
-#: web/texts.py:38 web/texts.py:46
+#: web/texts.py:38 web/texts.py:46 web/texts.py:37
 msgid "Save"
 msgstr ""
 
-#: web/texts.py:39 web/texts.py:47
+#: web/texts.py:39 web/texts.py:47 web/texts.py:38
 msgid "Close"
 msgstr ""
 
-#: web/texts.py:48
+#: web/texts.py:48 web/texts.py:39
 msgid "Scheduled"
 msgstr ""
 
-#: web/texts.py:49
+#: web/texts.py:49 web/texts.py:40
 msgid "Backup"
 msgstr ""
 
-#: web/texts.py:50
+#: web/texts.py:50 web/texts.py:41
 msgid "Run a preconfigured backup"
 msgstr ""
 
-#: web/texts.py:51
+#: web/texts.py:51 web/texts.py:42
 msgid "Debug log"
 msgstr ""
 
-#: web/texts.py:52
+#: web/texts.py:52 web/texts.py:43
 msgid "Refresh"
 msgstr ""
 
-#: web/texts.py:53
+#: web/texts.py:53 web/texts.py:44
 msgid "Full debug log"
 msgstr ""
 
-#: web/texts.py:54
+#: web/texts.py:54 web/texts.py:45
 msgid "'Debug' level logs"
 msgstr ""
 
-#: web/texts.py:55
+#: web/texts.py:55 web/texts.py:46
 msgid "'Error' level logs"
 msgstr ""
 
-#: web/texts.py:56
+#: web/texts.py:56 web/texts.py:47
 msgid "Hello!"
 msgstr ""
 
-#: web/texts.py:57
+#: web/texts.py:57 web/texts.py:48
 msgid "Running requests and getting cached state status..."
 msgstr ""
 
-#: web/texts.py:58
+#: web/texts.py:58 web/texts.py:49
 msgid "Querying device state..."
 msgstr ""
 
-#: web/texts.py:59
+#: web/texts.py:59 web/texts.py:50
 msgid "Device configuration"
 msgstr ""
 
-#: web/texts.py:60
+#: web/texts.py:60 web/texts.py:51
 msgid "Unlock device"
 msgstr ""
 
-#: web/texts.py:61
+#: web/texts.py:61 web/texts.py:52
 msgid "Lock device in this state"
 msgstr ""
 
-#: web/texts.py:62
+#: web/texts.py:62 web/texts.py:53
 msgid "Module configuration"
 msgstr ""
 
-#: web/texts.py:63
+#: web/texts.py:63 web/texts.py:54
 msgid "Settings for device ID"
 msgstr ""
 
-#: web/texts.py:64
+#: web/texts.py:64 web/texts.py:55
 msgid ""
 "WARNING - do not use latin characters (é,à,ç...) or upper-case words if not "
 "absolutely required (for example, file locations, MAC addresses, True/False) "
 "as it may break your configuration"
 msgstr ""
 
-#: web/texts.py:65
+#: web/texts.py:65 web/texts.py:56
 msgid "Settings for module"
 msgstr ""
 
-#: web/texts.py:66
+#: web/texts.py:66 web/texts.py:57
 msgid "Attempt device reconnection"
 msgstr ""
 
-#: web/texts.py:67
+#: web/texts.py:67 web/texts.py:58
 msgid "Confirm device state"
 msgstr ""
 
-#: web/texts.py:68
+#: web/texts.py:68 web/texts.py:59
 msgid "device"
 msgstr ""
 
-#: web/texts.py:69
+#: web/texts.py:69 web/texts.py:60
 msgid "devices"
 msgstr ""
 
-#: web/texts.py:70
+#: web/texts.py:70 web/texts.py:61
 msgid "Device follows the time-check feature"
 msgstr ""
 
-#: web/texts.py:71
+#: web/texts.py:71 web/texts.py:62
 msgid "If the device status is OFF, will ignore all turn-off requests"
 msgstr ""
 
-#: web/texts.py:72
+#: web/texts.py:72 web/texts.py:63
 msgid "Device ignores its mode"
 msgstr ""
 
-#: web/texts.py:73
+#: web/texts.py:73 web/texts.py:64
 msgid "Device has a delay between state changes"
 msgstr ""
 
-#: web/texts.py:74
+#: web/texts.py:74 web/texts.py:65
 msgid "Device is read-only"
+msgstr ""
+
+#: web/texts.py:66
+msgid "Presets editor"
+msgstr ""
+
+#: web/texts.py:67
+msgid "Existing presets"
+msgstr ""
+
+#: web/texts.py:68
+msgid "Edit preset"
+msgstr ""
+
+#: web/texts.py:69
+msgid "Preset name"
+msgstr ""
+
+#: web/texts.py:70
+msgid "State values for the devices"
+msgstr ""
+
+#: web/texts.py:71
+msgid "Apply state change on specified device group(s)"
+msgstr ""
+
+#: web/texts.py:72
+msgid "Skip the time check and run the script anyways"
+msgstr ""
+
+#: web/texts.py:73
+msgid "Run the request after a given number of seconds"
+msgstr ""
+
+#: web/texts.py:74
+msgid "Turn all devices selected in current request ON"
+msgstr ""
+
+#: web/texts.py:75
+msgid "Turn all devices selected in current request OFF"
+msgstr ""
+
+#: web/texts.py:76
+msgid "Trigger a device restart for compatible devices"
+msgstr ""
+
+#: web/texts.py:77
+msgid "Toggle ON/OFF all devices selected in current request"
+msgstr ""
+
+#: web/texts.py:78
+msgid ""
+"Force device state change (whatever the actual mode) and set back devices to "
+"AUTO mode"
+msgstr ""
+
+#: web/texts.py:79
+msgid "Run non-DEVICE_SKIP state requests as AUTO mode"
+msgstr ""
+
+#: web/texts.py:80
+msgid "Force device ID# to change mode (as set by auto-mode)"
+msgstr ""
+
+#: web/texts.py:81
+msgid "Purge all RTT, locations and location training data"
+msgstr ""
+
+#: web/texts.py:82
+msgid "Device types"
+msgstr ""
+
+#: web/texts.py:83
+msgid ""
+"1: ON, 0: OFF, -1: Ignore. State choice can either be a single value (will "
+"apply to all devices of the same type) or a comma-separated list for each "
+"separated devices of the same kind - in order of configuration - "
+"device1state,device2state..."
+msgstr ""
+
+#: web/texts.py:84
+msgid "No preconfigured presets found in home.ini!"
+msgstr ""
+
+#: web/texts.py:85
+msgid "You need a preset name"
+msgstr ""
+
+#: web/texts.py:86
+msgid "Preset is invalid. Check the debug file for details."
+msgstr ""
+
+#: web/texts.py:87
+msgid "Reload config file"
+msgstr ""
+
+#: web/texts.py:88
+msgid "Tools"
 msgstr ""

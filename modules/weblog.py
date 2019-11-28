@@ -30,7 +30,7 @@ class weblog(Thread):
         pass
 
     def init_from_config(self):
-        self.config = HOMECONFIG
+        self.config = getConfigHandler()
 
     def get_web(self, level="all"):
         web = """

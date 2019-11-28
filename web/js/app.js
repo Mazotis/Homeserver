@@ -6,6 +6,7 @@ var modulesToRefresh = new Array()
 var dmconfig
 var oldstateJSON, stateJSON
 var pendingRequests = 0
+var shownMenu = false
 
 $(document).ready(function() {
     getResult();
@@ -22,6 +23,36 @@ $(document).ready(function() {
             $(".radiomode").css("display", "none")
         } else {
             $(".radiomode").css("display", "inline-flex")
+        }
+    })
+
+    $("#back-side-menu-btn").on("click", function() {
+        if (shownMenu) {
+            $("#menu-btn").click()
+        }
+    })
+
+    $("#menu-btn").on("click", function() {
+        if (shownMenu) {
+            shownMenu = false
+            $("body").removeClass("modal-open")
+            $(".modal-backdrop").remove()
+            $("body").css("background-color: inherit")
+            $("#side-menu").animate( {
+                left:-300
+            }, 500)
+        } else {
+            shownMenu = true
+            $("body").addClass("modal-open")
+            $("body").append('<div class="modal-backdrop fade show"></div>')
+            $(".modal-backdrop").on("click", function() {
+                $("#menu-btn").click()
+            })
+            $("body").css("background-color: rgb(238, 238, 238) !important")
+            $("#side-menu").animate( {
+                left:0
+            }, 500)
+
         }
     })
 });
@@ -50,6 +81,7 @@ function getResult() {
             stateJSON = JSON.parse(decodeURIComponent(data))
             var cnt = 0
             $('#suntime').html(stateJSON.starttime)
+            $("#version-span").html(stateJSON.version)
 
             //var ghtml = '<div class="row"><div class="col-sm-3">'
             var ghtml = '<div class="card-columns gcard-columns">'
@@ -322,6 +354,8 @@ function computeCards() {
         $(this).removeClass("border-warning")
         $(this).removeClass("border-success")
         $(this).find(".dcard-toggle").bootstrapToggle('enable')
+        $(this).find(".card-header").addClass("text-white")
+        $(this).find(".card-header").remove('.wrench-btn')
         if (stateJSON.state[cid] == "0" || (!isNaN(stateJSON.state[cid]) && parseInt(stateJSON.state[cid]) == 0) || stateJSON.state[cid] == "*0") {
             if ($(this).find(".dcard-toggle").prop('checked')) {
                 $(this).find(".dcard-toggle").bootstrapToggle('off', true)
@@ -664,24 +698,24 @@ function saveConfig(section) {
     });
     $("#settingsmodal").find('button').prop("disabled", true)
     $("#settingsmodal").find('#savemodal').text("...")
-    setTimeout(function() {
-        $.ajax({
-            type: "POST",
-            url: ".",
-            dataType: "text",
-            data: {
-                    request: "True",
-                    reqtype: "setconfig",
-                    section: section,
-                    configdata: encodeURIComponent(JSON.stringify(jsonData))
-                },
-            success: function(data){
+    $.ajax({
+        type: "POST",
+        url: ".",
+        dataType: "text",
+        data: {
+                request: "True",
+                reqtype: "setconfig",
+                section: section,
+                configdata: encodeURIComponent(JSON.stringify(jsonData))
             },
-            error: function(data){
-                console.log(data)
-            }
-        })
+        success: function(data){
+        },
+        error: function(data){
+            console.log(data)
+        }
+    })
 
+    setTimeout(function() {
         $("#settingsmodal").find('button').prop("disabled", false)
         $("#settingsmodal").modal('hide')
         window.location.reload()
@@ -728,5 +762,45 @@ function confirmState(devid, state) {
     })    
 }
 
+function reloadConfig(){
+    $("#reload-config-side-btn").html("Please wait...")
+    $("#reload-config-side-btn").attr("onclick", "")
+    $.ajax({
+        type: "POST",
+        url: ".",
+        dataType: "text",
+        data: {
+                request: "True",
+                reqtype: "reloadconfig",
+            },
+        success: function(data){
+        },
+        error: function(data){
+            console.log(data)
+        }
+    })
+
+    setTimeout(function() {
+        $("#settingsmodal").find('button').prop("disabled", false)
+        $("#settingsmodal").modal('hide')
+        window.location.reload()
+    }, 4000)
+}
+
+function getPresetEditor(){
+    $("#menu-btn").click()
+    $.ajax({
+        type: "GET",
+        url: "modules/preseteditor.html",
+        dataType: "html",
+        success: function(data){
+            $("#additional-content").html(data)
+            $("#preseteditor").modal('show')
+        },
+        error: function(data){
+            console.log(data)
+        }
+    })    
+}
 
 // Javascript ends here. Comment added to prevent EOF bytes loss due to &; characters parsing. TODO - prevent this some other way

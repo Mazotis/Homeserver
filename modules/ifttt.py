@@ -171,7 +171,7 @@ class ifttt(Thread):
             return
 
     def init_from_config(self):
-        self.config = HOMECONFIG.set_section("IFTTT")
+        self.config = getConfigHandler().set_section("IFTTT")
         self.port = self.config.get_value('VOICE_SERVER_PORT', int, parent="SERVER")
         self.protocol = self.config['PROTOCOL']
         if self.protocol == "https":

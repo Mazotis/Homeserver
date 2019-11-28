@@ -28,6 +28,19 @@
     -->
     <div class="container-fluid noselect-nooverflow">
         <div class="row">
+            <div class="col-md-12 bg-info text-white" id="side-menu">
+                <center>
+                    <i class="fas fa-arrow-circle-left" id="back-side-menu-btn"></i>
+                    <h4 style="margin-top:15px; margin-bottom: 0; font-weight:bold;">Homeserver</h4>
+                    <p>Version <span id="version-span"></span></p>
+                    <hr>
+                    <br>
+                    <h4 style="font-weight:bold; text-decoration: underline;"><i class="fas fa-tools"></i> <tl>Tools</tl></h4>
+                    <a onclick="getPresetEditor()"><tl>Presets editor</tl></a><br>
+                    <a id="reload-config-side-btn" onclick="reloadConfig()"><tl>Reload config file</tl></a>
+                </center>
+            </div>
+            <div class="col-md-12 bg-info" id="top-bar"><i class="fas fa-bars" id="menu-btn"></i></div>
             <div class="col-md-12" style="background-color:#eee !important">
                 <br>
                 <center>
@@ -176,5 +189,6 @@
         </div>
       </div>
     </div>
+    <div id="additional-content"></div>
   </body>
 </html>

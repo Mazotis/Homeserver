@@ -45,7 +45,7 @@ class DeviceManager(object):
     def __init__(self):
         debug.get_set_lock()
         debug.enable_debug()
-        self.config = HOMECONFIG
+        self.config = getConfigHandler()
         self.devices = []
         self.pseudodevices = {}
         debug.write(
@@ -110,6 +110,7 @@ class DeviceManager(object):
         if self.config.has_option("WEBSERVER", "ROOM_GROUPS"):
             dm_status["roomgroups"] = self.config["WEBSERVER"]["ROOM_GROUPS"]
         dm_status["deviceroom"] = self.room_groups
+        dm_status["version"] = VERSION
         lock.release()
         return dm_status
 
@@ -244,7 +245,7 @@ class DeviceManager(object):
             i = i + 1
 
     def get_modules_list(self):
-        loaded_modules = HOMECONFIG['SERVER']['MODULES'].split(",")
+        loaded_modules = getConfigHandler()['SERVER']['MODULES'].split(",")
         # TODO put that check in some module?
         if all(x in loaded_modules for x in ['ifttt', 'dialogflow']):
             debug.write(
@@ -350,7 +351,7 @@ class DeviceManager(object):
         return oplist
 
     def reload_configs(self):
-        self.config.load_config()
+        getConfigHandler(renew=True)
         for _dev in self:
             try:
                 _dev.init_from_config()
@@ -684,6 +685,14 @@ class StateRequestObject(object):
         for i, (_var, _chg) in enumerate(self.changed_vars.items()):
             if i != 0:
                 _str += ", "
+            if re.match("[0-9a-fA-F]+del[0-9]+", str(_chg)) is not None:
+                """ This is a delayed change (delay then action) """
+                _vals = _chg.split("del")
+                _chg = "{} in {} seconds".format(_vals[0], _vals[1])
+            if re.match("[0-9a-fA-F]+for[0-9]+", str(_chg)) is not None:
+                """ This is a for-delay change (action, delay then off)"""
+                _vals = _chg.split("for")
+                _chg = "{} for {} seconds then turned off".format(_vals[0], _vals[1])
             _str += "{} will be set to {}".format(_var, _chg)
         return _str
 
@@ -704,16 +713,24 @@ class StateRequestObject(object):
         for _dev in getDevices(True):
             allowed_keys.append(_dev)
         for k, v in kwargs.items():
+            k = k.replace("-", "_")
             if k not in allowed_keys:
                 debug.write(
                     "Missing or unallowed variable in request: {}".format(k), 1)
+            if v in ["True", "true"]:
+                v = True
+            elif v in ["False", "false"]:
+                v = False
+            elif v == "":
+                v = None
+            if getattr(self, k, False) != v:
+                self.changed_vars[k] = v
         self.__dict__.update((k, v)
                              for k, v in kwargs.items() if k in allowed_keys)
 
     def from_string(self, json_str):
         if json_str is None or json_str == "":
             return False
-        debug.write("Parsing request: {}".format(json_str), 0)
         try:
             _args = ast.literal_eval(json_str)
             self.set(**_args)
@@ -848,13 +865,7 @@ class RequestExecutor(object):
                 debug.write(
                     "Received change to preset [{}] request".format(request.preset), 0)
                 try:
-                    preset_colors = config["PRESETS"][request.preset].split(',')
-                    if len(preset_colors) != len(dm.devices):
-                        debug.write("Preset '{}' does not have the adequate number of states, {} expected.".format(
-                            request.preset, len(dm.devices)), 1)
-                        return False
-                    request.set_colors(
-                        config["PRESETS"][request.preset].split(','), len(dm.devices))
+                    request.from_string(config["PRESETS"][request.preset])
                     request.auto_mode = config["PRESETS"].getboolean(
                         "AUTOMATIC_MODE")
                 except KeyError:

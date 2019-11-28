@@ -8,9 +8,9 @@ msgstr ""
 "Project-Id-Version: alpha-0.1\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2019-11-01 14:31-0400\n"
-"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"PO-Revision-Date: 2019-11-28 15:30-0400\n"
 "Last-Translator: Mazotis <mazout360@hotmail.com>\n"
-"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language-Team: Francais <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
@@ -221,3 +221,106 @@ msgstr "Le dispositif présente un délai entre l'exécution de requêtes"
 #: web/texts.py:74
 msgid "Device is read-only"
 msgstr "Le dispositif est en lecture seulement"
+
+#: web/texts.py:66
+msgid "Presets editor"
+msgstr "Éditeur de préréglages"
+
+#: web/texts.py:67
+msgid "Existing presets"
+msgstr "Préréglages existants"
+
+#: web/texts.py:68
+msgid "Edit preset"
+msgstr "Éditer un préréglage"
+
+#: web/texts.py:69
+msgid "Preset name"
+msgstr "Nom du préréglage"
+
+#: web/texts.py:70
+msgid "State values for the devices"
+msgstr "Valeurs d'état pour les dispositifs"
+
+#: web/texts.py:71
+msgid "Apply state change on specified device group(s)"
+msgstr "Appliquer le changement d'état sur le(s) groupe(s) de dispositifs"
+
+#: web/texts.py:72
+msgid "Skip the time check and run the script anyways"
+msgstr "Ignorer la vérification de l'heure et exécuter la requête tout de même"
+
+#: web/texts.py:73
+msgid "Run the request after a given number of seconds"
+msgstr "Exécuter la requête après un nombre défini de secondes"
+
+#: web/texts.py:74
+msgid "Turn all devices selected in current request ON"
+msgstr "Mettre les dispositifs sélectionnés dans la requête à ON"
+
+#: web/texts.py:75
+msgid "Turn all devices selected in current request OFF"
+msgstr "Mettre les dispositifs sélectionnés dans la requête à OFF"
+
+#: web/texts.py:76
+msgid "Trigger a device restart for compatible devices"
+msgstr "Redémarrer les dispositifs compatibles avec cette fonction"
+
+#: web/texts.py:77
+msgid "Toggle ON/OFF all devices selected in current request"
+msgstr "Inverser l'état (ON/OFF) des dispositifs sélectionnés dans la requête"
+
+#: web/texts.py:78
+msgid ""
+"Force device state change (whatever the actual mode) and set back devices to "
+"AUTO mode"
+msgstr "Forcer le changement d'état (peu importe le mode actuel) et remettre "
+"les dispositifs en mode AUTO"
+
+#: web/texts.py:79
+msgid "Run non-DEVICE_SKIP state requests as AUTO mode"
+msgstr "Exécuter toutes les requêtes non-DEVICE_SKIP en mode AUTO"
+
+#: web/texts.py:80
+msgid "Force device ID# to change mode (as set by auto-mode)"
+msgstr "Forcer le dispositif ID# à changer de mode (tel que défini par"
+"auto-mode)"
+
+#: web/texts.py:81
+msgid "Purge all RTT, locations and location training data"
+msgstr "Purger les données RTT, de location et d'entraînement"
+
+#: web/texts.py:82
+msgid "Device types"
+msgstr "Types de dispositifs"
+
+#: web/texts.py:83
+msgid ""
+"1: ON, 0: OFF, -1: Ignore. State choice can either be a single value (will "
+"apply to all devices of the same type) or a comma-separated list for each "
+"separated devices of the same kind - in order of configuration - "
+"device1state,device2state..."
+msgstr "1: ON, 0: OFF, -1: Ignorer. Le choix d'état peut soit être une valeur "
+"unique (qui va s'appliquer sur tous les dispositifs du même type) ou une liste "
+"de valeurs séparées par une virgule pour chaque dispositif de ce type - en ordre "
+"de configuration - device1state, device2state..."
+
+#: web/texts.py:84
+msgid "No preconfigured presets found in home.ini!"
+msgstr "Pas de préréglages trouvés dans home.ini!"
+
+#: web/texts.py:85
+msgid "You need a preset name"
+msgstr "Vous devez spécifier un nom de préréglage"
+
+#: web/texts.py:86
+msgid "Preset is invalid. Check the debug file for details."
+msgstr "Le préréglage est invalide - Voir le fichier de débug pour des détails"
+
+#: web/texts.py:87
+msgid "Reload config file"
+msgstr "Recharger le fichier de configuration"
+
+#: web/texts.py:88
+msgid "Tools"
+msgstr "Outils"

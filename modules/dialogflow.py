@@ -78,7 +78,7 @@ class dialogflow(Thread):
             return
 
     def init_from_config(self):
-        self.config = HOMECONFIG.set_section("DIALOGFLOW")
+        self.config = getConfigHandler().set_section("DIALOGFLOW")
         self.port = self.config.get_value('VOICE_SERVER_PORT', int, "SERVER")
         self.key = self.config['DIALOGFLOW_HTTPS_CERTS_KEY']
         self.cert = self.config['DIALOGFLOW_HTTPS_CERTS_CERT']

@@ -7,68 +7,23 @@
 
     A python home control server/client
 '''
-import argparse
 import pickle
 import socket
 import sys
 from core.common import *
 from core.devicemanager import DeviceManager, StateRequestObject, RequestExecutor
 from core.server import HomeServer
-from argparse import RawTextHelpFormatter
 from __main__ import *
 
 
 """ Script executed directly """
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description='Home server manager script', formatter_class=RawTextHelpFormatter)
-    parser.add_argument('hexvalues', metavar='N', type=str, nargs="*",
-                        help='state values for the devices (see list below)')
-
-    for _dev in getDevices(True):
-        parser.add_argument('--' + _dev, type=str, nargs="*",
-                            help='Change {} states only'.format(_dev))
-
-    parser.add_argument('--preset', metavar='preset', type=str, nargs="?", default=None,
-                        help='Apply state change actions from specified preset name defined in home.ini')
-    parser.add_argument('--group', metavar='group', type=str, nargs="+", default=None,
-                        help='Apply state change on specified device group(s)')
-    parser.add_argument('--notime', action='store_true', default=False,
-                        help='Skip the time check and run the script anyways')
-    parser.add_argument('--delay', metavar='delay', type=int, nargs="?", default=0,
-                        help='Run the request after a given number of seconds')
-    parser.add_argument('--on', action='store_true',
-                        default=False, help='Turn everything on')
-    parser.add_argument('--off', action='store_true',
-                        default=False, help='Turn everything off')
-    parser.add_argument('--restart', action='store_true',
-                        default=False, help='Restart generics')
-    parser.add_argument('--toggle', action='store_true',
-                        default=False, help='Toggle all devices on/off')
-    parser.add_argument('--server', action='store_true', default=False,
-                        help='Start as a socket server daemon')
-    parser.add_argument('--threaded', action='store_true', default=False,
-                        help='Starts the server daemon with threaded light change requests')
-    parser.add_argument('--stream-dev', metavar='str-dev', type=int, nargs="?", default=None,
-                        help='Stream colors directly to device id')
-    parser.add_argument('--stream-group', metavar='str-grp', type=str, nargs="?", default=None,
-                        help='Stream colors directly to device group')
-    parser.add_argument('--reset-mode', action='store_true', default=False,
-                        help='Force device state change (whatever the actual mode) and set back devices to AUTO mode')
-    parser.add_argument('--reset-location-data', action='store_true', default=False,
-                        help='Purge all RTT, locations and location training data (default: false)')
-    parser.add_argument('--auto-mode', action='store_true', default=False,
-                        help='(internal) Run requests for non-DEVICE_SKIP devices as AUTO mode (default: false)')
-    parser.add_argument('--set-mode-for-devid', metavar='devid', type=int, nargs="?", default=None,
-                        help='(internal) Force device# to change mode (as set by auto-mode)')
-
-    args = parser.parse_args()
+    args = HOMECONFIG.get_arguments()
 
     # TODO add back device state change  request validation or just ignore?
     if args.server and (args.on or args.off or args.toggle or args.stream_dev
                         or args.stream_group or args.preset or args.restart):
-        debug.write("You cannot start the daemon and send arguments at the same time. \
-                              Quitting.", 2)
+        debug.write("You cannot start the daemon and send arguments at the same time. Quitting.", 2)
         sys.exit()
 
     if args.stream_dev and args.stream_group:

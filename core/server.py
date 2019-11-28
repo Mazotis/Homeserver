@@ -7,7 +7,6 @@
 
     The homeserver request server
 '''
-import configparser
 import pickle
 import socket
 import traceback
@@ -21,7 +20,7 @@ class HomeServer(Thread):
     def __init__(self, dm):
         Thread.__init__(self)
         self.dm = dm
-        self.config = HOMECONFIG.set_section("SERVER")
+        self.config = getConfigHandler().set_section("SERVER")
         self.host = self.config['HOST']
         self.port = self.config.get_value('PORT', int)
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -209,7 +208,7 @@ class HomeServer(Thread):
         self.disconnect_devices()
         debug.write("Shutdown completed properly", 0, "SERVER")
         self.stopevent.set()
-        socket.socket(socket.AF_INET, 
-                  socket.SOCK_STREAM).connect((self.host, self.port))
+        socket.socket(socket.AF_INET,
+                      socket.SOCK_STREAM).connect((self.host, self.port))
         self.sock.close()
         return

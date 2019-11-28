@@ -18,6 +18,7 @@ import sys
 from os.path import dirname, basename, isfile
 from core.confighandler import ConfigHandler
 
+
 # CONSTANTS
 DEVICE_STANDBY = "-2"
 DEVICE_SKIP = "-1"
@@ -28,9 +29,21 @@ DEVICE_INFERRED_OFF = "*0"
 DEVICE_INFERRED_ON = "*1"
 
 VERSION = "alpha"
-
-HOMECONFIG = ConfigHandler()
 ###
+
+
+def getConfigHandler(renew=False):
+    if renew:
+        HOMECONFIG = ConfigHandler()
+    try:
+        HOMECONFIG
+    except NameError:
+        HOMECONFIG = ConfigHandler()
+        pass
+    return HOMECONFIG
+
+
+HOMECONFIG = getConfigHandler()
 
 
 class NewRequestException(Exception):
@@ -121,11 +134,13 @@ class LanguageHandler(object):
         if self.installed_language is None:
             if language.getLanguage() == "fr":
                 debug.write("Setting language as fr", 0)
-                lang = gettext.translation('base', localedir='locales', languages=['fr'])
+                lang = gettext.translation(
+                    'base', localedir='locales', languages=['fr'])
                 lang.install()
             else:
                 debug.write("Setting language as en", 0)
-                lang = gettext.translation('base', localedir='locales', languages=['en'])
+                lang = gettext.translation(
+                    'base', localedir='locales', languages=['en'])
                 lang.install()
         return lang.gettext
 

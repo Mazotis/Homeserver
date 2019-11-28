@@ -62,7 +62,30 @@ def getTextHTML(textid):
         "If the device status is OFF, will ignore all turn-off requests": _("If the device status is OFF, will ignore all turn-off requests"),
         "Device ignores its mode": _("Device ignores its mode"),
         "Device has a delay between state changes": _("Device has a delay between state changes"),
-        "Device is read-only": _("Device is read-only")
+        "Device is read-only": _("Device is read-only"),
+        "Presets editor": _("Presets editor"),
+        "Existing presets": _("Existing presets"),
+        "Edit preset": _("Edit preset"),
+        "Preset name": _("Preset name"),
+        "State values for the devices": _("State values for the devices"),
+        "Apply state change on specified device group(s)": _("Apply state change on specified device group(s)"),
+        "Skip the time check and run the script anyways": _("Skip the time check and run the script anyways"),
+        "Run the request after a given number of seconds": _("Run the request after a given number of seconds"),
+        "Turn all devices selected in current request ON": _("Turn all devices selected in current request ON"),
+        "Turn all devices selected in current request OFF": _("Turn all devices selected in current request OFF"),
+        "Trigger a device restart for compatible devices": _("Trigger a device restart for compatible devices"),
+        "Toggle ON/OFF all devices selected in current request": _("Toggle ON/OFF all devices selected in current request"),
+        "Force device state change (whatever the actual mode) and set back devices to AUTO mode": _("Force device state change (whatever the actual mode) and set back devices to AUTO mode"),
+        "Run non-DEVICE_SKIP state requests as AUTO mode": _("Run non-DEVICE_SKIP state requests as AUTO mode"),
+        "Force device ID# to change mode (as set by auto-mode)": _("Force device ID# to change mode (as set by auto-mode)"),
+        "Purge all RTT, locations and location training data": _("Purge all RTT, locations and location training data"),
+        "Device types": _("Device types"),
+        "_text2": _("1: ON, 0: OFF, -1: Ignore. State choice can either be a single value (will apply to all devices of the same type) or a comma-separated list for each separated devices of the same kind - in order of configuration - device1state,device2state..."),
+        "No preconfigured presets found in home.ini!": _("No preconfigured presets found in home.ini!"),
+        "You need a preset name": _("You need a preset name"),
+        "Preset is invalid. Check the debug file for details.": _("Preset is invalid. Check the debug file for details."),
+        "Reload config file": _("Reload config file"),
+        "Tools": _("Tools")
     }
 
     try:

@@ -6,6 +6,39 @@ body {
     font-family: MuseoSans, Arial, serif;
     color: #191919;
 }
+hr {
+    background-color:white;
+}
+a:hover{
+    text-decoration: underline !important;
+    cursor:pointer;
+}
+#top-bar {
+    top:0;
+    left:0;
+    right:0;
+    height:50px;
+}
+#menu-btn {
+    line-height: 50px;
+    font-size: 36px;
+    color:#eee;
+    cursor:pointer;
+}
+#side-menu {
+    position: fixed;
+    left:-300px;
+    height:100%;
+    width:300px;
+    z-index: 9000;
+}
+#back-side-menu-btn {
+    position: relative;
+    top:10px;
+    float:left;
+    font-size:36px;
+    cursor:pointer;
+}
 .disabledbutton {
     pointer-events: none;
     opacity: 0.4;

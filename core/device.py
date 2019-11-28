@@ -43,7 +43,7 @@ class device(object):
         self.init_from_config()
 
     def init_from_config(self):
-        self.config = HOMECONFIG.set_section(device=self.devid)
+        self.config = getConfigHandler().set_section(device=self.devid)
         self.description = self.config["DESCRIPTION"]
         if self.config.dev_has_option("GROUP"):
             self.group = self.config["GROUP"].split(',')
