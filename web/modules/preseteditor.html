@@ -66,7 +66,7 @@ function getConfigXML(presets) {
         $(data).find("argument type:contains('bool')").each(function(){
           name = $(this).parent().attr("name")
           desc = $(this).parent().find("description").html()
-          html = '<div class="form-group row"><label for="' + name + '-field" class="col-sm-10 col-form-label">' + desc + ' <small class="form-text text-muted">' + name + '</small></label><input type="checkbox" id="' + name + '-field" class="col-sm-2" default="' + $(this).parent().find("default").html() + '" data-onstyle="success" data-offstyle="danger" data-on="Yes" data-off="No"></div>'
+          html = '<div class="form-group row"><label for="' + name + '-field" class="col-sm-10 col-form-label">' + desc + ' <small class="form-text text-muted">' + name + '</small></label><input type="checkbox" id="' + name + '-field" class="col-sm-2" default="' + $(this).parent().find("default").html() + '" data-onstyle="success" data-offstyle="danger" data-on="_(Yes)" data-off="_(No)"></div>'
           $("#editor-form").append(html)
 
           if ($(this).parent().find("default").html() == "True") {

@@ -115,6 +115,7 @@ function getResult() {
                 cnt = cnt + 1
             }
 
+            html += generateBlankCard()
             $("#cardmodel").remove()
 
             if (hasRoomGroups) {
@@ -126,6 +127,7 @@ function getResult() {
                     rhtml += '<div class="card rcard mb-3 noselect-nooverflow" id="rcard-' + rgroups[cnt] + '"><h4 class="card-header title-header bg-danger text-white" style="font-weight:bold;">' + rgroups[cnt].charAt(0).toUpperCase() + rgroups[cnt].substr(1).toLowerCase() + '</h4><div class="card-body d-body card-columns" style="display:none;"></div><h5 class="card-header bg-danger d-count text-white title-footer"><div style="float:right"><input type="checkbox" class="rcard-toggle" data-onstyle="success" data-offstyle="danger" data-size="sm"></div></h5></div>'
                 }
 
+                rhtml += '<div class="card mb-3 noselect-nooverflow" onclick="getGroupSelect()"><h5 class="card-header title-header bg-secondary text-white new-dev-card"><i class="fas fa-plus-circle"></i> _(Add/remove room groups)</h5></div>'
                 $(".rcolumns").html(rhtml)
             }
 
@@ -219,8 +221,43 @@ function generateCard(devid, data, a_this = null) {
     return html
 }
 
+function generateBlankCard() {
+   card = $("#cardmodel").find("div.mb-3")
+   card.find(".card-header").remove()
+   card.find(".card-footer").remove()
+   card.removeClass("dcard")
+   card.addClass("text-white")
+   card.attr("cid", "")
+   card.find(".card-title").html("<i class='fas fa-plus-circle'></i> Add device (WIP)")
+   card.find(".card-title").css("font-weight", "inherit")
+   card.find(".text-muted").text("")
+   card.find("p.c-desc").text("")
+   card.addClass("bg-secondary")
+   card.addClass("new-dev-card")
+
+   html = card.parent().html()
+
+   return html
+}
+
 function computeCards() {
     $(".card").removeClass("disabledbutton")
+
+    $(".dcard").each(function() {
+        if ($(this).attr("cloned") != "1") {
+            cid = parseInt($(this).attr("cid"))
+            if (stateJSON.deviceroom[cid] != "") {
+                rgroups = stateJSON.deviceroom[cid].split(",")
+                for (_cnt in rgroups) {
+                    var clone = $(this).clone(true)
+                    clone.attr("cloned", "1")
+                    clone.prependTo($("#rcard-" + rgroups[_cnt] + " > .card-body"))
+                }
+                $(this).remove()
+            }
+        }
+    })
+
     $(".dcard").each(function() {
         var cid, cinit, hascontrols
         cid = parseInt($(this).attr("cid"))
@@ -339,10 +376,6 @@ function computeCards() {
                 $(this).find(".dcard-toggle").change(function() {
                     sendPowerRequest(cid, this.checked ? 1 : 0)
                 })
-
-                if (stateJSON.deviceroom[cid] != "") {
-                    $(this).prependTo($("#rcard-" + stateJSON.deviceroom[cid] + " > .card-body"))
-                }
             }
         }
 
@@ -796,6 +829,21 @@ function getPresetEditor(){
         success: function(data){
             $("#additional-content").html(data)
             $("#preseteditor").modal('show')
+        },
+        error: function(data){
+            console.log(data)
+        }
+    })    
+}
+
+function getGroupSelect(){
+    $.ajax({
+        type: "GET",
+        url: "modules/groupselect.html",
+        dataType: "html",
+        success: function(data){
+            $("#additional-content").html(data)
+            $("#groupselect").modal('show')
         },
         error: function(data){
             console.log(data)

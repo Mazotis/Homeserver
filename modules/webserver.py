@@ -320,6 +320,22 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     else:
                         response.write("0".encode("UTF-8"))
 
+                if reqtype == "getroomgroups":
+                    groups = {}
+                    groups["groups"] = self.dm.all_groups
+                    groups["rooms"] = self.config["WEBSERVER"]["ROOM_GROUPS"].split(",")
+                    response.write(json.dumps(groups).encode("UTF-8"))
+
+                if reqtype == "setroomgroups":
+                    rooms = urllib.parse.unquote(json.loads(str(postvars[b'rooms'][0].decode("UTF-8"))))
+                    debug.write("Changing room groups to {}".format(rooms), 0, "WEBSERVER")
+                    response.write("1".encode("UTF-8"))
+                    self.config.set("WEBSERVER","ROOM_GROUPS", rooms)
+                    with open('home.ini', 'w') as configfile:
+                        copyfile('home.ini', 'home.old')
+                        self.config.write(configfile)
+                    self.dm.reload_configs()
+
                 # ADD NECESSARY WEBSERVER REQUESTS HERE #
 
             else:

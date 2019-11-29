@@ -324,3 +324,34 @@ msgstr "Recharger le fichier de configuration"
 #: web/texts.py:88
 msgid "Tools"
 msgstr "Outils"
+
+#: web/texts.py:89
+msgid "Yes"
+msgstr "Oui"
+
+#: web/texts.py:90
+msgid "No"
+msgstr "Non"
+
+#: web/texts.py:91
+msgid "Room groups selection"
+msgstr "Sélection des groupes-pièces"
+
+#: web/texts.py:92
+msgid "Available groups"
+msgstr "Groupes disponibles"
+
+#: web/texts.py:93
+msgid ""
+"Please select the groups that will be considered as \"rooms\" or \"prioritary"
+"\" groups"
+msgstr "Veuillez sélectionner les groupes qui seront considérés comme des "
+"\"pièces\" ou des groupes \"prioritaires\""
+
+#: web/texts.py:94
+msgid "No groups configured!"
+msgstr "Aucun groupe configuré!"
+
+#: web/texts.py:95
+msgid "Add/remove room groups"
+msgstr "Ajouter/retirer des groupes-pièces"

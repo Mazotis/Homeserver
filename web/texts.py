@@ -85,7 +85,14 @@ def getTextHTML(textid):
         "You need a preset name": _("You need a preset name"),
         "Preset is invalid. Check the debug file for details.": _("Preset is invalid. Check the debug file for details."),
         "Reload config file": _("Reload config file"),
-        "Tools": _("Tools")
+        "Tools": _("Tools"),
+        "Yes": _("Yes"),
+        "No": _("No"),
+        "Room groups selection": _("Room groups selection"),
+        "Available groups": _("Available groups"),
+        'Please select the groups that will be considered as "rooms" or "prioritary" groups': _('Please select the groups that will be considered as "rooms" or "prioritary" groups'),
+        "No groups configured!": _("No groups configured!"),
+        "Add/remove room groups": _("Add/remove room groups")
     }
 
     try:

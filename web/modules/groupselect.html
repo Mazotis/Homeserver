@@ -1,0 +1,80 @@
+<script>
+$(document).ready(function() {
+  getGroupsList()
+})
+
+function getGroupsList() {
+  $.ajax({
+      type: "POST",
+      url: ".",
+      dataType: "text",
+      data: {
+          request: "True",
+          reqtype: "getroomgroups",            
+      },
+      success: function(data){
+          groups = JSON.parse(data)
+          console.log(groups)
+
+          for (_cnt in groups["groups"]) {
+            $("#no-group-msg").remove()
+            html = '<div class="form-group row"><label for="' + groups["groups"][_cnt] + '-field" class="col-sm-8 col-form-label">' + groups["groups"][_cnt] + ' </label><input type="checkbox" id="' + groups["groups"][_cnt] + '-field" class="col-sm-2" data-onstyle="success" data-offstyle="danger" data-on="_(Yes)" data-off="_(No)"></div>'
+            $("#groups-list").append(html)
+            if (groups["rooms"].includes(groups["groups"][_cnt])) {
+              $("#" + groups["groups"][_cnt] + "-field").bootstrapToggle('on', false)
+            } else {
+              $("#" + groups["groups"][_cnt] + "-field").bootstrapToggle('off', false)
+            }
+          } 
+      },
+      error: function(data){
+          console.log(data)
+      }
+  })
+}
+
+function generateRoomGroups() {
+  var selected = function() { return this.id.replace("-field", ""); };
+  var roomgroups = $("#groups-list").find(":checkbox:checked").map(selected).get();
+  $("#record-rooms").prop("disabled", true)
+  $.ajax({
+      type: "POST",
+      url: ".",
+      dataType: "text",
+      data: {
+          request: "True",
+          reqtype: "setroomgroups",
+          rooms: JSON.stringify(encodeURIComponent(roomgroups))  
+      },
+      success: function(data){
+        setTimeout(function() {
+          window.location.reload()
+        }, 4000)
+      },
+      error: function(data){
+        console.log(data)
+      }
+  })
+}
+</script>
+<div class="modal fade" id="groupselect" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><tl>Room groups selection</tl></h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <h3><tl>Available groups</tl></h3>
+        <small class="form-text text-muted" style="margin-bottom:10px;"><tl>Please select the groups that will be considered as "rooms" or "prioritary" groups</tl></small>
+        <div id="groups-list"><span id="no-group-msg"><tl>No groups configured!</tl></span></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="record-rooms" onclick="generateRoomGroups()" class="btn btn-primary"><tl>Save</tl></button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal"><tl>Close</tl></button>
+      </div>
+    </div>
+  </div>
+</div>

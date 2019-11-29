@@ -316,3 +316,33 @@ msgstr ""
 #: web/texts.py:88
 msgid "Tools"
 msgstr ""
+
+#: web/texts.py:89
+msgid "Yes"
+msgstr ""
+
+#: web/texts.py:90
+msgid "No"
+msgstr ""
+
+#: web/texts.py:91
+msgid "Room groups selection"
+msgstr ""
+
+#: web/texts.py:92
+msgid "Available groups"
+msgstr ""
+
+#: web/texts.py:93
+msgid ""
+"Please select the groups that will be considered as \"rooms\" or \"prioritary"
+"\" groups"
+msgstr ""
+
+#: web/texts.py:94
+msgid "No groups configured!"
+msgstr ""
+
+#: web/texts.py:95
+msgid "Add/remove room groups"
+msgstr ""

@@ -210,12 +210,16 @@ class DeviceManager(object):
         if self.config.has_option("WEBSERVER", "ROOM_GROUPS"):
             devrooms = []
             room_groups = self.config["WEBSERVER"]["ROOM_GROUPS"].split(",")
-            for obj in self:
+            for _cnt, obj in enumerate(self):
+                has_room = False
                 for group in obj.group:
                     if group in room_groups:
-                        devrooms.append(group)
-                        break
-                else:
+                        try:
+                            devrooms[_cnt] = devrooms[_cnt] + "," + group
+                        except IndexError:
+                            devrooms.append(group)
+                            has_room = True
+                if not has_room:
                     devrooms.append("")
         else:
             devrooms = [""] * len(self)
@@ -351,7 +355,7 @@ class DeviceManager(object):
         return oplist
 
     def reload_configs(self):
-        getConfigHandler(renew=True)
+        self.config = getConfigHandler(renew=True)
         for _dev in self:
             try:
                 _dev.init_from_config()
