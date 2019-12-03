@@ -3,7 +3,7 @@
     File name: webserver.py
     Author: Maxime Bergeron
     Date last modified: 07/11/2019
-    Python Version: 3.5
+    Python Version: 3.7
 
     The web server interface module for the homeserver
 '''
@@ -110,10 +110,10 @@ class WebServerHandler(SimpleHTTPRequestHandler):
             response = BytesIO()
             if request:
                 if reqtype == "getstate":
-                    async = postvars[b'isasync'][0].decode(
+                    is_async = postvars[b'isasync'][0].decode(
                         'utf-8') in ["True", "true", True]
                     response.write(json.dumps(
-                        self.dm(async=async)).encode('UTF-8'))
+                        self.dm(is_async=is_async)).encode('UTF-8'))
 
                 if reqtype == "setstate":
                     # TODO GET SUCCESS STATE ?

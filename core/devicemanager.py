@@ -3,7 +3,7 @@
     File name: devicemanager.py
     Author: Maxime Bergeron
     Date last modified: 15/11/2019
-    Python Version: 3.5
+    Python Version: 3.7
 
     The device and modules manager for the homeserver. Not a module per-se
 '''
@@ -92,13 +92,13 @@ class DeviceManager(object):
         except IndexError:
             self.devices.append(device)
 
-    def __call__(self, async=True):
+    def __call__(self, is_async=True):
         lock.acquire()
         dm_status = {}
         dm_status["state"] = self.get_state(
-            async=async, webcolors=True)
+            is_async=is_async, webcolors=True)
         dm_status["intensity"] = self.get_state(
-            async=True, intensity=True)
+            is_async=True, intensity=True)
         dm_status["mode"] = self.modes
         dm_status["type"] = self.types
         dm_status["name"] = self.names
@@ -407,13 +407,13 @@ class DeviceManager(object):
             return False
         return True
 
-    def get_state(self, devid=None, async=False, webcolors=False, intensity=False):
+    def get_state(self, devid=None, is_async=False, webcolors=False, intensity=False):
         """ Getter for configured devices actual colors """
         states = [None] * len(self)
         for _cnt, dev in enumerate(self):
             if devid is not None and devid != _cnt:
                 continue
-            if async:
+            if is_async:
                 if intensity and self[_cnt].color_type in ["argb", "rgb", "255"]:
                     states[_cnt] = convert_color(dev.state, "100")
                 else:
@@ -423,7 +423,7 @@ class DeviceManager(object):
             if webcolors:
                 states[_cnt] = convert_to_web_rgb(
                     states[_cnt], dev.color_type, dev.color_brightness)
-        if not async and devid is None:
+        if not is_async and devid is None:
             debug.write(
                 "All devices state status updated from devices get_state()", 0)
         if devid is not None:
