@@ -18,7 +18,7 @@ function getGroupsList() {
 
           for (_cnt in groups["groups"]) {
             $("#no-group-msg").remove()
-            html = '<div class="form-group row"><label for="' + groups["groups"][_cnt] + '-field" class="col-sm-8 col-form-label">' + groups["groups"][_cnt] + ' </label><input type="checkbox" id="' + groups["groups"][_cnt] + '-field" class="col-sm-2" data-onstyle="success" data-offstyle="danger" data-on="_(Yes)" data-off="_(No)"></div>'
+            html = '<div class="form-group row"><label for="' + groups["groups"][_cnt] + '-field" class="col-8 col-form-label">' + groups["groups"][_cnt] + ' </label><div class="col-2"><input type="checkbox" id="' + groups["groups"][_cnt] + '-field" data-onstyle="success" data-offstyle="danger" data-on="_(Yes)" data-off="_(No)"></div></div>'
             $("#groups-list").append(html)
             if (groups["rooms"].includes(groups["groups"][_cnt])) {
               $("#" + groups["groups"][_cnt] + "-field").bootstrapToggle('on', false)

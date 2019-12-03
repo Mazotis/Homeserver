@@ -115,7 +115,7 @@ class DebugLog(object):
                 try:
                     with open(self.config['JOURNAL_DIR'] + "/home.0.log", "a+") as jfile:
                         jfile.write(_debugtext + "\n")
-                except FileNotFoundError:
+                except IOError:
                     print("Directory {} does not exist. Quitting.".format(
                         self.config['JOURNAL_DIR']))
                     quit()

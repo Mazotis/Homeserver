@@ -19,13 +19,22 @@ class ConfigHandler(ConfigParser):
     def __init__(self, subsection=None, *args, **kwargs):
         self.subsection = subsection
         self.configurables = None
-        super().__init__(*args, **kwargs)
+        try:
+            super().__init__(*args, **kwargs)
+        except TypeError:
+            super(ConfigHandler, self).__init__(*args, **kwargs)
         self.load_config()
 
     def __getitem__(self, element):
         if self.subsection is not None:
-            return super().__getitem__(self.subsection).__getitem__(element)
-        return super().__getitem__(element)
+            try:
+                return super().__getitem__(self.subsection).__getitem__(element)
+            except TypeError:
+                return super(ConfigHandler, self).__getitem__(self.subsection).__getitem__(element)
+        try:
+            return super().__getitem__(element)
+        except TypeError:
+            return super(ConfigHandler, self).__getitem__(element)
 
     @classmethod
     def set_section(cls, subsection=None, device=None):
@@ -86,7 +95,8 @@ class ConfigHandler(ConfigParser):
                                     help=_help)
             elif arg.find("type").text == "bool":
                 parser.add_argument(_name,
-                                    default=arg.find("default").text in ["True", "true"],
+                                    default=arg.find("default").text in [
+                                        "True", "true"],
                                     action=arg.find("action").text,
                                     help=_help)
             elif arg.find("type").text == "int":

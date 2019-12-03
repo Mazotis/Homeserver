@@ -13,10 +13,16 @@ import re
 import subprocess
 import time
 import traceback
-import queue
+try:
+    import queue
+except ImportError:
+    import Queue as queue
 from core.common import *
 from core.convert import convert_to_web_rgb, convert_color
-from concurrent.futures import ThreadPoolExecutor, TimeoutError
+try:
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError
+except ImportError:
+    pass
 from threading import Thread, Timer, Lock
 
 
