@@ -39,16 +39,20 @@ The server runs on a RPi3 or a linux-based bluetooth-enabled processor board and
 
 ## Installation and configuration
 ### Using the systemd script
-1) Setup python3 + required pip imports.
-2) Configure your server and devices in the home.ini file. Read the file itself or the wiki for all the tweakable parameters.
-3) Git clone the repository in your RPi home folder (or wherever you want but don't forget to change the service script)
+1) Setup python3 on your system if it's not already installed
+2) Git clone the repository in your RPi home folder (or wherever you want but don't forget to change the service script)
 ```
 cd /home/pi
 git clone https://github.com/Mazotis/Homeserver
 ```
-4) Copy and start the systemd script
+3) Configure your server and devices in the home.ini file. Read the file itself or the wiki for all the tweakable parameters.
+4) Install the requirements (this commands installs everything, but you may want to do it manually if you do not use every device type)
 ```
 cd Homeserver
+pip3 install -r requirements.txt
+```
+5) Copy and start the systemd script
+```
 sudo cp ./homeserver.service /etc/systemd/system
 sudo systemctl enable homeserver
 sudo systemctl start homeserver
