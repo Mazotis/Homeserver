@@ -141,8 +141,8 @@ msgid "'Error' level logs"
 msgstr "Journaux de niveau 'Error'"
 
 #: web/texts.py:56
-msgid "Hello!"
-msgstr "Bonjour!"
+msgid "Hello"
+msgstr "Bonjour"
 
 #: web/texts.py:57
 msgid "Running requests and getting cached state status..."

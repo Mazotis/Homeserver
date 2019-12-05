@@ -179,9 +179,9 @@ class detector(Thread):
                     "Max amount of pictures for detector web module is 5. Hiding the rest.", 1, "DETECTOR")
                 break
             if not self.device_status[_cnt] and self.TRACKED_IPS[_cnt] != "_":
-                web += '<img src={} class="mx-auto d-block border-danger" style="width:85px; height:85px; border-radius:50%; margin-right:3px !important; border:5px solid; -webkit-filter: grayscale(100%); filter: grayscale(100%);">'.format(
-                    "/images/" + pic)
+                web += '<img src={} class="mx-auto d-block border-danger" ip="{}" style="width:85px; height:85px; border-radius:50%; margin-right:5px !important; border:5px solid; -webkit-filter: grayscale(100%); filter: grayscale(100%);">'.format(
+                    "/images/" + pic, self.TRACKED_IPS[_cnt])
             else:
-                web += '<img src={} class="mx-auto d-block border-success" style="width:85px; height:85px; border-radius:50%; margin-right:3px !important; border:5px solid;">'.format(
-                    "/images/" + pic)
+                web += '<img src={} class="mx-auto d-block border-success" ip="{}" style="width:85px; height:85px; border-radius:50%; margin-right:5px !important; border:5px solid;">'.format(
+                    "/images/" + pic, self.TRACKED_IPS[_cnt])
         return web

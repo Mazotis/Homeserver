@@ -57,6 +57,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
         self.dm = dm
         self.dm_host = self.config['SERVER']['HOST']
         self.dm_port = self.config.get_value('PORT', int, parent="SERVER")
+        self.allowed_ips = []
         super().__init__(*args, **kwargs)
 
     def translate_path(self, path):
@@ -68,6 +69,24 @@ class WebServerHandler(SimpleHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        if self.config["WEBSERVER"]["SECURITY"] == "restrictive":
+            if not self.allowed_ips:
+                for _user in self.config["USERS"]:
+                    _ips = self.config["USERS"][_user].split(",")
+                    for _ip in _ips:
+                        self.allowed_ips.append(_ip)
+            if self.client_address[0] not in self.allowed_ips:
+                _path = os.path.join(self.translate_path(self.path), "index.html")
+                _page = "<!doctype html><html><body><h1>You cannot access this page.</h1></body></html>"
+                self.send_response(200)
+                self.send_header("Content-type", super().guess_type(_path))
+                self.send_header("Content-length", len(_page))
+                self.end_headers()
+                self.wfile.write(_page.encode('utf-8'))
+
+        elif self.config["WEBSERVER"]["SECURITY"] != "permissive":
+            debug.write("Unknown security level for webserver: {}".format(self.config["WEBSERVER"]["SECURITY"]), 1)
+            return
         try:
             if ".html" in self.path or ".js" in self.path or self.path == "/":
                 _path = self.translate_path(self.path)
@@ -88,15 +107,28 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     for _translatable in match:
                         _page = _page.replace(
                             "_(" + _translatable + ")", getTextHTML(_translatable.replace("\\", "")))
+                    if self.path == "/":
+                        for _user in self.config["USERS"]:
+                            _ips = self.config["USERS"][_user].split(",")
+                            if self.client_address[0] in _ips:
+                                debug.write("{} connected to the webserver".format(
+                                    _user.title()), 0, "WEBSERVER")
+                                _page += '<script>setTimeout(function(){{$("#detector-user-name").html(" {}")}}, 500)</script>'.format(
+                                    _user.split(" ")[0].title())
+                                for _ip in _ips:
+                                    _page += '<style>img[ip="{}"]{{box-shadow:0px 0px 5px 5px #B0C4DE; }}</style>'.format(
+                                        _ip)
                     self.send_response(200)
                     self.send_header("Content-type", super().guess_type(_path))
-                    self.send_header("Content-length", len(_page))
+                    if self.path != "/":
+                        self.send_header("Content-length", len(_page))
                     self.end_headers()
                     self.wfile.write(_page.encode('utf-8'))
             else:
                 super().do_GET()
         except Exception as ex:
             debug.write("Got exception in GET request: {}".format(ex), 1)
+
 
     def do_POST(self):
         try:
@@ -202,8 +234,6 @@ class WebServerHandler(SimpleHTTPRequestHandler):
 
                 if reqtype == "getmodule":
                     module = str(postvars[b'module'][0].decode('utf-8'))
-                    debug.write(
-                        'Getting module "{}" web content'.format(module), 0, "WEBSERVER")
                     content = None
                     for _mod in self.dm.modules:
                         if _mod.__class__.__name__ == module:

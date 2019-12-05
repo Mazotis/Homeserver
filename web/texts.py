@@ -44,7 +44,7 @@ def getTextHTML(textid):
         "Full debug log": _("Full debug log"),
         "'Debug' level logs": _("'Debug' level logs"),
         "'Error' level logs": _("'Error' level logs"),
-        "Hello!": _("Hello!"),
+        "Hello": _("Hello"),
         "Running requests and getting cached state status...": _("Running requests and getting cached state status..."),
         "Querying device state...": _("Querying device state..."),
         "Device configuration": _("Device configuration"),

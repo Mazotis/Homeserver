@@ -408,6 +408,9 @@ class DeviceManager(object):
 
     def get_state(self, devid=None, is_async=False, webcolors=False, intensity=False):
         """ Getter for configured devices actual colors """
+        if state_lock.locked():
+            # There's most likely another ASYNC state getter running
+            is_async = True
         with state_lock:
             states = [None] * len(self)
             for _cnt, dev in enumerate(self):
@@ -425,7 +428,7 @@ class DeviceManager(object):
                         states[_cnt], dev.color_type, dev.color_brightness)
             if not is_async and devid is None:
                 debug.write(
-                    "All devices state status updated from devices get_state()", 0)
+                    "All devices state status updated in real-time", 0)
             if devid is not None:
                 if self[devid].state_inference_group is not None:
                     states[devid] = self[devid].get_inferred_group_state(self)

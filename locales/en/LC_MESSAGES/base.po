@@ -141,7 +141,7 @@ msgid "'Error' level logs"
 msgstr ""
 
 #: web/texts.py:56
-msgid "Hello!"
+msgid "Hello"
 msgstr ""
 
 #: web/texts.py:57
