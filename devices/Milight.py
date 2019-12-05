@@ -149,10 +149,10 @@ class Milight(Bulb):
             debug.write("Connection error to device ({}). Retrying"
                         .format(self.description), 1, self.device_type)
             return False
-        except:
+        except Exception as ex:
             self.state = _oldcolor
-            debug.write("Error sending data to device ({}). Retrying"
-                        .format(self.description), 1, self.device_type)
+            debug.write("({}) Error sending data to device ({}). Retrying"
+                        .format(ex, self.description), 1, self.device_type)
             self._connection = None
             return False
 

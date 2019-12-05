@@ -27,6 +27,7 @@ from threading import Thread, Timer, Lock
 
 
 lock = Lock()
+state_lock = Lock()
 request_queue = queue.Queue()
 
 
@@ -93,7 +94,6 @@ class DeviceManager(object):
             self.devices.append(device)
 
     def __call__(self, is_async=True):
-        lock.acquire()
         dm_status = {}
         dm_status["state"] = self.get_state(
             is_async=is_async, webcolors=True)
@@ -117,7 +117,6 @@ class DeviceManager(object):
             dm_status["roomgroups"] = self.config["WEBSERVER"]["ROOM_GROUPS"]
         dm_status["deviceroom"] = self.room_groups
         dm_status["version"] = VERSION
-        lock.release()
         return dm_status
 
     @property
@@ -409,31 +408,32 @@ class DeviceManager(object):
 
     def get_state(self, devid=None, is_async=False, webcolors=False, intensity=False):
         """ Getter for configured devices actual colors """
-        states = [None] * len(self)
-        for _cnt, dev in enumerate(self):
-            if devid is not None and devid != _cnt:
-                continue
-            if is_async:
-                if intensity and self[_cnt].color_type in ["argb", "rgb", "255"]:
-                    states[_cnt] = convert_color(dev.state, "100")
+        with state_lock:
+            states = [None] * len(self)
+            for _cnt, dev in enumerate(self):
+                if devid is not None and devid != _cnt:
+                    continue
+                if is_async:
+                    if intensity and self[_cnt].color_type in ["argb", "rgb", "255"]:
+                        states[_cnt] = convert_color(dev.state, "100")
+                    else:
+                        states[_cnt] = dev.state
                 else:
-                    states[_cnt] = dev.state
-            else:
-                states[_cnt] = dev.get_state()
-            if webcolors:
-                states[_cnt] = convert_to_web_rgb(
-                    states[_cnt], dev.color_type, dev.color_brightness)
-        if not is_async and devid is None:
-            debug.write(
-                "All devices state status updated from devices get_state()", 0)
-        if devid is not None:
-            if self[devid].state_inference_group is not None:
-                states[devid] = self[devid].get_inferred_group_state(self)
-            return states[devid]
-        for _cnt, dev in enumerate(self):
-            # Has to be called after device states all updated ? Only relevant on non-async requests ?
-            if self[_cnt].state_inference_group is not None:
-                states[_cnt] = self[_cnt].get_inferred_group_state(self)
+                    states[_cnt] = dev.get_state()
+                if webcolors:
+                    states[_cnt] = convert_to_web_rgb(
+                        states[_cnt], dev.color_type, dev.color_brightness)
+            if not is_async and devid is None:
+                debug.write(
+                    "All devices state status updated from devices get_state()", 0)
+            if devid is not None:
+                if self[devid].state_inference_group is not None:
+                    states[devid] = self[devid].get_inferred_group_state(self)
+                return states[devid]
+            for _cnt, dev in enumerate(self):
+                # Has to be called after device states all updated ? Only relevant on non-async requests ?
+                if self[_cnt].state_inference_group is not None:
+                    states[_cnt] = self[_cnt].get_inferred_group_state(self)
         return states
 
     def set_light_stream(self, devid, color, is_group):

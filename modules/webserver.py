@@ -101,8 +101,13 @@ class WebServerHandler(SimpleHTTPRequestHandler):
     def do_POST(self):
         try:
             content_length = int(self.headers['Content-Length'])
-            postvars = urllib.parse.parse_qs(
-                self.rfile.read(content_length), keep_blank_values=1)
+            try:
+                postvars = urllib.parse.parse_qs(
+                    self.rfile.read(content_length), keep_blank_values=1)
+            except UnicodeDecodeError:
+                postvars = urllib.parse.unquote(
+                    self.rfile.read(content_length), keep_blank_values=1)
+                postvars = urllib.parse.parse_qs(postvars)
             request = postvars[b'request'][0].decode(
                 'utf-8') in ["True", "true", True]
             reqtype = postvars[b'reqtype'][0].decode('utf-8')
@@ -304,12 +309,15 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     response.write(json.dumps(presets).encode("UTF-8"))
 
                 if reqtype == "setpreset":
-                    preset = str(json.loads(str(postvars[b'preset'][0].decode('utf-8'))))
-                    presetname = str(postvars[b'presetname'][0].decode('utf-8'))
-                    debug.write("Parsing new preset {}, string: {}".format(presetname, preset), 0, "WEBSERVER")
+                    preset = str(json.loads(
+                        str(postvars[b'preset'][0].decode('utf-8'))))
+                    presetname = str(
+                        postvars[b'presetname'][0].decode('utf-8'))
+                    debug.write("Parsing new preset {}, string: {}".format(
+                        presetname, preset), 0, "WEBSERVER")
                     req = StateRequestObject()
                     if req.from_string(preset):
-                        self.config.set("PRESETS",presetname.upper(), preset)
+                        self.config.set("PRESETS", presetname.upper(), preset)
                         response.write("1".encode("UTF-8"))
                         debug.write(
                             "Changing local config file and creating backup 'home.old'", 0, "WEBSERVER")
@@ -323,14 +331,17 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 if reqtype == "getroomgroups":
                     groups = {}
                     groups["groups"] = self.dm.all_groups
-                    groups["rooms"] = self.config["WEBSERVER"]["ROOM_GROUPS"].split(",")
+                    groups["rooms"] = self.config["WEBSERVER"]["ROOM_GROUPS"].split(
+                        ",")
                     response.write(json.dumps(groups).encode("UTF-8"))
 
                 if reqtype == "setroomgroups":
-                    rooms = urllib.parse.unquote(json.loads(str(postvars[b'rooms'][0].decode("UTF-8"))))
-                    debug.write("Changing room groups to {}".format(rooms), 0, "WEBSERVER")
+                    rooms = urllib.parse.unquote(json.loads(
+                        str(postvars[b'rooms'][0].decode("UTF-8"))))
+                    debug.write("Changing room groups to {}".format(
+                        rooms), 0, "WEBSERVER")
                     response.write("1".encode("UTF-8"))
-                    self.config.set("WEBSERVER","ROOM_GROUPS", rooms)
+                    self.config.set("WEBSERVER", "ROOM_GROUPS", rooms)
                     with open('home.ini', 'w') as configfile:
                         copyfile('home.ini', 'home.old')
                         self.config.write(configfile)

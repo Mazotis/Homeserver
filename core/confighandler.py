@@ -10,9 +10,12 @@
 '''
 
 import datetime
+import os
 import xml.etree.ElementTree as ET
 from argparse import ArgumentParser, RawTextHelpFormatter
 from configparser import ConfigParser
+
+CORE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class ConfigHandler(ConfigParser):
@@ -72,8 +75,9 @@ class ConfigHandler(ConfigParser):
         return self["DEVICE" + str(devid)][element]
 
     def load_config(self):
-        self.read('home.ini')
-        self.configurables = ET.parse('core/configurables.xml').getroot()
+        self.read(os.path.join(CORE_DIR, '../home.ini'))
+        self.configurables = ET.parse(os.path.join(
+            CORE_DIR, 'configurables.xml')).getroot()
 
     def get_arguments(self):
         parser = ArgumentParser(description='Home server manager script',

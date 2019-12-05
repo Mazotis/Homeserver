@@ -23,7 +23,8 @@ if __name__ == "__main__":
     # TODO add back device state change  request validation or just ignore?
     if args.server and (args.on or args.off or args.toggle or args.stream_dev
                         or args.stream_group or args.preset or args.restart):
-        debug.write("You cannot start the daemon and send arguments at the same time. Quitting.", 2)
+        debug.write(
+            "You cannot start the daemon and send arguments at the same time. Quitting.", 2)
         sys.exit()
 
     if args.stream_dev and args.stream_group:

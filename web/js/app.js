@@ -388,7 +388,7 @@ function computeCards() {
         $(this).removeClass("border-success")
         $(this).find(".dcard-toggle").bootstrapToggle('enable')
         $(this).find(".card-header").addClass("text-white")
-        $(this).find(".card-header").remove('.wrench-btn')
+        $(this).find(".wrench-btn").hide()
         if (stateJSON.state[cid] == "0" || (!isNaN(stateJSON.state[cid]) && parseInt(stateJSON.state[cid]) == 0) || stateJSON.state[cid] == "*0") {
             if ($(this).find(".dcard-toggle").prop('checked')) {
                 $(this).find(".dcard-toggle").bootstrapToggle('off', true)
@@ -512,6 +512,8 @@ function computeRCards() {
         $(this).find(".title-header").removeClass("bg-danger")
         $(this).find(".title-header").removeClass("bg-warning")
         $(this).find(".title-header").removeClass("bg-success")
+        $(this).find(".title-header").addClass("text-white")
+        $(this).find(".title-footer").addClass("text-white")
         $(this).find(".d-count").removeClass("bg-danger")
         $(this).find(".d-count").removeClass("bg-warning")
         $(this).find(".d-count").removeClass("bg-success")
