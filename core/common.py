@@ -31,6 +31,8 @@ DEVICE_INFERRED_ON = "*1"
 VERSION = "alpha"
 ###
 
+CORE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 
 def getConfigHandler(renew=False):
     if renew:
@@ -135,12 +137,12 @@ class LanguageHandler(object):
             if language.getLanguage() == "fr":
                 debug.write("Setting language as fr", 0)
                 lang = gettext.translation(
-                    'base', localedir='locales', languages=['fr'])
+                    'base', localedir=os.path.join(CORE_DIR, '../locales'), languages=['fr'])
                 lang.install()
             else:
                 debug.write("Setting language as en", 0)
                 lang = gettext.translation(
-                    'base', localedir='locales', languages=['en'])
+                    'base', localedir=os.path.join(CORE_DIR, '../locales'), languages=['en'])
                 lang.install()
         return lang.gettext
 
