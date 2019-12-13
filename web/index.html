@@ -19,13 +19,6 @@
     <title>_(Homeserver control panel)</title>
   </head>
   <body style="background-color:#eee !important">
-    <!--
-    <div class="navbar bg-info">
-        <div class="navbar-inner noselect-nooverflow" style="width:100%;">
-            <center><h1 style="color:white;width:100%;">Homeserver controls</h1></center>
-        </div>
-    </div>
-    -->
     <div class="container-fluid noselect-nooverflow">
         <div class="row">
             <div class="col-md-12 bg-info text-white" id="side-menu">
@@ -43,13 +36,6 @@
             <div class="col-md-12 bg-info" id="top-bar"><i class="fas fa-bars" id="menu-btn"></i></div>
             <div class="col-md-12" style="background-color:#eee !important">
                 <br>
-                <center>
-                    <div id="preloader" style="display:none">
-                        <div class="spinner-border" style="width: 200px; height: 200px; margin-bottom:20px" role="status">
-                            <span class="sr-only"><tl>Loading...</tl></span>
-                        </div>
-                    </div>
-                </center>
                 <span id="detector-module-location"></span>
                 <div id="update-spin" class="col-12">
                     <center>
@@ -111,63 +97,6 @@
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
-    <div id="cardmodel" style="display:none;">
-        <div class="dcard card text-center mb-3">
-            <div class="card-header text-white" style="padding:5px;min-height: 30px;">
-                <center>
-                    <i class="iconi"></i>
-                </center>
-            </div>
-            <div class="card-body " style="padding-top:0; padding:0.25rem;">
-                <h5 class="card-title " style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"></h5>
-                <small class="text-muted "></small>
-                <p class="card-text c-desc"></p>
-                <div class="controls-div">
-                    <!--<div class="btn-group btn-group-lg" role="group" style="margin-bottom:10px;">
-                        <button type="button" class="btn btn-danger offbuttons"><tl>OFF</tl></button>
-                        <button type="button" class="btn btn-success onbuttons"><tl>ON</tl></button>
-                    </div>-->
-                    <div>
-                        <center>
-                            <div class="colorpick">
-                                <input type="color" cid="" style="width:200%; height:200%; transform: translate(-25%, -25%)">
-                            </div>
-                            <span class="sliderpick">
-                                <div class="slider"></div>
-                            </span>
-                        </center>
-                    </div>
-                    <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons" style="display:none;">
-                        <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> <tl>Auto</tl></label>
-                        <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> <tl>Manual</tl></label>
-                    </div>
-                </div>
-            </div>
-            <div class="card-footer ">
-                <center>&nbsp;
-                    <i class="fas fa-clock skiptime" title="_(Device follows the time-check feature)" style="margin-right:5px; display:none"></i>
-                    <i class="fas fa-power-off forceoff" title="_(If the device status is OFF, will ignore all turn-off requests)" style="margin-right:5px; display:none"></i>
-                    <i class="fas fa-exclamation ignoremode" title="_(Device ignores its mode)" style="display:none"></i>
-                    <span class="badge badge-secondary actiondelay" title="_(Device has a delay between state changes)" style="display:none"><span></span>&nbsp;<i class="fas fa-hourglass-half"></i></span>
-                    <i class="fas fa-stop-circle noop" title="_(Device is read-only)" style="display:none;"></i>
-                &nbsp;</center>
-            </div>
-        </div>
-    </div>
-    <div id="groupcardmodel" style="display:none;">
-        <div class="card text-center bg-light mb-3">
-            <h5 class="card-header " style="font-weight:bold;"></h5>
-            <div class="">
-                <center>
-                    <input type="checkbox" class="gcard-toggle" data-onstyle="success" data-offstyle="danger">
-                    <!--<div class="btn-group btn-group-sm" role="group" style="padding:5px;">
-                        <button type="button" class="btn btn-danger goffbuttons">_(OFF)</button>
-                        <button type="button" class="btn btn-success gonbuttons">_(ON)</button>
-                    </div>-->
-                </center>
             </div>
         </div>
     </div>

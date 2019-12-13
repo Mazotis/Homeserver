@@ -86,12 +86,12 @@ class IFTTTServer(BaseHTTPRequestHandler):
             changed_groups = []
             has_priority_group = False
             for _group in group:
-                if _group in groups:
+                if _group.lower() in groups:
                     if _group in self.priority_groups:
                         has_priority_group = True
                     changed_groups.append(_group)
                 # TODO add a proper pluralization and support for latin characters ?
-                if _group + "s" in groups:
+                if _group.lower() + "s" in groups:
                     changed_groups.append(_group + "s")
             if len(changed_groups) != 0:
                 req.set(group=changed_groups)

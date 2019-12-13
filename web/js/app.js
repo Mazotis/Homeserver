@@ -1,14 +1,13 @@
-lastupdate = 0
+var lastupdate = 0
 var xhr
 var xhrAbortable = false
-var hasRoomGroups = false
 var modulesToRefresh = new Array()
 var dmconfig
 var oldstateJSON, stateJSON
 var pendingRequests = 0
 var shownMenu = false
 
-$(document).ready(function() {
+document.addEventListener('DOMContentLoaded', function() {
     getResult();
     lastupdate = new Date()
     window.onscroll = function (e) {
@@ -57,108 +56,139 @@ $(document).ready(function() {
     })
 });
 
-function abortPendingRequests() {
-    if (xhrAbortable) {
-        xhr.abort()
-    }
-    $("#update-spin").hide()
+async function post_webserver(data, callback) {
+    let initial_data = {
+        request: 'True'
+    };
+    initial_data = Object.assign(data, initial_data)
+    const options = {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'text'
+        },
+        body: Object.entries(initial_data).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&")
+    };
+
+    const response = await fetch('.', options
+    ).then(data => data.json()
+    ).then(response => {
+        callback(response);
+    }).catch(error => {
+        console.log(error);
+    });
 }
 
-function getResult() {
-    getConfig()
-    $("#preloader").show()
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "getstate",
-                isasync: "True"
-            },
-        success: function(data){
-            $("#preloader").hide()
-            stateJSON = JSON.parse(decodeURIComponent(data))
-            var cnt = 0
-            $('#suntime').html(stateJSON.starttime)
-            $("#version-span").html(stateJSON.version)
+function showLoading() {
+    document.getElementById("update-spin").style.display = "inherit"
+}
 
-            //var ghtml = '<div class="row"><div class="col-sm-3">'
-            var ghtml = '<div class="card-columns gcard-columns">'
-            for (group in stateJSON.groups) {
-                var skip_group = false
-                if (stateJSON.roomgroups != "") {
-                    hasRoomGroups = true
-                    var rgroups = stateJSON.roomgroups.split(",")
-                    for (grp in rgroups) {
-                        if (rgroups[grp] == stateJSON.groups[group]) {
-                            skip_group = true
-                        }
-                    }
-                }
+function hideLoading() {
+    document.getElementById("update-spin").style.display = "none"
+}
 
-                if (skip_group == false) {
-                    $("#groups").html("")
-                    $("#groupcardmodel").find(".card-header").text(stateJSON.groups[group].charAt(0).toUpperCase() + stateJSON.groups[group].substr(1).toLowerCase())
-                    ghtml += '<div class="gcard noselect-nooverflow" id="gcard' + cnt + '">' + $("#groupcardmodel").html() + '</div>'
-                }
-                cnt = cnt + 1
-            }
-            ghtml += '</div>'
-            $("#groups").html(ghtml)
-
-            cnt = 0
-            //var html = '<div class="row"><div id="update-spin" class="col-12"><center><h5><div class="spinner-border noselect-nooverflow" role="status"></div>&nbsp;Updating device status...</h5></center></div><div class="col-sm-4">'
-            var html = '<div class="card-columns dcard-columns">'
-            for (_ in stateJSON.state) {
-                html += generateCard(cnt, stateJSON)
-                cnt = cnt + 1
-            }
-
-            html += generateBlankCard()
-            $("#cardmodel").remove()
-
-            if (hasRoomGroups) {
-                var rhtml = ''
-                var rgroups = stateJSON.roomgroups.split(",")
-
-                $("#rooms-section").show()
-                for (cnt in rgroups) {
-                    rhtml += '<div class="card rcard mb-3 noselect-nooverflow" id="rcard-' + rgroups[cnt] + '"><h4 class="card-header title-header bg-danger text-white" style="font-weight:bold;">' + rgroups[cnt].charAt(0).toUpperCase() + rgroups[cnt].substr(1).toLowerCase() + '</h4><div class="card-body d-body card-columns" style="display:none;"></div><h5 class="card-header bg-danger d-count text-white title-footer"><div style="float:right"><input type="checkbox" class="rcard-toggle" data-onstyle="success" data-offstyle="danger" data-size="sm"></div></h5></div>'
-                }
-
-                rhtml += '<div class="card mb-3 noselect-nooverflow" onclick="getGroupSelect()"><h5 class="card-header title-header bg-secondary text-white new-dev-card"><i class="fas fa-plus-circle"></i> _(Add/remove room groups)</h5></div>'
-                $(".rcolumns").html(rhtml)
-            }
-
-            html += '</div></div><hr>'
-
-            for (_mod in stateJSON.moduleweb) {
-                if (stateJSON.moduleweb[_mod] != "none") {
-                    if (stateJSON.moduleweb[_mod] == "detector.html") {
-                        $.get("/modules/" + stateJSON.moduleweb[_mod], function(htmlpage) {
-                            $("#detector-module-location").append(htmlpage)
-                        });
-                    } else {
-                        $.get("/modules/" + stateJSON.moduleweb[_mod], function(htmlpage) {
-                            $("#modulesid").append(htmlpage)
-                        });
-                    }
-                }
-            }
-
-            $("#resultid").html(html)
-            computeCards()
-            $("#update-spin").hide()
-            getResultRefresh()
+function enableElement(element) {
+    [].forEach.call(document.querySelectorAll(element + " .card-body"), function(el) {
+        el.classList.remove("disabledbutton")
+        let ell = el.parentElement.querySelector(".card-loader")
+        if (ell != null) {
+            ell.style.display = "none"
         }
     })
 }
 
+function disableElement(element) {
+    [].forEach.call(document.querySelectorAll(element + " .card-body"), function(el) {
+        el.classList.add("disabledbutton")
+        let ell = el.parentElement.querySelector(".card-loader")
+        if (ell != null) {
+            ell.style.display = "block"
+            ell.style.marginLeft = `${Math.round((el.parentElement.offsetWidth/2)-60)}px`
+            ell.style.marginTop = `${Math.round((el.parentElement.offsetHeight/2)-60)}px`
+        }
+    })
+}
+
+function abortPendingRequests() {
+    if (xhrAbortable) {
+        xhr.abort()
+    }
+    hideLoading()
+}
+
+async function getResult() {
+    getConfig()
+    showLoading()
+
+
+    const req_data = {
+        reqtype: "getstate",
+        isasync: "True"
+    };
+
+    await post_webserver(req_data, (data) => {
+        stateJSON = data
+        let cnt = 0
+        $('#suntime').html(stateJSON.starttime)
+        $("#version-span").html(stateJSON.version)
+
+        let ghtml = '<div class="card-columns gcard-columns">'
+        for (group in stateJSON.groups) {
+            ghtml += generateCardForGroup(group, cnt)
+            cnt = cnt + 1
+        }
+        ghtml += '</div>'
+        $("#groups").html(ghtml)
+
+        cnt = 0
+        var html = '<div class="card-columns dcard-columns">'
+        for (_ in stateJSON.state) {
+            html += '<div id="dcard' + cnt + '"></div>'
+            cnt = cnt + 1
+        }
+
+        html += generateBlankCard()
+
+        if (stateJSON.roomgroups != "") {
+            var rhtml = ''
+            var rgroups = stateJSON.roomgroups.split(",")
+
+            $("#rooms-section").show()
+            for (cnt in rgroups) {
+                rhtml += generateRoomForGroup(rgroups[cnt])
+            }
+
+            rhtml += generateBlankRoom()
+            $(".rcolumns").html(rhtml)
+        }
+
+        html += '</div></div><hr>'
+
+        for (_mod in stateJSON.moduleweb) {
+            if (stateJSON.moduleweb[_mod] != "none") {
+                if (stateJSON.moduleweb[_mod] == "detector.html") {
+                    $.get("/modules/" + stateJSON.moduleweb[_mod], function(htmlpage) {
+                        $("#detector-module-location").append(htmlpage)
+                    });
+                } else {
+                    $.get("/modules/" + stateJSON.moduleweb[_mod], function(htmlpage) {
+                        $("#modulesid").append(htmlpage)
+                    });
+                }
+            }
+        }
+
+        $("#resultid").html(html)
+        computeCards()
+        hideLoading()
+        getResultRefresh()
+    })
+}
+
 function getResultRefresh() {
-    $("#update-spin").show()
+    showLoading()
 
     xhrAbortable = true
+    //TODO Remove ajax but keep cancellable request
     xhr = $.ajax({
         type: "POST",
         url: ".",
@@ -178,188 +208,378 @@ function getResultRefresh() {
                 getContent(modulesToRefresh[i]);
             }
             computeCards()
-            $("#update-spin").hide()
+            hideLoading()
         }
     })  
 }
 
-function getOneResult() {
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "getstate",
-                isasync: "True"
-            },
-        success: function(data){
-            pendingRequests--
-            oldstateJSON = stateJSON
-            stateJSON = JSON.parse(decodeURIComponent(data))
-            lastupdate = new Date()
-            if (pendingRequests == 0) {
-                computeCards()
-            }
-        }
+function getDeviceResult(devid) {
+    const req_data = {
+        reqtype: "getstate",
+        isasync: "False",
+        devid: devid
+    }
+
+    post_webserver(req_data, (data) => {
+        $(".dcard").each(function() {
+            $(this).attr("needsync", "0")
+        });
+        pendingRequests--
+        oldstateJSON = stateJSON
+        stateJSON = data
+        lastupdate = new Date()
+        computeCards()
     })
 }
 
-function generateCard(devid, data, a_this = null) {
-    if (a_this != null) {
-        card = $(a_this)
-    } else {
-        card = $("#cardmodel").find("div.mb-3")
+function getAllResults() {
+    const req_data = {
+        reqtype: "getstate",
+        isasync: "False"
     }
-    card.attr("cid", devid)
-    card.find(".card-title").text(data.name[devid])
-    card.find(".text-muted").text(data.type[devid])
-    card.find("p.c-desc").text(data.description[devid])
 
-    html = card.parent().html()
+    post_webserver(req_data, (data) => {
+        pendingRequests--
+        oldstateJSON = stateJSON
+        stateJSON = data
+        lastupdate = new Date()
+        computeCards()
+    })
+}
+
+function getJSONForId(device_id, state_json) {
+    if (state_json != null) {
+        cardJSON = new Object;
+        Object.entries(state_json).map(([key, value]) => {
+            const non_device_prop = ['roomgroups', 'starttime', 'version'];
+            if (!non_device_prop.includes(key)) {
+                cardJSON[key] = value[device_id]
+            }
+        });
+
+        return cardJSON
+    }
+
+    return false
+}
+
+function jsonEqual(a,b) {
+    if (a === false || b === false) {
+        return false
+    }
+    let jsonequals = JSON.stringify(a) === JSON.stringify(b)
+    return jsonequals;
+}
+
+function generateCardForGroup(group, position) {
+    let skip_group = false
+    let html = ""
+    if (stateJSON.roomgroups != "") {
+        let rgroups = stateJSON.roomgroups.split(",")
+        for (grp in rgroups) {
+            if (rgroups[grp] == stateJSON.groups[group]) {
+                skip_group = true
+            }
+        }
+    }
+
+    if (skip_group == false) {
+        let title = stateJSON.groups[group].charAt(0).toUpperCase() + stateJSON.groups[group].substr(1).toLowerCase()
+        html = `
+<div class="gcard noselect-nooverflow" id="gcard${position}">
+    <div id="groupcardmodel">
+        <div class="card text-center bg-light mb-3">
+            <h5 class="card-header " style="font-weight:bold;">${title}</h5>
+            <div style="padding:5px;">
+                <center>
+                    <input type="checkbox" class="gcard-toggle" data-onstyle="success" data-offstyle="danger">
+                </center>
+            </div>
+        </div>
+    </div>
+</div>`
+    }
 
     return html
 }
 
+function generateRoomForGroup(room) {
+    let title = room.charAt(0).toUpperCase() + room.substr(1).toLowerCase()
+    return `
+    <div class="card rcard mb-3 noselect-nooverflow" id="rcard-${room}">
+        <h4 class="card-header title-header bg-danger text-white" style="font-weight:bold;">${title}</h4>
+        <div class="card-body d-body card-columns" style="display:none;">
+        </div>
+        <h5 class="card-header bg-danger d-count text-white title-footer">
+            <div style="float:right">
+                <input type="checkbox" class="rcard-toggle" data-onstyle="success" data-offstyle="danger" data-size="sm">
+            </div>
+        </h5>
+    </div>
+    `
+}
+
+function generateCardForId(device_id) {
+    let cardJSON = getJSONForId(device_id, stateJSON)
+
+    let cardhtml = $(`
+<div id="cardmodel" style="display:none;">
+    <div class="dcard card text-center mb-3" cid="${device_id}">
+        <div class="card-loader" style="display:none;"></div>
+        <div class="card-header text-white" style="padding:5px;min-height: 30px;">
+            <center>
+                <i class="iconi"></i>
+            </center>
+        </div>
+        <div class="card-body " style="padding-top:0; padding:0.25rem;">
+            <h5 class="card-title " style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;">${cardJSON.name}</h5>
+            <small class="text-muted ">${cardJSON.type}</small>
+            <p class="card-text c-desc">${cardJSON.description}</p>
+            <div class="controls-div">
+                <div>
+                    <center>
+                        <div class="colorpick">
+                            <input type="color" cid="" style="width:200%; height:200%; transform: translate(-25%, -25%);">
+                        </div>
+                        <span class="sliderpick">
+                            <div class="slider"></div>
+                        </span>
+                    </center>
+                </div>
+                <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons" style="display:none;margin-top:5px;">
+                    <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> <tl>Auto</tl></label>
+                    <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> <tl>Manual</tl></label>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer ">
+            <center>&nbsp;
+                <i class="fas fa-clock skiptime" title="_(Device follows the time-check feature)" style="margin-right:5px; display:none"></i>
+                <i class="fas fa-power-off forceoff" title="_(If the device status is OFF, will ignore all turn-off requests)" style="margin-right:5px; display:none"></i>
+                <i class="fas fa-exclamation ignoremode" title="_(Device ignores its mode)" style="display:none"></i>
+                <span class="badge badge-secondary actiondelay" title="_(Device has a delay between state changes)" style="display:none"><span></span>&nbsp;<i class="fas fa-hourglass-half"></i></span>
+                <i class="fas fa-stop-circle noop" title="_(Device is read-only)" style="display:none;"></i>
+            &nbsp;</center>
+        </div>
+    </div>
+</div>
+    `)
+
+    let hascontrols = false
+
+    $(cardhtml).find(".sliderpick").hide()
+    if (cardJSON.colortype === "noop") {
+        $(cardhtml).find(".noop").show()
+    } else {
+        $(cardhtml).find(".card-footer").append(`<i class="fas fa-cog text-white cog-btn" onclick="getConfigDevice(${device_id})" title="_(Device configuration)"></i>`)
+        if (cardJSON.locked === "1") {
+            $(cardhtml).find(".controls-div").hide()
+            $(cardhtml).find(".card-footer center").append(`<i class="fas fa-lock text-white lock-btn" onclick="setLockDevice(0,${device_id})" title="_(Unlock device)"></i>`)
+        } else {
+            $(cardhtml).find(".controls-div").show()
+            $(cardhtml).find(".card-footer center").append(`<i class="fas fa-unlock text-white lock-btn" onclick="setLockDevice(1,${device_id})" title="_(Lock device in this state)"></i>`)
+        }
+
+        if (cardJSON.mode === false) {
+            $(cardhtml).find(".autobtn").removeClass('active')
+            $(cardhtml).find(".manbtn").addClass('active')
+        } else {
+            $(cardhtml).find(".autobtn").addClass('active')
+            $(cardhtml).find(".manbtn").removeClass('active')
+        }
+
+        if (cardJSON.op_forceoff === false) {
+            $(cardhtml).find(".forceoff").show()
+        }
+
+        if (cardJSON.op_ignoremode) {
+            $(cardhtml).find(".ignoremode").show()
+        }
+
+        if (cardJSON.op_skiptime === false) {
+            $(cardhtml).find(".skiptime").show()
+        }
+
+        if (cardJSON.op_actiondelay != "0") {
+            $(cardhtml).find(".actiondelay").show()
+            $(cardhtml).find(".actiondelay span").html(cardJSON.op_actiondelay + " s.")
+        }
+
+        if (["argb", "rgb", "255"].includes(cardJSON.colortype)) {
+            hascontrols = true
+            if (cardJSON.state.length == 6) {
+                $(cardhtml).find(".colorpick input").attr("value", "#" + cardJSON.state)
+            }
+            $(cardhtml).find(".colorpick").css("display", "inline-block")
+        }
+
+        if (["100", "255", "argb", "rgb"].includes(cardJSON.colortype)) {
+            hascontrols = true
+            $(cardhtml).find(".sliderpick").show()
+        }
+
+        if (!hascontrols) {   
+            $(cardhtml).find(".controls-div").prepend('<input type="checkbox" class="dcard-toggle" data-onstyle="success" data-offstyle="danger" data-size="lg">')
+        } else {
+            $(cardhtml).find(".controls-div").append('<input type="checkbox" class="dcard-toggle" data-onstyle="success" data-offstyle="danger" data-size="sm">')
+        }
+    }
+
+    if (cardJSON.state === "0" || (!isNaN(cardJSON.state) && parseInt(cardJSON.state) === 0) || cardJSON.state === "*0") {
+        if ($(cardhtml).find(".dcard-toggle").prop('checked')) {
+            $(cardhtml).find(".dcard-toggle").prop('checked', false)
+        } 
+        $(cardhtml).find(".card-header").addClass("bg-danger")
+        $(cardhtml).addClass("border-danger")
+    } else if (cardJSON.state === "-2") {
+        $(cardhtml).find(".dcard-toggle").bootstrapToggle('disable')
+        $(cardhtml).find(".card-header").addClass("bg-warning")
+        $(cardhtml).addClass("border-warning")
+    } else if (cardJSON.state != "X") {
+        if (!$(cardhtml).find(".dcard-toggle").prop('checked')) {
+            $(cardhtml).find(".dcard-toggle").prop('checked', true)
+        }
+        $(cardhtml).find(".card-header").addClass("bg-success")
+        $(cardhtml).addClass("border-success")
+    }
+
+    if (cardJSON.state === "X") {
+        $(cardhtml).find(".dcard-toggle").bootstrapToggle('disable')
+        $(cardhtml).find(".card-header").removeClass("text-white")
+        $(cardhtml).find(".card-header").append(`<i class="fas fa-wrench wrench-btn" onclick="reconnectDevice(${device_id})" title="_(Attempt device reconnection)"></i>`)
+    }
+
+    if (cardJSON.state === "*0" || cardJSON.state === "*1") {
+        $(cardhtml).find(".card-header").addClass("progress-bar-striped")
+        $(cardhtml).find(".card-header").append(`<i class="fas fa-check check-btn" onclick="confirmState(${device_id},'${cardJSON.state}')" title="_(Confirm device state)"></i>`)
+    } else {
+        $(cardhtml).find(".check-btn").remove()
+    }
+
+    if (cardJSON.icon != "none") {
+        $(cardhtml).find(".iconi").attr("class", "iconi " + cardJSON.icon)
+    }
+
+    return $(cardhtml).html()
+}
+
 function generateBlankCard() {
-   card = $("#cardmodel").find("div.mb-3")
-   card.find(".card-header").remove()
-   card.find(".card-footer").remove()
-   card.removeClass("dcard")
-   card.addClass("text-white")
-   card.attr("cid", "")
-   card.find(".card-title").html("<i class='fas fa-plus-circle'></i> Add device (WIP)")
-   card.find(".card-title").css("font-weight", "inherit")
-   card.find(".text-muted").text("")
-   card.find("p.c-desc").text("")
-   card.addClass("bg-secondary")
-   card.addClass("new-dev-card")
+    return `
+<div id="cardmodel" style="display:none;">
+    <div class="card text-center mb-3 bg-secondary new-dev-card">
+        <div class="card-body text-white" style="padding-top:0; padding:0.25rem;">
+            <h5 class="card-title " style="margin-top:0.75rem;"><i class='fas fa-plus-circle'></i> Add device (WIP)</h5>
+         </div>
+    </div>
+</div>
+    `
+}
 
-   html = card.parent().html()
-
-   return html
+function generateBlankRoom() {
+    return `
+<div class="card mb-3 noselect-nooverflow" onclick="getGroupSelect()">
+    <h5 class="card-header title-header bg-secondary text-white new-dev-card">
+        <i class="fas fa-plus-circle"></i> _(Add/remove room groups)
+    </h5>
+</div>`
 }
 
 function computeCards() {
-    $(".card").removeClass("disabledbutton")
+    enableElement(".card")
+
+    let cnt = 0
+    for (_ in stateJSON.state) {
+        if (!jsonEqual(getJSONForId(cnt, stateJSON),getJSONForId(cnt, oldstateJSON)) || $(".dcard[cid='" + cnt + "']").attr("needsredraw") == "1") {
+            $(".dcard[cid='" + cnt + "']").remove()
+            if ($(".dcard[cid='" + cnt + "']").attr("needsync") != "1") {
+                $("#dcard" + cnt).html(generateCardForId(cnt))
+            }
+        }
+        cnt = cnt + 1
+    }
 
     $(".dcard").each(function() {
+        let cid = parseInt($(this).attr("cid"))
+
         if ($(this).attr("cloned") != "1") {
-            cid = parseInt($(this).attr("cid"))
             if (stateJSON.deviceroom[cid] != "") {
                 rgroups = stateJSON.deviceroom[cid].split(",")
                 for (_cnt in rgroups) {
-                    var clone = $(this).clone(true)
+                    let clone = $(this).clone(true)
+                    let position = 9999
                     clone.attr("cloned", "1")
-                    clone.prependTo($("#rcard-" + rgroups[_cnt] + " > .card-body"))
+                    $("#rcard-" + rgroups[_cnt]).find(".dcard").each(function() {
+                        let thisCid = parseInt($(this).attr("cid")) 
+                        if (position > thisCid && thisCid > cid) {
+                            position = thisCid
+                        }
+                    })
+
+                    if (position != 9999) {
+                        clone.insertBefore($("#rcard-" + rgroups[_cnt] + " .dcard[cid='" + position + "']"))
+                    } else {
+                        clone.appendTo($("#rcard-" + rgroups[_cnt] + " > .card-body"))
+                    }
                 }
                 $(this).remove()
             }
         }
-    })
+    });
 
     $(".dcard").each(function() {
-        var cid, cinit, hascontrols
-        cid = parseInt($(this).attr("cid"))
-        cinit = $(this).attr("cinit")
-        hascontrols = false
+        let cid = parseInt($(this).attr("cid"))
 
-        $(this).find(".sliderpick").hide()
-        if (["noop"].includes(stateJSON.colortype[cid])) {
-            $(this).find(".noop").show()
-        } else {
-            $(this).find(".card-footer").append('<i class="fas fa-cog text-white cog-btn" onclick="getConfigDevice('+ cid + ')" title="_(Device configuration)"></i>')
-            if (stateJSON.locked[cid] == "1") {
-                $(this).find(".controls-div").hide()
-                $(this).find(".card-footer center").append('<i class="fas fa-lock text-white lock-btn" onclick="setLockDevice(0,' + cid + ')" title="_(Unlock device)"></i>')
+        if ($(this).attr("events") != "1") {
+            $(this).find(".colorpick").on("change", function(ev) {
+                color = ev.currentTarget.firstElementChild.value.substr(1)
+                $(this).attr("needsync", "1")
+                sendPowerRequest(cid, color)
+            })
+
+            let slider = $(this).find(".slider")
+            slider.roundSlider({
+                sliderType: "min-range",
+                handleShape: "round",
+                width: 30,
+                radius: 70,
+                value: parseInt(stateJSON.intensity[cid]),
+                editableTooltip: false,
+                change: function(event) {
+                    sendPowerRequest(cid, event.value, 1)
+                }
+            });
+
+            if (parseInt(stateJSON.intensity[cid]) == 0) {
+                //Workaround roundslider not calculating proper margins for tooltips at first launch
+                slider.find(".rs-tooltip").css("margin-top", "-10px")
+                slider.find(".rs-tooltip").css("margin-left", "-5px")
             } else {
-                $(this).find(".controls-div").show()
-                $(this).find(".card-footer center").append('<i class="fas fa-unlock text-white lock-btn" onclick="setLockDevice(1,' + cid + ')" title="_(Lock device in this state)"></i>')
+                //Workaround roundslider not calculating proper margins for tooltips at first launch
+                slider.find(".rs-tooltip").css("margin-top", "-10px")
+                slider.find(".rs-tooltip").css("margin-left", "-10px")                
             }
 
-            if (stateJSON.mode[cid] == false) {
-                $(this).find(".autobtn").removeClass('active')
-                $(this).find(".manbtn").addClass('active')
-            } else {
-                $(this).find(".autobtn").addClass('active')
-                $(this).find(".manbtn").removeClass('active')
-            }
-
-            if (stateJSON.op_forceoff[cid] == false) {
-                $(this).find(".forceoff").show()
-            }
-
-            if (stateJSON.op_ignoremode[cid]) {
-                $(this).find(".ignoremode").show()
-            }
-
-            if (stateJSON.op_skiptime[cid] == false) {
-                $(this).find(".skiptime").show()
-            }
-
-            if (stateJSON.op_actiondelay[cid] != "0") {
-                $(this).find(".actiondelay").show()
-                $(this).find(".actiondelay span").html(stateJSON.op_actiondelay[cid] + " s.")
-            }
-
-            if (["argb", "rgb", "255"].includes(stateJSON.colortype[cid])) {
-                hascontrols = true
-                if (stateJSON.state[cid].length == 6) {
-                    $(this).find(".colorpick input").attr("value", "#" + stateJSON.state[cid])
+            let isDragging = false;
+            $(this).find(".rs-handle").mousedown(function() {
+                $(window).mousemove(function() {
+                    isDragging = true;
+                    $(window).unbind("mousemove");
+                });
+            }).mouseup(function() {
+                var wasDragging = isDragging;
+                isDragging = false;
+                $(window).unbind("mousemove");
+                if (!wasDragging) {
+                    var sliderVal = slider.roundSlider("getValue")
+                    $(this).attr("needsync", "1")
+                    if (parseInt(sliderVal) == 0) {
+                        sendPowerRequest(cid, 1, 1)
+                    } else {
+                        sendPowerRequest(cid, 0, 1)
+                    }
                 }
-                $(this).find(".colorpick").css("display", "inline-block")
-                if (cinit != "1") {
-                    $(this).find(".colorpick").on("change", function(ev) {
-                        color = ev.currentTarget.firstElementChild.value.substr(1)
-                        sendPowerRequest(cid, color)
-                    })
-                }
-            }
+            });
 
-            if (["100", "255", "argb", "rgb"].includes(stateJSON.colortype[cid])) {
-                hascontrols = true
-                $(this).find(".sliderpick").show()
-                if (cinit != "1") {
-                    var slider = $(this).find(".slider")
-                    slider.roundSlider({
-                        sliderType: "min-range",
-                        handleShape: "round",
-                        width: 30,
-                        radius: 70,
-                        value: parseInt(stateJSON.intensity[cid]),
-                        editableTooltip: false,
-                        change: function(event) {
-                            sendPowerRequest(cid, event.value, 1)
-                        }
-                    });
-
-                    var isDragging = false;
-                    $(this).find(".rs-handle").mousedown(function() {
-                        $(window).mousemove(function() {
-                            isDragging = true;
-                            $(window).unbind("mousemove");
-                        });
-                    }).mouseup(function() {
-                        var wasDragging = isDragging;
-                        isDragging = false;
-                        $(window).unbind("mousemove");
-                        if (!wasDragging) {
-                            var sliderVal = slider.roundSlider("getValue")
-                            if (parseInt(sliderVal) == 0) {
-                                sendPowerRequest(cid, 1, 1)
-                            } else {
-                                sendPowerRequest(cid, 0, 1)
-                            }
-                        }
-                    });
-                }
-            }
-
-            if (!hascontrols && cinit != "1") {   
-                $(this).find(".controls-div").prepend('<input type="checkbox" class="dcard-toggle" data-onstyle="success" data-offstyle="danger" data-size="lg">')
-            }
-
-            $(this).find(".slider").roundSlider("setValue", parseInt(stateJSON.intensity[cid]))
             var sliderVal = $(this).find(".slider").roundSlider("getValue")
             if (parseInt(sliderVal) == 0) {
                 $(this).find(".rs-handle").css("border", "5px solid #dc3545")
@@ -367,64 +587,29 @@ function computeCards() {
                 $(this).find(".rs-handle").css("border", "5px solid #28a745")
             }
 
-            if (cinit != "1") {
-                $(this).find(".radiomode :input").on('change', function() {
-                    sendModeRequest(cid, $(this).val())
-                })
+            $(this).find(".radiomode :input").on('change', function() {
+                sendModeRequest(cid, $(this).val())
+            })
 
-                $(this).find(".dcard-toggle").bootstrapToggle()
-                $(this).find(".dcard-toggle").change(function() {
-                    sendPowerRequest(cid, this.checked ? 1 : 0)
-                })
+            $(this).find(".dcard-toggle").bootstrapToggle()
+            if (stateJSON.state[cid] === "0" || (!isNaN(stateJSON.state[cid]) && parseInt(stateJSON.state[cid]) === 0) || stateJSON.state[cid] === "*0") {
+                if ($(this).find(".dcard-toggle").prop('checked')) {
+                    $(this).find(".dcard-toggle").bootstrapToggle('off', false)
+                }
+            } else if (stateJSON.state[cid] === "-2" || stateJSON.state[cid] === "X") {
+                $(this).find(".dcard-toggle").bootstrapToggle('disable')
+            } else if (stateJSON.state[cid] != "X") {
+                if (!$(this).find(".dcard-toggle").prop('checked')) {
+                    $(this).find(".dcard-toggle").bootstrapToggle('on', false)
+                }
             }
-        }
+            $(this).find(".dcard-toggle").change(function() {
+                $(this).attr("needsync", "1")
+                sendPowerRequest(cid, this.checked ? 1 : 0)
+            })
 
-        $(this).find(".card-header").removeClass("bg-danger")
-        $(this).find(".card-header").removeClass("bg-warning")
-        $(this).find(".card-header").removeClass("bg-success")
-        $(this).find(".card-header").removeClass("progress-bar-striped")
-        $(this).removeClass("border-danger")
-        $(this).removeClass("border-warning")
-        $(this).removeClass("border-success")
-        $(this).find(".dcard-toggle").bootstrapToggle('enable')
-        $(this).find(".card-header").addClass("text-white")
-        $(this).find(".wrench-btn").hide()
-        if (stateJSON.state[cid] == "0" || (!isNaN(stateJSON.state[cid]) && parseInt(stateJSON.state[cid]) == 0) || stateJSON.state[cid] == "*0") {
-            if ($(this).find(".dcard-toggle").prop('checked')) {
-                $(this).find(".dcard-toggle").bootstrapToggle('off', true)
-            }
-            $(this).find(".card-header").addClass("bg-danger")
-            $(this).addClass("border-danger")
-        } else if (stateJSON.state[cid] == "-2") {
-            $(this).find(".dcard-toggle").bootstrapToggle('disable')
-            $(this).find(".card-header").addClass("bg-warning")
-            $(this).addClass("border-warning")
-        } else if (stateJSON.state[cid] != "X") {
-            if (!$(this).find(".dcard-toggle").prop('checked')) {
-                $(this).find(".dcard-toggle").bootstrapToggle('on', true)
-            }
-            $(this).find(".card-header").addClass("bg-success")
-            $(this).addClass("border-success")
+            $(this).attr("events", "1")
         }
-
-        if (stateJSON.state[cid] == "X") {
-            $(this).find(".dcard-toggle").bootstrapToggle('disable')
-            $(this).find(".card-header").removeClass("text-white")
-            $(this).find(".card-header").append('<i class="fas fa-wrench wrench-btn" onclick="reconnectDevice(' + cid + ')" title="_(Attempt device reconnection)"></i>')
-        }
-
-        if (stateJSON.state[cid] == "*0" || stateJSON.state[cid] == "*1") {
-            $(this).find(".card-header").addClass("progress-bar-striped")
-            $(this).find(".card-header").append('<i class="fas fa-check check-btn" onclick="confirmState(' + cid + ',&apos;' + stateJSON.state[cid] + '&apos;)" title="_(Confirm device state)"></i>')
-        } else {
-            $(this).find(".check-btn").remove()
-        }
-
-        if (stateJSON.icon[cid] != "none") {
-            $(this).find(".iconi").attr("class", "iconi " + stateJSON.icon[cid])
-        }
-
-        $(this).attr("cinit", "1")
     })
 
     $(".gcard").each(function() {
@@ -434,7 +619,7 @@ function computeCards() {
         cid = $(this).attr("id")
 
         if (cinit != "1") {
-            $(this).find(".gcard-toggle").bootstrapToggle()
+            $(this).find(".gcard-toggle").bootstrapToggle({width:"100px"})
             $(this).find(".gcard-toggle").change(function() {
                 sendGroupPowerRequest(group, this.checked ? 1 : 0, cid)
             })
@@ -446,6 +631,7 @@ function computeCards() {
     computeRCards()
 }
 
+var hasOpenRcard = false
 function computeRCards() {
     $(".rcard").each(function() {
         var cinit, cgroup, hasoffdevices, hasondevices
@@ -469,26 +655,38 @@ function computeRCards() {
         if (cinit != "1") {
             $(this).find(".title-header").on("click", function() {
                 if ($(this).parent().find(".card-body").css("display") == "none") {
-                    $("#open-rcard").find(".card-body").hide("fast")
+                    if (hasOpenRcard) {
+                        $("#open-rcard").find(".card-body").hide()
+                    } else {
+                        $("#open-rcard").find(".card-body").fadeOut("fast")
+                    }
                     $("#open-rcard").children().prependTo(".rcolumns")
                     $(this).parent().prependTo("#open-rcard")
-                    $(this).parent().find(".card-body").show("fast")
-                    $([document.documentElement, document.body]).animate({
-                        scrollTop: $(this).offset().top
-                    }, 500);
                     $("#open-rcard").find(".title-header").addClass("open-rcard-header")
                     $("#open-rcard").find(".title-footer").addClass("open-rcard-header")
-                    $("#open-rcard").find(".d-body").addClass("open-rcard-body")
                     $("#open-rcard").find(".rcard").addClass("open-rcard-card")
+                    if (hasOpenRcard) {
+                        $(this).parent().find(".card-body").show()
+                    } else {
+                        $(this).parent().find(".card-body").fadeIn("fast")
+                    }
+                    hasOpenRcard = true
+                    $([document.documentElement, document.body]).animate({
+                        scrollTop: $(this).offset().top-5
+                    }, 400);
                 } else {
-                    $(this).parent().prependTo(".rcolumns")
-                    $(this).parent().find(".card-body").hide("fast")
+                    $(this).parent().find(".card-body").fadeOut("fast", () => {
+                        $(this).parent().prependTo(".rcolumns")
+                    })
+                    hasOpenRcard = false
                 }
 
-                $(".rcolumns").find(".title-header").removeClass("open-rcard-header")
-                $(".rcolumns").find(".title-footer").removeClass("open-rcard-header")
-                $(".rcolumns").find(".d-body").removeClass("open-rcard-body")
-                $(".rcolumns").find(".rcard").removeClass("open-rcard-card")
+                setTimeout(() => {
+                    $(".rcolumns").find(".title-header").removeClass("open-rcard-header")
+                    $(".rcolumns").find(".title-footer").removeClass("open-rcard-header")
+                    $(".rcolumns").find(".d-body").removeClass("open-rcard-body")
+                    $(".rcolumns").find(".rcard").removeClass("open-rcard-card")
+                }, 300)
             })
 
             var devlen = $(this).find(".card").length
@@ -552,153 +750,113 @@ function computeRCards() {
 function sendPowerRequest(devid, value, is_intensity=0) {
     abortPendingRequests()
     pendingRequests++
-    $(".card[cid=" + devid + "]").addClass("disabledbutton")
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "setstate",
-                devid: devid,
-                value: value,
-                isintensity: is_intensity,
-                skiptime: $('input[name=skiptime2]').parent().hasClass("active")
-            },
-        success: function(data){
-            getOneResult()
-        }
-    })
+    disableElement(".card[cid='" + devid + "']")
+    $(".dcard[cid='" + devid + "']").attr("needsredraw", "1")
+
+    const req_data = {
+        reqtype: "setstate",
+        devid: devid,
+        value: value,
+        isintensity: is_intensity,
+        skiptime: $('input[name=skiptime2]').parent().hasClass("active")
+    };
+
+    post_webserver(req_data, (data) => {
+        getDeviceResult(devid);
+    });
 }
 
 function sendGroupPowerRequest(group, value, devid) {
     abortPendingRequests()
     pendingRequests++
-    $("#"+devid).addClass("disabledbutton")
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "setgroup",
-                group: group,
-                value: value,
-                skiptime: $('input[name=skiptime2]').parent().hasClass("active")
-            },
-        success: function(data){
-            getOneResult()
-            $("#"+devid).removeClass("disabledbutton")
-        }
-    })
+    disableElement("#"+devid)
+
+    const req_data = {
+        reqtype: "setgroup",
+        group: group,
+        value: value,
+        skiptime: $('input[name=skiptime2]').parent().hasClass("active")
+    };
+
+    post_webserver(req_data, (data) => {
+        getAllResults();
+        enableElement("#"+devid)
+    });
 }
 
 function sendModeRequest(devid, auto) {
     abortPendingRequests()
     pendingRequests++
-    $(".card[cid=" + devid + "]").addClass("disabledbutton")
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "setmode",
-                mode: auto,
-                devid: devid
-            },
-        success: function(data){
-            getOneResult()
-        }
-    })
+    disableElement(".card[cid='" + devid + "']")
+
+    const req_data = {
+        reqtype: "setmode",
+        mode: auto,
+        devid: devid
+    };
+
+    post_webserver(req_data, (data) => {getDeviceResult(devid);})
 }
 
 function sendAllModeAuto() {
     abortPendingRequests()
     pendingRequests++
-    $(".dcard").addClass("disabledbutton")
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "setallmode"
-            },
-        success: function(data){
-            getOneResult()
-            $(".dcard").removeClass("disabledbutton")
-        }
+    disableElement(".dcard")
+
+    const req_data = {
+        reqtype: "setallmode"
+    }
+
+    post_webserver(req_data, (data) => {
+        getAllResults();
+        enableElement(".dcard")
     })
 }
 
 function setLockDevice(lock, devid) {
-    $("#"+devid).addClass("disabledbutton")
+    disableElement("#"+devid)
     pendingRequests++
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "setlock",
-                lock: lock,
-                devid: devid
-            },
-        success: function(data){
-            getOneResult()
-        },
-        error: function(data){
-            console.log(data)
-        }
-    })    
+
+    const req_data = {
+        reqtype: "setlock",
+        lock: lock,
+        devid: devid
+    }
+
+    post_webserver(req_data, (data) => {
+        getDeviceResult(devid);
+    })
 }
 
 function getContent(amodule, always_refresh = false) {
     if (always_refresh && modulesToRefresh.indexOf(amodule) === -1) {
         modulesToRefresh.push(amodule)
     }
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "getmodule",
-                module: amodule
-            },
-        success: function(data){
-            $("#" + amodule + "-content").html(data)
-            if (amodule.toUpperCase() in dmconfig) {
-                if (amodule == "detector") {
-                    $("#" + amodule + "-content").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(&apos;detector&apos;)" title="_(Module configuration)"></i>')
-                } else {
-                    $("#" + amodule + "-content").parent().parent(".card").find(".card-header").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(&apos;' + amodule + '&apos;)" title="_(Module configuration)"></i>')
 
-                }
+    const req_data = {
+        reqtype: "getmodule",
+        module: amodule
+    }
+
+    post_webserver(req_data, (data) => {
+        $("#" + amodule + "-content").html(data)
+        if (amodule.toUpperCase() in dmconfig) {
+            if (amodule == "detector") {
+                $("#" + amodule + "-content").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(&apos;detector&apos;)" title="_(Module configuration)"></i>')
+            } else {
+                $("#" + amodule + "-content").parent().parent(".card").find(".card-header").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(&apos;' + amodule + '&apos;)" title="_(Module configuration)"></i>')
             }
-        },
-        error: function(data){
-            console.log(data)
         }
     })
 }
 
 function getConfig() {
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "getconfig",
-            },
-        success: function(data){
-            dmconfig = JSON.parse(decodeURIComponent(data))
-        },
-        error: function(data){
-            console.log(data)
-        }
+    const req_data = {
+        reqtype: "getconfig"
+    }
+
+    post_webserver(req_data, (data) => {
+        dmconfig = data
     })
 }
 
@@ -733,22 +891,14 @@ function saveConfig(section) {
     });
     $("#settingsmodal").find('button').prop("disabled", true)
     $("#settingsmodal").find('#savemodal').text("...")
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "setconfig",
-                section: section,
-                configdata: encodeURIComponent(JSON.stringify(jsonData))
-            },
-        success: function(data){
-        },
-        error: function(data){
-            console.log(data)
-        }
-    })
+
+    const req_data = {
+        reqtype: "setconfig",
+        section: section,
+        configdata: encodeURIComponent(JSON.stringify(jsonData))
+    }
+
+    post_webserver(req_data, (data) => {})
 
     setTimeout(function() {
         $("#settingsmodal").find('button').prop("disabled", false)
@@ -760,19 +910,15 @@ function saveConfig(section) {
 function reconnectDevice(devid) {
     abortPendingRequests()
     pendingRequests++
-    $(".card[cid=" + devid + "]").addClass("disabledbutton")
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "reconnect",
-                devid: devid
-            },
-        success: function(data){
-            getOneResult()
-        }
+    disableElement(".card[cid='" + devid + "']")
+
+    const req_data = {
+        reqtype: "reconnect",
+        devid: devid
+    }
+
+    post_webserver(req_data, (data) => {
+        getDeviceResult(devid);
     })
 }
 
@@ -780,40 +926,29 @@ function confirmState(devid, state) {
     state = state.replace("*", "")
     abortPendingRequests()
     pendingRequests++
-    $(".card[cid=" + devid + "]").addClass("disabledbutton")
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "confirmstate",
-                state: state,
-                devid: devid
-            },
-        success: function(data){
-            getOneResult()
-        }
-    })    
+    disableElement(".card[cid='" + devid + "']")
+
+    const req_data = {
+        reqtype: "confirmstate",
+        state: state,
+        devid: devid
+    }
+
+    post_webserver(req_data, (data) => {
+        getDeviceResult(devid);
+    })   
 }
 
 function reloadConfig(){
     $("#reload-config-side-btn").html("Please wait...")
     $("#reload-config-side-btn").attr("onclick", "")
-    $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "reloadconfig",
-            },
-        success: function(data){
-        },
-        error: function(data){
-            console.log(data)
-        }
-    })
+
+
+    const req_data = {
+        reqtype: "reloadconfig"
+    }
+
+    post_webserver(req_data, (data) => {})
 
     setTimeout(function() {
         $("#settingsmodal").find('button').prop("disabled", false)

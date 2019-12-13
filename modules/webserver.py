@@ -149,8 +149,15 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 if reqtype == "getstate":
                     is_async = postvars[b'isasync'][0].decode(
                         'utf-8') in ["True", "true", True]
-                    response.write(json.dumps(
-                        self.dm(is_async=is_async)).encode('UTF-8'))
+                    devid = None
+                    try:
+                        devid = int(postvars[b'devid'][0].decode('utf-8'))
+                    except KeyError:
+                        pass
+                    if devid is None:
+                        response.write(json.dumps(self.dm(is_async=is_async)).encode('UTF-8'))
+                    else:
+                        response.write(json.dumps(self.dm(async_only_for_devid=devid)).encode('UTF-8'))
 
                 if reqtype == "setstate":
                     # TODO GET SUCCESS STATE ?
@@ -169,8 +176,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         if isintensity == "1" and self.dm[devid].color_type == "255":
                             value = (None, value)
                     except ValueError:
-                        # Must be hexadecimal AARRGGBB
-                        value = value[2:9]
+                        pass
                     _col[devid] = value
                     req.set_colors(_col, len(self.dm))
                     if skiptime:
@@ -242,7 +248,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         debug.write('Cannot find module', 1, "WEBSERVER")
                         response.write("0".encode("UTF-8"))
                     else:
-                        response.write(content.encode("UTF-8"))
+                        response.write(json.dumps(content).encode('utf-8'))
 
                 if reqtype == "dobackup":
                     clientid = int(postvars[b'clientid'][0].decode('utf-8'))

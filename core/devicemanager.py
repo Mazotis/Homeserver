@@ -93,10 +93,10 @@ class DeviceManager(object):
         except IndexError:
             self.devices.append(device)
 
-    def __call__(self, is_async=True):
+    def __call__(self, is_async=True, async_only_for_devid=None):
         dm_status = {}
         dm_status["state"] = self.get_state(
-            is_async=is_async, webcolors=True)
+            is_async=is_async, async_only_for_devid=async_only_for_devid, webcolors=True)
         dm_status["intensity"] = self.get_state(
             is_async=True, intensity=True)
         dm_status["mode"] = self.modes
@@ -297,6 +297,8 @@ class DeviceManager(object):
         """ Gets devices from a specific group for the light change """
         if type(request.group) == str:
             request.group = [request.group]
+        for _cnt, _gr in enumerate(request.group):
+            request.group[_cnt] = _gr.lower()
         for _cnt, _device in enumerate(self):
             if request.group is not None and set(request.group).issubset(_device.group):
                 continue
@@ -308,7 +310,7 @@ class DeviceManager(object):
         """ Toggles the devices on/off """
         # TODO Check if this still works or deprecate it.
         states = [DEVICE_ON] * len(self)
-        for _cnt, _state in enumerate(self.get_state()):
+        for _cnt, _state in enumerate(self.get_state(is_async=True)):
             if _state not in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
                 states[_cnt] = [DEVICE_OFF]
         return states
@@ -406,11 +408,15 @@ class DeviceManager(object):
             return False
         return True
 
-    def get_state(self, devid=None, is_async=False, webcolors=False, intensity=False):
+    def get_state(self, devid=None, is_async=False, async_only_for_devid=None, webcolors=False, intensity=False, _for_state_change=False):
         """ Getter for configured devices actual colors """
         if state_lock.locked():
-            # There's most likely another ASYNC state getter running
+            # There's most likely another SYNC state getter running
             is_async = True
+        if not _for_state_change:
+            while lock.locked():
+                # Do not run state checks while there are state changes ?
+                time.sleep(0.2)
         with state_lock:
             states = [None] * len(self)
             for _cnt, dev in enumerate(self):
@@ -422,7 +428,10 @@ class DeviceManager(object):
                     else:
                         states[_cnt] = dev.state
                 else:
-                    states[_cnt] = dev.get_state()
+                    if async_only_for_devid is not None and _cnt != async_only_for_devid:
+                        states[_cnt] = dev.state
+                    else:
+                        states[_cnt] = dev.get_state()
                 if webcolors:
                     states[_cnt] = convert_to_web_rgb(
                         states[_cnt], dev.color_type, dev.color_brightness)
@@ -566,7 +575,8 @@ class DeviceManager(object):
                         _color = self[i].convert(colors[i])
 
                         if _color != DEVICE_SKIP:
-                            self.states[i] = self.get_state(i)
+                            self.states[i] = self.get_state(
+                                i, _for_state_change=True)
                             if _color != self.states[i] or _color == DEVICE_OFF:
                                 debug.write(("Device '{}', change {} => "
                                              "{} (Automatic mode: {})")
@@ -591,13 +601,15 @@ class DeviceManager(object):
                                     break
                                 if _thread is not None:
                                     try:
-                                        _res = _thread.result(self.config["SERVER"].getint("REQUEST_TIMEOUT"))
+                                        _res = _thread.result(
+                                            self.config["SERVER"].getint("REQUEST_TIMEOUT"))
                                         if not _res:
                                             debug.write("Repeating failed request for device: {}".format(
                                                 self[_cnt].name), 1)
                                             i = 0
                                     except NewRequestException:
-                                        debug.write("Got exception NewRequestException - {}".format(traceback.format_exc()), 1)
+                                        debug.write(
+                                            "Got exception NewRequestException - {}".format(traceback.format_exc()), 1)
                                         break
                                     except TimeoutError:
                                         debug.write(
@@ -611,7 +623,8 @@ class DeviceManager(object):
                                     i = 0
                         tries = tries + 1
                         if tries == 5:
-                            debug.write("Failed to change all states. Aborting", 1)
+                            debug.write(
+                                "Failed to change all states. Aborting", 1)
                             break
 
         except queue.Empty:
@@ -627,6 +640,8 @@ class DeviceManager(object):
             ExecutionState().set(False)
             if self.threaded:
                 self.light_pool.shutdown()
+                # Let the Webserver some time to fetch single device state changes results
+                time.sleep(0.5)
                 self.states = self.get_state()
 
         debug.write("Change of device states completed.", 0)
@@ -705,7 +720,8 @@ class StateRequestObject(object):
             if re.match("[0-9a-fA-F]+for[0-9]+", str(_chg)) is not None:
                 """ This is a for-delay change (action, delay then off)"""
                 _vals = _chg.split("for")
-                _chg = "{} for {} seconds then turned off".format(_vals[0], _vals[1])
+                _chg = "{} for {} seconds then turned off".format(
+                    _vals[0], _vals[1])
             _str += "{} will be set to {}".format(_var, _chg)
         return _str
 
@@ -778,6 +794,7 @@ class StateRequestObject(object):
 
 class RequestExecutor(object):
     """ This will connect all threads with the DM on the main thread """
+
     def __init__(self):
         ExecutionState().set(False)
 
@@ -848,9 +865,9 @@ class RequestExecutor(object):
             return False
 
         if len(request.hexvalues) != len(dm.devices) and not any([request.notime, request.off, request.on,
-                                                               request.toggle, request.preset, request.restart,
-                                                               request.group, has_device_requests,
-                                                               request.force_auto_mode]):
+                                                                  request.toggle, request.preset, request.restart,
+                                                                  request.group, has_device_requests,
+                                                                  request.force_auto_mode]):
             debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting"
                         .format(len(request.hexvalues), len(dm.devices), sys.argv[0]), 2)
             return False
@@ -891,7 +908,8 @@ class RequestExecutor(object):
                     [DEVICE_OFF] * len(dm.devices), len(dm.devices))
             if request.on:
                 debug.write("Received ON change request", 0)
-                request.set_colors([DEVICE_ON] * len(dm.devices), len(dm.devices))
+                request.set_colors(
+                    [DEVICE_ON] * len(dm.devices), len(dm.devices))
             if request.restart:
                 debug.write("Received RESTART change request", 0)
                 request.device_type = "GenericOnOff"
