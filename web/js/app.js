@@ -108,6 +108,99 @@ function disableElement(element) {
     })
 }
 
+function drawTimeBar() {
+    const maxTime = 1440
+
+    //Convert hours to 0-1 value, with longer daytime correction
+    const cF = (x) => -0.5*Math.cos(2*3.14159*x/48)+0.5
+
+    let actualTime = new Date()
+    let actualTimeinMins = actualTime.getHours()*60 + actualTime.getMinutes()
+
+    let sunBallPosition = Math.round(cF(actualTimeinMins/maxTime*24)*85)
+    document.getElementById("sun-time-ball").style.left = `${(sunBallPosition)+15}%`
+    document.getElementById("sun-time-ball-line").style.left = `${(sunBallPosition)+15}%`
+
+    const startTimeinMins = parseInt(stateJSON.starttime.substring(0,2))*60 + parseInt(stateJSON.starttime.substring(3,5))
+    const sunsetPosition = Math.round(cF(startTimeinMins/maxTime*24)*85)
+
+    const sunriseTimeInMins = parseInt(stateJSON.daystarttime.substring(0,2))*60 + parseInt(stateJSON.daystarttime.substring(3,5))
+    const sunrisePosition = Math.round(cF(sunriseTimeInMins/maxTime*24)*85)
+    console.log("sunset: " + sunsetPosition + " sunrise: " + sunrisePosition)
+
+    document.getElementById("night-time-bar").style.backgroundImage = `linear-gradient(to right, #444 ${sunrisePosition+15}% , transparent ${sunrisePosition+20}%, transparent ${sunsetPosition+10}%, #444 ${sunsetPosition+15}%)`
+    $("#sun-time-ball").tooltip('hide').attr('data-original-title', `<p style="font-weight:bold;">Last updated at</p><h2>${actualTime.toLocaleTimeString().substring(0,5)}</h2><br>Sunrise time today: <span style="font-weight:bold;">${stateJSON.daystarttime.substring(0,5)}</span><br>Sunset time today: <span style="font-weight:bold;">${stateJSON.starttime.substring(0,5)}</span>`);
+    $("#sun-time-ball").tooltip('show')
+    setTimeout(() => {
+        $("#sun-time-ball").tooltip('hide')
+    }, 2000)
+
+    if (actualTimeinMins > startTimeinMins || actualTimeinMins < sunriseTimeInMins) {
+        document.getElementById("sun-time-ball").style.backgroundColor = '#CDC9C3'
+        document.getElementById("sun-time-ball").style.filter = 'blur(1px)'
+    } else {
+        document.getElementById("sun-time-ball").style.backgroundColor = '#F3B562'
+        document.getElementById("sun-time-ball").style.filter = 'blur(4px)'        
+    }
+
+    const endTimeInMins = parseInt(stateJSON.endtime.substring(0,2))*60 + parseInt(stateJSON.endtime.substring(3,5))
+    const endTimePosition = Math.round(cF(endTimeInMins/maxTime*24)*85)
+
+    $("#on-time-bar").tooltip({title:`<p style="font-weight:bold;">Time check feature</p>No limitations between <span style="font-weight:bold;">${stateJSON.starttime.substring(0,5)}</span> and <span style="font-weight:bold;">${stateJSON.endtime.substring(0,5)}</span>`})
+    $("#off-time-bar").tooltip({title: `<p style="font-weight:bold;">Time check feature</p>No limitations between <span style="font-weight:bold;">${stateJSON.starttime.substring(0,5)}</span> and <span style="font-weight:bold;">${stateJSON.endtime.substring(0,5)}</span>`})
+    if (startTimeinMins <= endTimeInMins) {
+        const barwidth = endTimePosition - sunsetPosition
+        document.getElementById("off-time-bar").style.left = `15%`
+        document.getElementById("off-time-bar").style.width = `100%`
+        document.getElementById("off-time-bar").style.display = `block`
+        document.getElementById("off-time-bar").style.zIndex = `9003`
+        document.getElementById("on-time-bar").style.left = `${sunsetPosition+15}%`
+        document.getElementById("on-time-bar").style.width = `${Math.round(barwidth)}%`
+        document.getElementById("on-time-bar").style.display = `block`
+        document.getElementById("on-time-bar").style.zIndex = `9004`
+    } else {
+        const barwidth = sunsetPosition - endTimePosition
+        document.getElementById("on-time-bar").style.left = `15%`
+        document.getElementById("on-time-bar").style.width = `100%`
+        document.getElementById("on-time-bar").style.display = `block`
+        document.getElementById("on-time-bar").style.zIndex = `9003`
+        document.getElementById("off-time-bar").style.left = `${endTimePosition+15}%`
+        document.getElementById("off-time-bar").style.width = `${Math.round(barwidth)}%`
+        document.getElementById("off-time-bar").style.display = `block`
+        document.getElementById("off-time-bar").style.zIndex = `9004`
+    }
+
+    const detectorStartTimeInMins = parseInt(stateJSON.detectorstart.substring(0,2))*60 + parseInt(stateJSON.detectorstart.substring(3,5))
+    const detectorStartPosition = Math.round(cF(detectorStartTimeInMins/maxTime*24)*85)
+
+    const detectorEndTimeInMins = parseInt(stateJSON.detectorend.substring(0,2))*60 + parseInt(stateJSON.detectorend.substring(3,5))
+    const detectorEndPosition = Math.round(cF(detectorEndTimeInMins/maxTime*24)*85)
+
+    $("#on-detector-bar").tooltip({title: `Device detector active between <span style="font-weight:bold;">${stateJSON.detectorstart}</span> and <span style="font-weight:bold;">${stateJSON.detectorend}</span>`})
+    $("#off-detector-bar").tooltip({title: `Device detector active between <span style="font-weight:bold;">${stateJSON.detectorstart}</span> and <span style="font-weight:bold;">${stateJSON.detectorend}</span>`})
+    if (detectorStartTimeInMins <= detectorEndTimeInMins) {
+        const barwidth = detectorEndPosition - detectorStartPosition
+        document.getElementById("off-detector-bar").style.left = `15%`
+        document.getElementById("off-detector-bar").style.width = `100%`
+        document.getElementById("off-detector-bar").style.display = `block`
+        document.getElementById("off-detector-bar").style.zIndex = `9003`
+        document.getElementById("on-detector-bar").style.left = `${detectorStartPosition+15}%`
+        document.getElementById("on-detector-bar").style.width = `${Math.round(barwidth)}%`
+        document.getElementById("on-detector-bar").style.display = `block`
+        document.getElementById("on-detector-bar").style.zIndex = `9004`
+    } else {
+        const barwidth = detectorStartPosition - detectorEndPosition
+        document.getElementById("on-detector-bar").style.left = `15%`
+        document.getElementById("on-detector-bar").style.width = `100%`
+        document.getElementById("on-detector-bar").style.display = `block`
+        document.getElementById("on-detector-bar").style.zIndex = `9003`
+        document.getElementById("off-detector-bar").style.left = `${detectorEndPosition+15}%`
+        document.getElementById("off-detector-bar").style.width = `${Math.round(barwidth)}%`
+        document.getElementById("off-detector-bar").style.display = `block`
+        document.getElementById("off-detector-bar").style.zIndex = `9004`
+    }
+}
+
 function abortPendingRequests() {
     if (xhrAbortable) {
         xhr.abort()
@@ -127,6 +220,7 @@ async function getResult() {
 
     await post_webserver(req_data, (data) => {
         stateJSON = data
+        drawTimeBar();
         let cnt = 0
         $('#suntime').html(stateJSON.starttime)
         $("#version-span").html(stateJSON.version)
@@ -202,6 +296,7 @@ function getResultRefresh() {
             xhrAbortable = false
             oldstateJSON = stateJSON
             stateJSON = JSON.parse(decodeURIComponent(data))
+            drawTimeBar();
             lastupdate = new Date()
             var i;
             for (i = 0; i < modulesToRefresh.length; i++) { 
@@ -245,6 +340,12 @@ function getAllResults() {
         lastupdate = new Date()
         computeCards()
     })
+}
+
+function closeTooltips() {
+    $("div[data-toggle='tooltip']").each(function() {
+        $(this).tooltip('hide');
+    });
 }
 
 function getJSONForId(device_id, state_json) {
@@ -654,6 +755,7 @@ function computeRCards() {
 
         if (cinit != "1") {
             $(this).find(".title-header").on("click", function() {
+                closeTooltips()
                 if ($(this).parent().find(".card-body").css("display") == "none") {
                     if (hasOpenRcard) {
                         $("#open-rcard").find(".card-body").hide()
@@ -672,7 +774,7 @@ function computeRCards() {
                     }
                     hasOpenRcard = true
                     $([document.documentElement, document.body]).animate({
-                        scrollTop: $(this).offset().top-5
+                        scrollTop: $(this).offset().top-55
                     }, 400);
                 } else {
                     $(this).parent().find(".card-body").fadeOut("fast", () => {
@@ -751,6 +853,7 @@ function sendPowerRequest(devid, value, is_intensity=0) {
     abortPendingRequests()
     pendingRequests++
     disableElement(".card[cid='" + devid + "']")
+    closeTooltips()
     $(".dcard[cid='" + devid + "']").attr("needsredraw", "1")
 
     const req_data = {
@@ -770,6 +873,7 @@ function sendGroupPowerRequest(group, value, devid) {
     abortPendingRequests()
     pendingRequests++
     disableElement("#"+devid)
+    closeTooltips()
 
     const req_data = {
         reqtype: "setgroup",

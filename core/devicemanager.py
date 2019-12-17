@@ -107,7 +107,18 @@ class DeviceManager(object):
         dm_status["icon"] = self.icons
         dm_status["description"] = self.get_descriptions(
             True)
+        if str(self.config['SERVER']['EVENT_HOUR']) != "auto":
+            dm_status["daystarttime"] = "06:00"
+        else:
+            dm_status["daystarttime"] = "{}".format(self.sunrise)
         dm_status["starttime"] = "{}".format(self.starttime)
+        dm_status["endtime"] = "{}".format(self.endtime)
+        dm_status["detectorstart"] = "00:00"
+        if self.config.has_option("DETECTOR", "START_HOUR"):
+            dm_status["detectorstart"] = "{}".format(self.config["DETECTOR"]["START_HOUR"])
+        dm_status["detectorend"] = "00:01"
+        if self.config.has_option("DETECTOR", "END_HOUR"):
+            dm_status["detectorend"] = "{}".format(self.config["DETECTOR"]["END_HOUR"])
         dm_status["groups"] = self.all_groups
         dm_status["colortype"] = self.colortypes
         dm_status["moduleweb"] = self.module_web
@@ -385,8 +396,12 @@ class DeviceManager(object):
             else:
                 self.starttime = self._update_sunset_time(
                     self.config['SERVER']['EVENT_LOCALIZATION'])
+                self.sunrise = self._update_sunrise_time(
+                    self.config['SERVER']['EVENT_LOCALIZATION'])
                 debug.write("State change event time set as sunset time: {}".format(
                     self.starttime), 0)
+            self.endtime = datetime.datetime.strptime(
+                self.config['SERVER']['EVENT_HOUR_STOP'], '%H:%M').time()
         return self.starttime
 
     def check_event_time(self, request, skip_time=False):
@@ -397,7 +412,7 @@ class DeviceManager(object):
                 _dev.set_event_time(self.starttime, True)
             else:
                 _dev.set_event_time(self.starttime)
-        if not skip_time and datetime.time(6, 00) < now_time < self.starttime:
+        if not skip_time and datetime.datetime.strptime(self.config['SERVER']['EVENT_HOUR_STOP'], '%H:%M').time() < now_time < self.starttime:
             for _device, _color in zip(self, request.colors):
                 if _color != DEVICE_SKIP and _device.get_time_check(now_time):
                     debug.write("Not all devices will be changed. Device changes begins at {}"
@@ -667,6 +682,21 @@ class DeviceManager(object):
             debug.write(
                 "Connection error to the sunset time server. Falling back to 18:00.", 1)
             _time = datetime.datetime.strptime("18:00", '%H:%M').time()
+        return _time
+
+    @staticmethod
+    def _update_sunrise_time(localization):
+        p1 = subprocess.Popen('./scripts/sunrise.sh %s' % str(localization), stdout=subprocess.PIPE,
+                              shell=True)
+        (output, _) = p1.communicate()
+        p1.wait()
+        try:
+            _time = datetime.datetime.strptime(
+                output.rstrip().decode('UTF-8'), '%H:%M').time()
+        except ValueError:
+            debug.write(
+                "Connection error to the sunset time server. Falling back to 06:00.", 1)
+            _time = datetime.datetime.strptime("06:00", '%H:%M').time()
         return _time
 
 

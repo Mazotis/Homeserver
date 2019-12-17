@@ -33,8 +33,22 @@
                     <a id="reload-config-side-btn" onclick="reloadConfig()"><tl>Reload config file</tl></a>
                 </center>
             </div>
-            <div class="col-md-12 bg-info" id="top-bar"><i class="fas fa-bars" id="menu-btn"></i></div>
-            <div class="col-md-12" style="background-color:#eee !important">
+            <div id="sky-time-bar"></div>
+            <div id="night-time-bar"></div>
+            <div id="sun-time-ball" data-toggle="tooltip" data-html="true"></div>
+            <div id="sun-time-ball-line"></div>
+            <div id="on-time-bar" data-toggle="tooltip" data-html="true"></div>
+            <div id="off-time-bar" data-toggle="tooltip" data-html="true"></div>
+            <div id="on-detector-bar" data-toggle="tooltip" data-html="true"></div>
+            <div id="off-detector-bar" data-toggle="tooltip" data-html="true"></div>
+            <div class="col-md-12 bg-info" id="top-bar">
+                <div style="width: 100%;position: fixed;height: 50px;z-index: 9999;">
+                    <div id="time-bar">
+                        <i class="fas fa-bars" id="menu-btn"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12" style="background-color:#eee !important; padding-top:50px;">
                 <br>
                 <span id="detector-module-location"></span>
                 <div id="update-spin" class="col-12">
