@@ -19,6 +19,13 @@ a:hover{
 .new-dev-card:hover {
     background-color: rgba(0,0,0,.3) !important;
 }
+#update-spin {
+    position: fixed;
+    top:9px;
+    left:15px;
+    z-index: 9100;
+    color:#eee;
+}
 #top-bar {
     top:0;
     left:0;
@@ -27,73 +34,72 @@ a:hover{
     height:50px;
     background: linear-gradient(0deg, #5C4B51 30%, transparent 40%, transparent 60%, #5C4B51 70%) !important;
     z-index:7002;
+    border-bottom:1px solid #403438;
+}
+#bar-end {
+    position: fixed;
+    right:0;
+    width:5%;
+    height: 50px;
+    z-index: 7000;
+    background-color: #5C4B51;
+}
+#btn-bar {
+    width: 15%;
+    position: fixed;
+    height: 50px;
+    z-index: 9000;
+    left:0;
+    background-color: #5C4B51;
+    border-bottom:1px solid #403438;
 }
 #night-time-bar {
+    position: absolute;
     width: 100%;
-    position: fixed;
     height: 40px;
-    top: 5px;
-    padding-left: 10%;
     z-index: 7001;
     background-image: linear-gradient(to right, #444 30% , transparent 40%, transparent 80%, #444 90%);
 }
 #sky-time-bar {
+    position: absolute;
     width: 100%;
-    position: fixed;
     height: 40px;
     z-index: 7001;
-    padding-left:15%;
     top: 5px;
     background-color: deepskyblue;
     background-image: linear-gradient(0deg, #fefaf4 0%, transparent 100%);
 }
 #on-time-bar {
+    position: absolute;
     display:none;
-    width: 85%;
-    position: fixed;
     height: 3px;
-    z-index: 7003;
-    left:15%;
     top: 40px;
     background-color: #8CBEB2;
-    filter: blur(1px);
 }
 #off-time-bar {
+    position: absolute;
     display:none;
-    width: 85%;
-    position: fixed;
     height: 3px;
-    z-index: 7003;
-    left:15%;
     top: 40px;
     background-color: #F06060;
-    filter: blur(1px);
 }
 #on-detector-bar {
+    position: absolute;
     display:none;
-    width: 85%;
-    position: fixed;
     height: 3px;
-    z-index: 7003;
-    left:15%;
     top: 7px;
     background-color: #eee;
-    filter: blur(1px);
 }
 #off-detector-bar {
+    position: absolute;
     display:none;
-    width: 85%;
-    position: fixed;
     height: 3px;
-    z-index: 7003;
-    left:15%;
     top: 7px;
     background-color: #222;
-    filter: blur(1px);
 }
 #sun-time-ball {
+    position: absolute;
     width: 30px;
-    position: fixed;
     border-radius: 50%;
     height: 30px;
     top: 10px;
@@ -122,7 +128,7 @@ a:hover{
 }
 #sun-time-ball-line {
     width: 3px;
-    position: fixed;
+    position: absolute;
     border-radius: 50%;
     height: 40px;
     top: 5px;
@@ -132,8 +138,8 @@ a:hover{
 }
 #time-bar {
     background-image: linear-gradient(90deg, #5C4B51 85%, transparent 100%);
-    width: 15%;
-    left: 0px;
+    width: 84%;
+    left:15%;
     z-index: 7000;
     position: fixed;
 }

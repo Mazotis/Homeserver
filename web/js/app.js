@@ -79,10 +79,12 @@ async function post_webserver(data, callback) {
 }
 
 function showLoading() {
+    $(".fa-bars").css("display", "none");
     document.getElementById("update-spin").style.display = "inherit"
 }
 
 function hideLoading() {
+    $(".fa-bars").css("display", "inherit");
     document.getElementById("update-spin").style.display = "none"
 }
 
@@ -117,18 +119,17 @@ function drawTimeBar() {
     let actualTime = new Date()
     let actualTimeinMins = actualTime.getHours()*60 + actualTime.getMinutes()
 
-    let sunBallPosition = Math.round(cF(actualTimeinMins/maxTime*24)*85)
-    document.getElementById("sun-time-ball").style.left = `${(sunBallPosition)+15}%`
-    document.getElementById("sun-time-ball-line").style.left = `${(sunBallPosition)+15}%`
+    let sunBallPosition = Math.round(cF(actualTimeinMins/maxTime*24)*100)
+    document.getElementById("sun-time-ball").style.left = `${(sunBallPosition)}%`
+    document.getElementById("sun-time-ball-line").style.left = `${(sunBallPosition)}%`
 
     const startTimeinMins = parseInt(stateJSON.starttime.substring(0,2))*60 + parseInt(stateJSON.starttime.substring(3,5))
-    const sunsetPosition = Math.round(cF(startTimeinMins/maxTime*24)*85)
+    const sunsetPosition = Math.round(cF(startTimeinMins/maxTime*24)*100)
 
     const sunriseTimeInMins = parseInt(stateJSON.daystarttime.substring(0,2))*60 + parseInt(stateJSON.daystarttime.substring(3,5))
-    const sunrisePosition = Math.round(cF(sunriseTimeInMins/maxTime*24)*85)
-    console.log("sunset: " + sunsetPosition + " sunrise: " + sunrisePosition)
+    const sunrisePosition = Math.round(cF(sunriseTimeInMins/maxTime*24)*100)
 
-    document.getElementById("night-time-bar").style.backgroundImage = `linear-gradient(to right, #444 ${sunrisePosition+15}% , transparent ${sunrisePosition+20}%, transparent ${sunsetPosition+10}%, #444 ${sunsetPosition+15}%)`
+    document.getElementById("night-time-bar").style.backgroundImage = `linear-gradient(to right, #444 ${sunrisePosition-5}% , transparent ${sunrisePosition}%, transparent ${sunsetPosition-5}%, #444 ${sunsetPosition}%)`
     $("#sun-time-ball").tooltip('hide').attr('data-original-title', `<p style="font-weight:bold;">Last updated at</p><h2>${actualTime.toLocaleTimeString().substring(0,5)}</h2><br>Sunrise time today: <span style="font-weight:bold;">${stateJSON.daystarttime.substring(0,5)}</span><br>Sunset time today: <span style="font-weight:bold;">${stateJSON.starttime.substring(0,5)}</span>`);
     $("#sun-time-ball").tooltip('show')
     setTimeout(() => {
@@ -144,57 +145,53 @@ function drawTimeBar() {
     }
 
     const endTimeInMins = parseInt(stateJSON.endtime.substring(0,2))*60 + parseInt(stateJSON.endtime.substring(3,5))
-    const endTimePosition = Math.round(cF(endTimeInMins/maxTime*24)*85)
+    const endTimePosition = Math.round(cF(endTimeInMins/maxTime*24)*100)
 
     $("#on-time-bar").tooltip({title:`<p style="font-weight:bold;">Time check feature</p>No limitations between <span style="font-weight:bold;">${stateJSON.starttime.substring(0,5)}</span> and <span style="font-weight:bold;">${stateJSON.endtime.substring(0,5)}</span>`})
     $("#off-time-bar").tooltip({title: `<p style="font-weight:bold;">Time check feature</p>No limitations between <span style="font-weight:bold;">${stateJSON.starttime.substring(0,5)}</span> and <span style="font-weight:bold;">${stateJSON.endtime.substring(0,5)}</span>`})
     if (startTimeinMins <= endTimeInMins) {
         const barwidth = endTimePosition - sunsetPosition
-        document.getElementById("off-time-bar").style.left = `15%`
         document.getElementById("off-time-bar").style.width = `100%`
         document.getElementById("off-time-bar").style.display = `block`
         document.getElementById("off-time-bar").style.zIndex = `9003`
-        document.getElementById("on-time-bar").style.left = `${sunsetPosition+15}%`
+        document.getElementById("on-time-bar").style.left = `${sunsetPosition}%`
         document.getElementById("on-time-bar").style.width = `${Math.round(barwidth)}%`
         document.getElementById("on-time-bar").style.display = `block`
         document.getElementById("on-time-bar").style.zIndex = `9004`
     } else {
         const barwidth = sunsetPosition - endTimePosition
-        document.getElementById("on-time-bar").style.left = `15%`
         document.getElementById("on-time-bar").style.width = `100%`
         document.getElementById("on-time-bar").style.display = `block`
         document.getElementById("on-time-bar").style.zIndex = `9003`
-        document.getElementById("off-time-bar").style.left = `${endTimePosition+15}%`
+        document.getElementById("off-time-bar").style.left = `${endTimePosition}%`
         document.getElementById("off-time-bar").style.width = `${Math.round(barwidth)}%`
         document.getElementById("off-time-bar").style.display = `block`
         document.getElementById("off-time-bar").style.zIndex = `9004`
     }
 
     const detectorStartTimeInMins = parseInt(stateJSON.detectorstart.substring(0,2))*60 + parseInt(stateJSON.detectorstart.substring(3,5))
-    const detectorStartPosition = Math.round(cF(detectorStartTimeInMins/maxTime*24)*85)
+    const detectorStartPosition = Math.round(cF(detectorStartTimeInMins/maxTime*24)*100)
 
     const detectorEndTimeInMins = parseInt(stateJSON.detectorend.substring(0,2))*60 + parseInt(stateJSON.detectorend.substring(3,5))
-    const detectorEndPosition = Math.round(cF(detectorEndTimeInMins/maxTime*24)*85)
+    const detectorEndPosition = Math.round(cF(detectorEndTimeInMins/maxTime*24)*100)
 
     $("#on-detector-bar").tooltip({title: `Device detector active between <span style="font-weight:bold;">${stateJSON.detectorstart}</span> and <span style="font-weight:bold;">${stateJSON.detectorend}</span>`})
     $("#off-detector-bar").tooltip({title: `Device detector active between <span style="font-weight:bold;">${stateJSON.detectorstart}</span> and <span style="font-weight:bold;">${stateJSON.detectorend}</span>`})
     if (detectorStartTimeInMins <= detectorEndTimeInMins) {
         const barwidth = detectorEndPosition - detectorStartPosition
-        document.getElementById("off-detector-bar").style.left = `15%`
         document.getElementById("off-detector-bar").style.width = `100%`
         document.getElementById("off-detector-bar").style.display = `block`
         document.getElementById("off-detector-bar").style.zIndex = `9003`
-        document.getElementById("on-detector-bar").style.left = `${detectorStartPosition+15}%`
+        document.getElementById("on-detector-bar").style.left = `${detectorStartPosition}%`
         document.getElementById("on-detector-bar").style.width = `${Math.round(barwidth)}%`
         document.getElementById("on-detector-bar").style.display = `block`
         document.getElementById("on-detector-bar").style.zIndex = `9004`
     } else {
         const barwidth = detectorStartPosition - detectorEndPosition
-        document.getElementById("on-detector-bar").style.left = `15%`
         document.getElementById("on-detector-bar").style.width = `100%`
         document.getElementById("on-detector-bar").style.display = `block`
         document.getElementById("on-detector-bar").style.zIndex = `9003`
-        document.getElementById("off-detector-bar").style.left = `${detectorEndPosition+15}%`
+        document.getElementById("off-detector-bar").style.left = `${detectorEndPosition}%`
         document.getElementById("off-detector-bar").style.width = `${Math.round(barwidth)}%`
         document.getElementById("off-detector-bar").style.display = `block`
         document.getElementById("off-detector-bar").style.zIndex = `9004`
@@ -566,10 +563,10 @@ function generateCardForId(device_id) {
 
 function generateBlankCard() {
     return `
-<div id="cardmodel" style="display:none;">
+<div id="cardmodel">
     <div class="card text-center mb-3 bg-secondary new-dev-card">
         <div class="card-body text-white" style="padding-top:0; padding:0.25rem;">
-            <h5 class="card-title " style="margin-top:0.75rem;"><i class='fas fa-plus-circle'></i> Add device (WIP)</h5>
+            <h5 class="card-title" style="margin-top:0.75rem;"><i class='fas fa-plus-circle'></i> Add device (WIP)</h5>
          </div>
     </div>
 </div>
