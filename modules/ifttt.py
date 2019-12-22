@@ -72,13 +72,12 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 debug.write(
                     "Function {} not defined. Request aborted.", 1, "IFTTT")
                 return
+            req.initialize_dm(self.dm)
             if func == "on":
-                req.set_colors(
-                    [DEVICE_ON] * len(self.dm), len(self.dm))
+                req.set_colors([DEVICE_ON])
             elif func == "off":
                 req.set(skip_time=True)
-                req.set_colors(
-                    [DEVICE_OFF] * len(self.dm), len(self.dm))
+                req.set_colors([DEVICE_OFF])
 
             group = postvars['group'][0].split()
             group = [unidecode.unidecode(x) for x in group]
@@ -111,12 +110,10 @@ class IFTTTServer(BaseHTTPRequestHandler):
 
             if "delay" in postvars and int(postvars['delay'][0]) != 0:
                 if func == "on":
-                    req.set_colors(
-                        [DEVICE_OFF] * len(self.dm), len(self.dm))
+                    req.set_colors([DEVICE_OFF])
                 elif func == "off":
                     req.set(skip_time=True)
-                    req.set_colors(
-                        [DEVICE_ON] * len(self.dm), len(self.dm))
+                    req.set_colors([DEVICE_ON])
                 req.set(delay=int(postvars['delay'][0]) * 60)
                 req()
 
@@ -172,7 +169,8 @@ class ifttt(Thread):
 
     def init_from_config(self):
         self.config = getConfigHandler().set_section("IFTTT")
-        self.port = self.config.get_value('VOICE_SERVER_PORT', int, parent="SERVER")
+        self.port = self.config.get_value(
+            'VOICE_SERVER_PORT', int, parent="SERVER")
         self.protocol = self.config['PROTOCOL']
         if self.protocol == "https":
             self.key = self.config['IFTTT_HTTPS_CERTS_KEY']

@@ -13,6 +13,9 @@ a:hover{
     text-decoration: underline !important;
     cursor:pointer;
 }
+.modal {
+    top:30px !important;
+}
 .new-dev-card {
     cursor:pointer;
 }

@@ -183,9 +183,10 @@ class backup(Thread):
 
     def change_state_for_device(self, devid, state):
         req = StateRequestObject()
-        _col = ["-1"] * len(self.dm)
+        req.initialize_dm(self.dm)
+        _col = [DEVICE_SKIP] * len(self.dm)
         _col[int(devid)] = state
-        req.set_colors(_col, len(self.dm))
+        req.set_colors(_col)
         req.set(skip_time=True, auto_mode=False)
         req()
 

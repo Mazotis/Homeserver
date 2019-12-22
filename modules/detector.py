@@ -146,6 +146,7 @@ class detector(Thread):
         if self.config.dev_has_option(request) and self.config[request] not in [None, ""]:
             debug.write("Running event: {}".format(request), 0, "DETECTOR")
             req = StateRequestObject()
+            req.initialize_dm(self.dm)
             if reset_mode:
                 req.set(reset_mode=True)
             else:

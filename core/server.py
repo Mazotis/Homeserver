@@ -130,6 +130,7 @@ class HomeServer(Thread):
                 debug.write("Running TCP preset {}".format(
                     data[3:]), 0, "SERVER")
                 req = StateRequestObject()
+                req.initialize_dm(self.dm)
                 if self.config.get_value("AUTOMATIC_MODE", bool, parent="TCP-PRESETS"):
                     req.set(auto_mode=True)
                 if req.from_string(self.config.get_value(data[3:], str, parent="TCP-PRESETS")):

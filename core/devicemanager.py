@@ -2,7 +2,7 @@
 '''
     File name: devicemanager.py
     Author: Maxime Bergeron
-    Date last modified: 15/11/2019
+    Date last modified: 22/12/2019
     Python Version: 3.7
 
     The device and modules manager for the homeserver. Not a module per-se
@@ -12,7 +12,6 @@ import datetime
 import re
 import subprocess
 import time
-import traceback
 try:
     import queue
 except ImportError:
@@ -326,25 +325,6 @@ class DeviceManager(object):
                 states[_cnt] = [DEVICE_OFF]
         return states
 
-    def set_typed_colors(self, request):
-        """ Gets devices of a specific  type for the light change """
-        device_indexes = [i for i, x in enumerate(
-            self) if x.__class__.__name__.lower() == request.device_type.lower()]
-
-        if len(request.device_type_args) == 1 and len(device_indexes) > 1:
-            debug.write("Expanding state {} to {} devices."
-                        .format(len(request.device_type_args), len(device_indexes)), 0)
-            for i in device_indexes:
-                request[i] = request.device_type_args[0]
-        elif len(device_indexes) != len(request.device_type_args):
-            debug.write("Received state hexvalues length {} for {} devices. Quitting"
-                        .format(len(request.device_type_args), len(device_indexes)), 2)
-            return False
-        else:
-            for _cnt, i in enumerate(device_indexes):
-                request[i] = request.device_type_args[_cnt]
-        return True
-
     def get_descriptions(self, as_list=False):
         """ Getter for configured devices descriptions """
         desclist = []
@@ -549,7 +529,8 @@ class DeviceManager(object):
                                 colors[_acnt] = DEVICE_SKIP
                             self.delays[_acnt] = 0
                     req = StateRequestObject()
-                    req.set_colors(_delay_colors, len(self))
+                    req.initialize_dm(self)
+                    req.set_colors(_delay_colors)
                     if self.skip_time:
                         req.set(skip_time=True)
                     debug.write("Scheduling device state change ({}) after {} seconds".format(
@@ -624,7 +605,7 @@ class DeviceManager(object):
                                             i = 0
                                     except NewRequestException:
                                         debug.write(
-                                            "Got exception NewRequestException - {}".format(traceback.format_exc()), 1)
+                                            "Sent exception for new request", 0)
                                         break
                                     except TimeoutError:
                                         debug.write(
@@ -723,6 +704,10 @@ class StateRequestObject(object):
         self.stream_dev = None
         self.changed_vars = {}
 
+        """ Initialization data from the devicemanager """
+        self.length = 0
+        self.device_list = []
+
         """ Vars for the completed request, used by the devicemanager directly """
         self.colors = None
         #self.delays = []
@@ -761,8 +746,13 @@ class StateRequestObject(object):
     def __setitem__(self, position, color):
         if self.colors is None:
             debug.write(
-                "Requested states must be initialized first using set_colors()", 1)
+                "State request must be initialized first using initialize_dm()", 1)
             raise ValueError
+
+
+        debug.write("SET COLORS TYPE: {} VAL: {} Position: {} color: {}".format(type(self.colors), self.colors, position, color), 1)
+
+
         self.colors[position] = color
 
     def set(self, **kwargs):
@@ -776,6 +766,7 @@ class StateRequestObject(object):
             if k not in allowed_keys:
                 debug.write(
                     "Missing or unallowed variable in request: {}".format(k), 1)
+                return False
             if v in ["True", "true"]:
                 v = True
             elif v in ["False", "false"]:
@@ -784,15 +775,20 @@ class StateRequestObject(object):
                 v = None
             if getattr(self, k, False) != v:
                 self.changed_vars[k] = v
+            if k in getDevices(True):
+                if not self.set_typed_colors(k, v):
+                    return False
         self.__dict__.update((k, v)
                              for k, v in kwargs.items() if k in allowed_keys)
+        return True
 
     def from_string(self, json_str):
         if json_str is None or json_str == "":
             return False
         try:
             _args = ast.literal_eval(json_str)
-            self.set(**_args)
+            if not self.set(**_args):
+                return False
             return True
         except ValueError:
             debug.write(
@@ -811,12 +807,47 @@ class StateRequestObject(object):
                 setattr(self, _dev, str(
                     getattr(self, _dev, None).replace("'", "").split(',')))
 
-    def set_colors(self, colors, length):
+    def initialize_dm(self, dm):
+        """ Fetches the required variables from the devicemanager """
+        self.length = len(dm.devices)
+        self.device_list = [x.device_type for x in dm.devices]
         if self.colors is None:
-            self.colors = [DEVICE_SKIP] * int(length)
+            self.colors = [DEVICE_SKIP] * int(self.length)
+
+    def set_colors(self, colors):
+        if self.colors is None:
+            debug.write("ERROR - You need to initialize the request using initialize_dm() first", 1)
+            return False
+
+        if len(colors) == 1 and self.length != 1:
+            self.colors = colors * self.length
+            return
         for i, _color in enumerate(colors):
             if self[i] != _color:
                 self[i] = _color
+
+    def set_typed_colors(self, device_type, device_args):
+        """ Gets devices of a specific  type for the light change """
+        device_indexes = [i for i, x in enumerate(
+            self.device_list) if x.lower() == device_type.lower()]
+
+        #TODO Fix that
+        if type(device_args) == str:
+            device_args = [device_args]
+
+        if len(device_args) == 1 and len(device_indexes) > 1:
+            debug.write("Expanding state {} to {} ({}) devices."
+                        .format(len(device_args), len(device_indexes), device_type), 0)
+            for i in device_indexes:
+                self[i] = device_args[0]
+        elif len(device_indexes) != len(device_args):
+            debug.write("Received state hexvalues length {} ({}) for {} ({}) device(s). Quitting"
+                        .format(len(device_args), device_args, len(device_indexes), device_type), 2)
+            return False
+        else:
+            for _cnt, i in enumerate(device_indexes):
+                self[i] = device_args[_cnt]
+        return True
 
     def run(self):
         request_queue.put(self)
@@ -838,6 +869,7 @@ class RequestExecutor(object):
     def execute(self, request, dm):
         """ Validates the request and runs the light change """
         ExecutionState().set(True)
+        request.initialize_dm(dm)
         if not self.validate_request(dm, dm.config, request):
             return
         dm.clean_delayed_changes()
@@ -847,9 +879,7 @@ class RequestExecutor(object):
 
         dm.skip_time = request.skip_time
         dm.set_mode(request)
-        if request.device_type is not None:
-            if not dm.set_typed_colors(request):
-                return
+
         if request.group is not None:
             dm.get_group(request)
 
@@ -904,7 +934,7 @@ class RequestExecutor(object):
         if request.hexvalues:
             debug.write("Received color hexvalues length {} for {} devices"
                         .format(len(request.hexvalues), len(dm.devices)), 0)
-            request.set_colors(request.hexvalues, len(dm.devices))
+            request.set_colors(request.hexvalues)
         else:
             if request.set_mode_for_devid is not None:
                 try:
@@ -918,14 +948,15 @@ class RequestExecutor(object):
             for _dev in getDevices(True):
                 if getattr(request, _dev, None) is not None:
                     debug.write("Received {} change request".format(_dev), 0)
-                    request.device_type = _dev
-                    request.device_type_args = getattr(request, _dev, None)
+                    if not request.set_typed_colors(_dev, getattr(request, _dev, None)):
+                        return False
 
             if request.preset is not None:
                 debug.write(
                     "Received change to preset [{}] request".format(request.preset), 0)
                 try:
-                    request.from_string(config["PRESETS"][request.preset])
+                    if not request.from_string(config["PRESETS"][request.preset]):
+                        return False
                     request.auto_mode = config["PRESETS"].getboolean(
                         "AUTOMATIC_MODE")
                 except KeyError:
@@ -934,19 +965,17 @@ class RequestExecutor(object):
                     return False
             if request.off:
                 debug.write("Received OFF change request", 0)
-                request.set_colors(
-                    [DEVICE_OFF] * len(dm.devices), len(dm.devices))
+                request.set_colors([DEVICE_OFF])
             if request.on:
                 debug.write("Received ON change request", 0)
-                request.set_colors(
-                    [DEVICE_ON] * len(dm.devices), len(dm.devices))
+                request.set_colors([DEVICE_ON])
             if request.restart:
                 debug.write("Received RESTART change request", 0)
                 request.device_type = "GenericOnOff"
                 request.device_type_args = ["2"]
             if request.toggle:
                 debug.write("Received TOGGLE change request", 0)
-                request.set_colors(dm.get_toggle(), len(dm.devices))
+                request.set_colors(dm.get_toggle())
         if request.notime or request.off:
             request.skip_time = True
 

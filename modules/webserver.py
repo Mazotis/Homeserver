@@ -2,7 +2,7 @@
 '''
     File name: webserver.py
     Author: Maxime Bergeron
-    Date last modified: 07/11/2019
+    Date last modified: 22/12/2019
     Python Version: 3.7
 
     The web server interface module for the homeserver
@@ -76,7 +76,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     for _ip in _ips:
                         self.allowed_ips.append(_ip)
             if self.client_address[0] not in self.allowed_ips:
-                _path = os.path.join(self.translate_path(self.path), "index.html")
+                _path = os.path.join(
+                    self.translate_path(self.path), "index.html")
                 _page = "<!doctype html><html><body><h1>You cannot access this page.</h1></body></html>"
                 self.send_response(200)
                 self.send_header("Content-type", super().guess_type(_path))
@@ -85,7 +86,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 self.wfile.write(_page.encode('utf-8'))
 
         elif self.config["WEBSERVER"]["SECURITY"] != "permissive":
-            debug.write("Unknown security level for webserver: {}".format(self.config["WEBSERVER"]["SECURITY"]), 1)
+            debug.write("Unknown security level for webserver: {}".format(
+                self.config["WEBSERVER"]["SECURITY"]), 1)
             return
         try:
             if ".html" in self.path or ".js" in self.path or self.path == "/":
@@ -129,7 +131,6 @@ class WebServerHandler(SimpleHTTPRequestHandler):
         except Exception as ex:
             debug.write("Got exception in GET request: {}".format(ex), 1)
 
-
     def do_POST(self):
         try:
             content_length = int(self.headers['Content-Length'])
@@ -155,13 +156,16 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     except KeyError:
                         pass
                     if devid is None:
-                        response.write(json.dumps(self.dm(is_async=is_async)).encode('UTF-8'))
+                        response.write(json.dumps(
+                            self.dm(is_async=is_async)).encode('UTF-8'))
                     else:
-                        response.write(json.dumps(self.dm(async_only_for_devid=devid)).encode('UTF-8'))
+                        response.write(json.dumps(
+                            self.dm(async_only_for_devid=devid)).encode('UTF-8'))
 
                 if reqtype == "setstate":
                     # TODO GET SUCCESS STATE ?
                     req = StateRequestObject()
+                    req.initialize_dm(self.dm)
                     devid = int(postvars[b'devid'][0].decode('utf-8'))
                     value = str(postvars[b'value'][0].decode('utf-8'))
                     debug.write(
@@ -178,7 +182,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     except ValueError:
                         pass
                     _col[devid] = value
-                    req.set_colors(_col, len(self.dm))
+                    req.set_colors(_col)
                     if skiptime:
                         req.set(skip_time=True)
                     req()
@@ -211,14 +215,15 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     skiptime = postvars[b'skiptime'][0].decode(
                         'utf-8') in ['true', True]
                     req = StateRequestObject()
+                    req.initialize_dm(self.dm)
                     debug.write('Running a group change of state',
                                 0, "WEBSERVER")
                     _col = ["0"] * len(self.dm)
                     if skiptime:
                         req.set(skip_time=True)
                     if value == 1:
-                        _col = ["1"] * len(self.dm)
-                    req.set_colors(_col, len(self.dm))
+                        _col = [DEVICE_ON]
+                    req.set_colors(_col)
                     req.set(group=[group.replace("0", "").lower()])
                     req()
                     while ExecutionState().get():
@@ -338,6 +343,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     presets["preset"] = []
                     for _preset in self.config["PRESETS"].items():
                         req = StateRequestObject()
+                        req.initialize_dm(self.dm)
                         if _preset[0] != "automatic_mode" and req.from_string(_preset[1]):
                             presets["items"].append(_preset[0])
                             presets["preset"].append(_preset[1])
@@ -352,6 +358,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     debug.write("Parsing new preset {}, string: {}".format(
                         presetname, preset), 0, "WEBSERVER")
                     req = StateRequestObject()
+                    req.initialize_dm(self.dm)
                     if req.from_string(preset):
                         self.config.set("PRESETS", presetname.upper(), preset)
                         response.write("1".encode("UTF-8"))
@@ -425,7 +432,7 @@ class webserver(Thread):
     def stop(self):
         debug.write("Stopping.", 0, "WEBSERVER")
         self.running = False
-        # Needs a last call to shut down properly
+        # Needs a last call to shut down properly on python3.5
         try:
             requests.get("http://localhost:{}/".format(self.port))
         except requests.exceptions.ConnectionError:
