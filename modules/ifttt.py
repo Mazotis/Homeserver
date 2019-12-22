@@ -2,7 +2,7 @@
 '''
     File name: ifttt.py
     Author: Maxime Bergeron
-    Date last modified: 07/11/2019
+    Date last modified: 22/12/2019
     Python Version: 3.5
 
     The IFTTT receiver module for the homeserver
@@ -59,7 +59,9 @@ class IFTTTServer(BaseHTTPRequestHandler):
             if action in self.config:
                 debug.write('Running action : {}'.format(
                     self.config[action]), 0, "IFTTT")
-                os.system("./homeclient.py " + self.config[action])
+                req = StateRequestObject()
+                req.set(preset=self.config[action])
+                req()
             else:
                 debug.write('Unknown action: {}'.format(action), 1, "IFTTT")
 

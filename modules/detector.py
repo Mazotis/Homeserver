@@ -136,11 +136,13 @@ class detector(Thread):
                             self.run_state_request(
                                 "ON_EVENT_HOUR_DEVICE_DISCONNECT_EVENT")
                         else:
-                            self.run_state_request("ON_DEVICE_DISCONNECT_EVENT")
+                            self.run_state_request(
+                                "ON_DEVICE_DISCONNECT_EVENT")
                     elif self.device_state_level[_cnt] != 0:
                         self.device_state_level[_cnt] -= 1
         except Exception as ex:
-            debug.write("Got exception: {}-{}".format(type(ex).__name__, ex), 1)
+            debug.write(
+                "Got exception: {}-{}".format(type(ex).__name__, ex), 1)
 
     def run_state_request(self, request, reset_mode=False):
         if self.config.dev_has_option(request) and self.config[request] not in [None, ""]:
@@ -151,8 +153,8 @@ class detector(Thread):
                 req.set(reset_mode=True)
             else:
                 req.set(auto_mode=True)
-            if req.from_string(self.config[request]):
-                req()
+            req.set(preset=self.config[request])
+            req()
 
     def init_from_config(self):
         self.config = getConfigHandler().set_section("DETECTOR")
