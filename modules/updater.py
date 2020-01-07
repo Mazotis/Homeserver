@@ -58,10 +58,10 @@ class updater(Thread):
         debug.write("Fetching new version from git", 0, "UPDATER")
         try:
             _update = subprocess.Popen(
-                "cd {}/.. && git pull -f".format(CORE_DIR), shell=True, stdout=subprocess.PIPE)
+                "cd {}/.. && git fetch --all".format(CORE_DIR), shell=True, stdout=subprocess.PIPE)
             _update.wait()
             _update = subprocess.Popen(
-                "cd {}/.. && git checkout master -f".format(CORE_DIR), shell=True, stdout=subprocess.PIPE)
+                "cd {}/.. && git reset --hard origin/master".format(CORE_DIR), shell=True, stdout=subprocess.PIPE)
             _update.wait()
         except subprocess.CalledProcessError:
             debug.write(
