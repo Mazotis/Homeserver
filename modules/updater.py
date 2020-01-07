@@ -43,8 +43,9 @@ class updater(Thread):
             VERSION), 0, "UPDATER")
         try:
             NEW_VERSION = urlopen(
-                "https://raw.githubusercontent.com/Mazotis/Homeserver/master/VERSION").read()
+                "https://raw.githubusercontent.com/Mazotis/Homeserver/master/VERSION").read().decode("UTF-8")
         except HTTPError:
+            debug.write("Could not check version with the main Github server.", 1, "UPDATER")
             NEW_VERSION = VERSION
         if VERSION != NEW_VERSION:
             debug.write("A new version ({}) is available".format(

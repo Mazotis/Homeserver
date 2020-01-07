@@ -2,7 +2,7 @@
 '''
     File name: common.py
     Author: Maxime Bergeron
-    Date last modified: 6/02/2019
+    Date last modified: 07/01/2020
     Python Version: 3.5
 
     Commonly shared variables and functions
@@ -28,11 +28,11 @@ DEVICE_DISABLED = "X"
 DEVICE_INFERRED_OFF = "*0"
 DEVICE_INFERRED_ON = "*1"
 
-VERSION = "alpha-0002"
-###
-
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))
+with open(CORE_DIR + "/../VERSION") as f:
+    VERSION = f.read()
 
+###
 
 def getConfigHandler(renew=False):
     if renew:

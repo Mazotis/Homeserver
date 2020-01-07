@@ -3,6 +3,7 @@
 # My backup INI
 home.bak
 home.old
+home.ini
 /web/images/*
 
 # Byte-compiled / optimized / DLL files
