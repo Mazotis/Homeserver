@@ -28,7 +28,7 @@ DEVICE_DISABLED = "X"
 DEVICE_INFERRED_OFF = "*0"
 DEVICE_INFERRED_ON = "*1"
 
-VERSION = "alpha"
+VERSION = "alpha-0002"
 ###
 
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))

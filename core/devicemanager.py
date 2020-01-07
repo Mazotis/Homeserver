@@ -359,12 +359,15 @@ class DeviceManager(object):
                 _dev.init_from_config()
             except NameError:
                 pass
+        self.shutdown_modules()
+        self.get_modules_list()
+
+    def shutdown_modules(self):
         for _cnt, _mod in enumerate(self.modules):
             try:
                 _mod.stop()
             except NameError:
                 pass
-        self.get_modules_list()
 
     def update_event_time(self):
         if self.lastupdate != datetime.date.today():
