@@ -2,7 +2,7 @@
 '''
     File name: MerossSwitch.py
     Author: Maxime Bergeron
-    Date last modified: 17/10/2019
+    Date last modified: 02/02/2020
     Python Version: 3.7
 
     The MerossSwitch for Meross Switches handler class
@@ -31,7 +31,7 @@ class MerossSwitch(device):
 
     def run(self, color):
         """ Checks the request and trigger a light change if needed """
-        if not self.meross.disabled:
+        if not self.meross.disabled and self.state != DEVICE_DISABLED:
             if color == DEVICE_OFF:
                 debug.write(
                     "Turning Meross device {} OFF.".format(self.device), 0)
@@ -50,8 +50,8 @@ class MerossSwitch(device):
                         .format(color, self.device), 0, self.device_type)
             self.meross_dev.turn_off()
             self.state = DEVICE_OFF
-            self.success = True
-            return True
+        self.success = True
+        return True
 
     def get_state(self):
         # TODO Is this the proper limit for ON/OFF ?
@@ -71,6 +71,12 @@ class MerossSwitch(device):
                 debug.write(
                     "Failed to obtain current state for device {}. Fallback to server-side reported state.".format(self.device), 1)
                 return self.state
+            except AttributeError:
+                debug.write(
+                    "Device {} is offline. Set as disabled.".format(self.device), 1)
+                self.state = DEVICE_DISABLED
+                return self.state
+
         else:
             self.state = DEVICE_DISABLED
         return self.state
@@ -82,8 +88,17 @@ class MerossSwitch(device):
         debug.write("Linking Meross {} to pseudodevice {}.".format(
             self.device, meross.email), 0, self.device_type)
         self.meross = meross
-        self.meross_dev = self.meross.get_meross_device(self.device)
+        self.meross_dev = meross.get_meross_device(self.device)
+        if not self.meross_dev:
+            self.state = DEVICE_DISABLED
 
     def disconnect(self):
         pass
         # self.meross.disconnect()
+
+    def reconnect(self):
+        debug.write("Attempting reconnection of device {}.".format(
+            self.name), 0, "MerossSwitch")
+        if self.meross.disabled:
+            self.meross.connect()
+        self.get_state()

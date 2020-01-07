@@ -587,6 +587,8 @@ class DeviceManager(object):
                                         self[i].pre_run, _color)
                                 else:
                                     self[i].pre_run(_color)
+                            else:
+                                self.light_threads[i] = None
                     i += 1
 
                     if i == len(self):
@@ -600,8 +602,8 @@ class DeviceManager(object):
                                         _res = _thread.result(
                                             self.config["SERVER"].getint("REQUEST_TIMEOUT"))
                                         if not _res:
-                                            debug.write("Repeating failed request for device: {}".format(
-                                                self[_cnt].name), 1)
+                                            debug.write("Repeating failed request for device: {} ({})".format(
+                                                self[_cnt].name, self[_cnt].device_type), 1)
                                             i = 0
                                     except NewRequestException:
                                         debug.write(
@@ -748,11 +750,6 @@ class StateRequestObject(object):
             debug.write(
                 "State request must be initialized first using initialize_dm()", 1)
             raise ValueError
-
-
-        debug.write("SET COLORS TYPE: {} VAL: {} Position: {} color: {}".format(type(self.colors), self.colors, position, color), 1)
-
-
         self.colors[position] = color
 
     def set(self, **kwargs):
@@ -828,6 +825,10 @@ class StateRequestObject(object):
 
     def set_typed_colors(self, device_type, device_args):
         """ Gets devices of a specific  type for the light change """
+        if self.device_list is None:
+            debug.write("ERROR - You need to initialize the request using initialize_dm() first", 1)
+            return False
+
         device_indexes = [i for i, x in enumerate(
             self.device_list) if x.lower() == device_type.lower()]
 

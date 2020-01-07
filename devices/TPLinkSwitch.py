@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 '''
-    File name: TP-LinkSwitch.py
+    File name: TPLinkSwitch.py
     Author: Maxime Bergeron
-    Date last modified: 30/07/2019
+    Date last modified: 30/12/2019
     Python Version: 3.7
 
-    The TP-Link smartswitch device handler. Allows connections to HS200-210-220 devices.
+    The TPLink smartswitch device handler. Allows connections to HS200-210-220 devices.
 '''
 
 from pyHS100 import SmartPlug
@@ -19,7 +19,7 @@ class TPLinkSwitch(device):
         super().__init__(devid)
         # TODO Support multiple TP-Link KASA cloud accounts at the same time ?
         self.ip = self.config["IP"]
-        self.device_type = "TP-LinkSwitch"
+        self.device_type = "TPLinkSwitch"
         self.device = self.config["DEVICE"]
         self.plug = None
         self.dimmable = False
