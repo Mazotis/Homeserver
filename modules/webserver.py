@@ -172,8 +172,6 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         'Running a single device ({}) state change to {}'.format(self.dm[devid].name, value), 0, "WEBSERVER")
                     isintensity = str(
                         postvars[b'isintensity'][0].decode('utf-8'))
-                    skiptime = postvars[b'skiptime'][0].decode(
-                        'utf-8') in ['true', True]
                     _col = ["-1"] * len(self.dm)
                     try:
                         value = int(value)
@@ -183,8 +181,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         pass
                     _col[devid] = value
                     req.set_colors(_col)
-                    if skiptime:
-                        req.set(skip_time=True)
+                    req.set(skip_time=True)
                     req()
                     while ExecutionState().get():
                         time.sleep(0.5)

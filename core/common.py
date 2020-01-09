@@ -34,6 +34,7 @@ with open(CORE_DIR + "/../VERSION") as f:
 
 ###
 
+
 def getConfigHandler(renew=False):
     if renew:
         HOMECONFIG = ConfigHandler()

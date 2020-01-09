@@ -2,32 +2,14 @@
 '''
     File name: Milight.py
     Author: Maxime Bergeron
-    Date last modified: 03/10/2019
+    Date last modified: 9/01/2020
     Python Version: 3.5
 
     The Milight BLE bulbs handler class
 '''
-import functools
-import bluepy.btle as ble
+
 from core.common import *
-from core.bulb import Bulb
-
-
-def connect_ble(_f):
-    """ Wrapper for functions which requires an active BLE connection using bluepy """
-    @functools.wraps(_f)
-    def _conn_wrap(self, *args):
-        if self._connection is None:
-            try:
-                debug.write("CONnecting to device ({})...".format(
-                    self.description), 0, self.device_type)
-                self._connection = ble.Peripheral(self.device)
-            except Exception as ex:
-                debug.write("Device ({}) connection failed. Exception: {}"
-                            .format(self.description, ex), 1, self.device_type)
-                self._connection = None
-        return _f(self, *args)
-    return _conn_wrap
+from core.bulb import Bulb, connect_ble
 
 
 class Milight(Bulb):
@@ -135,25 +117,18 @@ class Milight(Bulb):
 
     @connect_ble
     def _write(self, command, color):
-        _oldcolor = self.state
         try:
-            if self._connection is not None:
-                self.state = color
-                self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0] \
-                    .write(bytearray.fromhex(command
-                                             .replace('\n', '')
-                                             .replace('\r', '')))
-                self.success = True
-                return True
-            self.state = _oldcolor
-            debug.write("Connection error to device ({}). Retrying"
-                        .format(self.description), 1, self.device_type)
-            return False
+            self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0] \
+                .write(bytearray.fromhex(command
+                                         .replace('\n', '')
+                                         .replace('\r', '')))
+            self.success = True
+            self.state = color
+            return True
         except Exception as ex:
-            self.state = _oldcolor
             debug.write("({}) Error sending data to device ({}). Retrying"
                         .format(ex, self.description), 1, self.device_type)
-            self._connection = None
+            self.disconnect()
             return False
 
     def _create_command(self, bledata):

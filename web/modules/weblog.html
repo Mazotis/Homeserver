@@ -28,21 +28,21 @@ function getDebugLog() {
             <h4 class="card-header"><tl>Debug log</tl> (module)</h4>
             <div class="card-body" style="padding-top:0px;">
                 <p class="card-text"><div id="weblog-content"></div></p>
-                <button type="button" id="refreshdb" class="btn btn-secondary" style="float:right;" onclick="getDebugLog()"><tl>Refresh</tl></button>
-                <div style="float:left;width:75%;">
-                    <div class="form-check form-check-inline">
+                <button type="button" id="refreshdb" class="btn btn-dark" style="float:right;" onclick="getDebugLog()"><tl>Refresh</tl></button>
+                <div style="float:left;max-width:50%;">
+                    <div class="form-check">
                       <input class="form-check-input" type="radio" name="debugRadio" id="allDebug" value="all" checked>
                       <label class="form-check-label" for="allDebug">
                         <tl>Full debug log</tl>
                       </label>
                     </div>
-                    <div class="form-check form-check-inline">
+                    <div class="form-check">
                       <input class="form-check-input" type="radio" name="debugRadio" id="debugDebug" value="debug">
                       <label class="form-check-label" for="debugDebug">
                         <tl>'Debug' level logs</tl>
                       </label>
                     </div>
-                    <div class="form-check form-check-inline">
+                    <div class="form-check">
                       <input class="form-check-input" type="radio" name="debugRadio" id="errorDebug" value="error">
                       <label class="form-check-label" for="errorDebug">
                         <tl>'Error' level logs</tl>

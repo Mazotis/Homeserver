@@ -26,7 +26,6 @@ class HomeServer(Thread):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.sock.bind((self.host, self.port))
-        self.scheduled_disconnect = None
         self.tcp_start_hour = self.config.get_value('TCP_START_HOUR', "hours")
         self.tcp_end_hour = self.config.get_value('TCP_END_HOUR', "hours")
         self.conn_sockets = []
@@ -36,7 +35,7 @@ class HomeServer(Thread):
         """ Starts the server """
         debug.write('Server started', 0, "SERVER")
         # Cleanup connection to allow new sock.accepts faster as sched is blocking
-        self.disconnect_devices()
+        self.dm.disconnect_devices()
         self.sock.listen(5)
         while not self.stopevent.is_set():
             client, address = self.sock.accept()
@@ -54,9 +53,6 @@ class HomeServer(Thread):
         try:
             while True:
                 msize = int(client.recv(4).decode('utf-8'))
-                if self.scheduled_disconnect is not None:
-                    self.scheduled_disconnect.cancel()
-                    self.scheduled_disconnect = None
                 data = client.recv(msize)
                 if data:
                     # TODO use the recv length to determine pickled vs non-pickled requests ?
@@ -89,9 +85,6 @@ class HomeServer(Thread):
             debug.write('Closing connection.', 0, "SERVER")
             self.dm.reinit()
             client.close()
-            self.scheduled_disconnect = Timer(
-                60, self.disconnect_devices, ())
-            self.scheduled_disconnect.start()
 
     def check_for_function_request(self, data, req, client):
         streamingdev = False
@@ -187,13 +180,6 @@ class HomeServer(Thread):
                     streaming_id, data, True)
         return False
 
-    def disconnect_devices(self):
-        """ Disconnects all configured devices """
-        self.scheduled_disconnect = None
-        debug.write("Server unused. Disconnecting devices.", 0, "SERVER")
-        for _dev in self.dm:
-            _dev.disconnect()
-
     def stop(self):
         """ Shuts down server and cleans resources """
         debug.write("Closing down server and lights.", 0, "SERVER")
@@ -202,11 +188,11 @@ class HomeServer(Thread):
         for _thr in self.conn_sockets:
             if _thr is not None:
                 _thr.join()
-        if self.scheduled_disconnect is not None:
+        if self.dm.scheduled_disconnect is not None:
             debug.write("Purging scheduled light changes", 0, "SERVER")
-            self.scheduled_disconnect.cancel()
+            self.dm.scheduled_disconnect.cancel()
         debug.write("Disconnecting devices", 0, "SERVER")
-        self.disconnect_devices()
+        self.dm.disconnect_devices()
         debug.write("Shutdown completed properly", 0, "SERVER")
         self.stopevent.set()
         socket.socket(socket.AF_INET,

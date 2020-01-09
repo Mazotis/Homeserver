@@ -14,7 +14,7 @@ a:hover{
     cursor:pointer;
 }
 .modal {
-    top:30px !important;
+    top:30px;
 }
 .new-dev-card {
     cursor:pointer;
@@ -303,6 +303,16 @@ a:hover{
     }
     .rcard .card-columns {
         column-count: 2 !important;
+    }
+    .modal {
+        top:50px !important;
+        padding-bottom:50px;
+    }
+    h5.card-header {
+        font-size:1rem;
+    }
+    h4.card-header {
+        font-size:1.25rem;
     }
 }
 @media (min-width: 770px) {

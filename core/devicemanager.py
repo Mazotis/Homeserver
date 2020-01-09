@@ -71,8 +71,8 @@ class DeviceManager(object):
         self.always_skip_time = False
         self.update_event_time()
         self.queue = queue.Queue()
-        self.delays = [0] * len(self)
         self.scheduled_changes = []
+        self.scheduled_disconnect = None
         self.states = self.get_state()
         self.skip_time = False
         debug.write("Got initial device states {}".format(self.states), 0)
@@ -114,10 +114,12 @@ class DeviceManager(object):
         dm_status["endtime"] = "{}".format(self.endtime)
         dm_status["detectorstart"] = "00:00"
         if self.config.has_option("DETECTOR", "START_HOUR"):
-            dm_status["detectorstart"] = "{}".format(self.config["DETECTOR"]["START_HOUR"])
+            dm_status["detectorstart"] = "{}".format(
+                self.config["DETECTOR"]["START_HOUR"])
         dm_status["detectorend"] = "00:01"
         if self.config.has_option("DETECTOR", "END_HOUR"):
-            dm_status["detectorend"] = "{}".format(self.config["DETECTOR"]["END_HOUR"])
+            dm_status["detectorend"] = "{}".format(
+                self.config["DETECTOR"]["END_HOUR"])
         dm_status["groups"] = self.all_groups
         dm_status["colortype"] = self.colortypes
         dm_status["moduleweb"] = self.module_web
@@ -499,30 +501,38 @@ class DeviceManager(object):
             self[devid].get_pseudodevice(
                 self.pseudodevices[_pseudodev])
 
-    def _decode_colors(self, colors):
+    def disconnect_devices(self):
+        """ Disconnects all configured devices """
+        self.scheduled_disconnect = None
+        debug.write("Server unused. Disconnecting devices.", 0)
+        for _dev in self:
+            _dev.disconnect()
+
+    def _decode_colors(self, request):
         _has_delays = False
-        self.delays = [0] * len(self)
+        dev_delays = [0] * len(self)
+        colors = request.colors
         for _cnt, _col in enumerate(colors):
             if type(_col) is not tuple:
                 if re.match("[0-9a-fA-F]+del[0-9]+", str(_col)) is not None:
                     """ This is a delayed change (delay then action) """
                     _vals = _col.split("del")
                     colors[_cnt] = _vals[0]
-                    self.delays[_cnt] = int(_vals[1])
+                    dev_delays[_cnt] = int(_vals[1])
                     _has_delays = True
                 if re.match("[0-9a-fA-F]+for[0-9]+", str(_col)) is not None:
                     """ This is a for-delay change (action, delay then off)"""
                     _vals = _col.split("for")
                     colors[_cnt] = _vals[0]
-                    self.delays[_cnt] = -int(_vals[1])
+                    dev_delays[_cnt] = -int(_vals[1])
                     _has_delays = True
         if _has_delays:
             _delay_list = []
-            for _delay in self.delays:
+            for _delay in dev_delays:
                 if _delay != 0 and _delay not in _delay_list:
                     _delay_list.append(_delay)
                     _delay_colors = [DEVICE_SKIP] * len(self)
-                    for _acnt, _adelay in enumerate(self.delays):
+                    for _acnt, _adelay in enumerate(dev_delays):
                         if _adelay == _delay:
                             if _adelay < 0:
                                 _delay_colors[_acnt] = DEVICE_OFF
@@ -530,15 +540,13 @@ class DeviceManager(object):
                             else:
                                 _delay_colors[_acnt] = colors[_acnt]
                                 colors[_acnt] = DEVICE_SKIP
-                            self.delays[_acnt] = 0
-                    req = StateRequestObject()
-                    req.initialize_dm(self)
-                    req.set_colors(_delay_colors)
-                    if self.skip_time:
-                        req.set(skip_time=True)
+                            dev_delays[_acnt] = 0
+                    delayed_req = request
+                    delayed_req.initialize_dm(self)
+                    delayed_req.set_colors(_delay_colors)
                     debug.write("Scheduling device state change ({}) after {} seconds".format(
                         _delay_colors, _delay), 0)
-                    _sched = Timer(int(_delay), req.run, ())
+                    _sched = Timer(int(_delay), delayed_req.run, ())
                     _sched.start()
                     self.scheduled_changes.append(_sched)
         return colors
@@ -559,7 +567,7 @@ class DeviceManager(object):
                     self.reinit()
                 self.old_request = _req
                 colors = self._decode_colors(
-                    _req.colors)  # TODO Check performance
+                    _req)  # TODO Check performance
                 self.check_event_time(
                     _req, _req.skip_time or self.always_skip_time)
                 if all(c == DEVICE_SKIP for c in colors):
@@ -572,6 +580,7 @@ class DeviceManager(object):
                 while i < len(self):
                     if not self[i].success:
                         _color = self[i].convert(colors[i])
+                        self.light_threads[i] = None
 
                         if _color != DEVICE_SKIP:
                             self.states[i] = self.get_state(
@@ -590,8 +599,7 @@ class DeviceManager(object):
                                         self[i].pre_run, _color)
                                 else:
                                     self[i].pre_run(_color)
-                            else:
-                                self.light_threads[i] = None
+
                     i += 1
 
                     if i == len(self):
@@ -607,6 +615,10 @@ class DeviceManager(object):
                                         if not _res:
                                             debug.write("Repeating failed request for device: {} ({})".format(
                                                 self[_cnt].name, self[_cnt].device_type), 1)
+                                            self.light_threads[_cnt].set_exception(
+                                                NewRequestException)
+                                            self.light_threads[_cnt].cancel()
+                                            self.light_threads[_cnt] = None
                                             i = 0
                                     except NewRequestException:
                                         debug.write(
@@ -615,6 +627,10 @@ class DeviceManager(object):
                                     except TimeoutError:
                                         debug.write(
                                             "Request timed-out for device: {}".format(self[_cnt].name), 1)
+                                        self.light_threads[_cnt].set_exception(
+                                            NewRequestException)
+                                        self.light_threads[_cnt].cancel()
+                                        self.light_threads[_cnt] = None
                                         i = 0
                         else:
                             for _cnt, _dev in enumerate(self):
@@ -715,7 +731,6 @@ class StateRequestObject(object):
 
         """ Vars for the completed request, used by the devicemanager directly """
         self.colors = None
-        #self.delays = []
         self.skip_time = False
         self.group = None
         self.device_type = None
@@ -816,7 +831,8 @@ class StateRequestObject(object):
 
     def set_colors(self, colors):
         if self.colors is None:
-            debug.write("ERROR - You need to initialize the request using initialize_dm() first", 1)
+            debug.write(
+                "ERROR - You need to initialize the request using initialize_dm() first", 1)
             return False
 
         if len(colors) == 1 and self.length != 1:
@@ -829,13 +845,14 @@ class StateRequestObject(object):
     def set_typed_colors(self, device_type, device_args):
         """ Gets devices of a specific  type for the light change """
         if self.device_list is None:
-            debug.write("ERROR - You need to initialize the request using initialize_dm() first", 1)
+            debug.write(
+                "ERROR - You need to initialize the request using initialize_dm() first", 1)
             return False
 
         device_indexes = [i for i, x in enumerate(
             self.device_list) if x.lower() == device_type.lower()]
 
-        #TODO Fix that
+        # TODO Fix that
         if type(device_args) == str:
             device_args = [device_args]
 
@@ -873,6 +890,9 @@ class RequestExecutor(object):
     def execute(self, request, dm):
         """ Validates the request and runs the light change """
         ExecutionState().set(True)
+        if dm.scheduled_disconnect is not None:
+            dm.scheduled_disconnect.cancel()
+            dm.scheduled_disconnect = None
         request.initialize_dm(dm)
         if not self.validate_request(dm, dm.config, request):
             return
@@ -906,6 +926,9 @@ class RequestExecutor(object):
                     debug.write("Canceling thread {}".format(_thread), 1)
                     _thread.set_exception(NewRequestException)
                     _thread.cancel()
+        dm.scheduled_disconnect = Timer(
+            60, dm.disconnect_devices, ())
+        dm.scheduled_disconnect.start()
 
     @staticmethod
     def validate_request(dm, config, request):

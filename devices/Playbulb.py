@@ -2,34 +2,14 @@
 '''
     File name: Playbulb.py
     Author: Maxime Bergeron
-    Date last modified: 6/02/2019
+    Date last modified: 9/01/2020
     Python Version: 3.7
 
     The Playbulb BLE bulbs handler class
 '''
 
-import functools
-import bluepy.btle as ble
-import time
 from core.common import *
-from core.bulb import Bulb
-
-
-def connect_ble(_f):
-    """ Wrapper for functions which requires an active BLE connection using bluepy """
-    @functools.wraps(_f)
-    def _conn_wrap(self, *args):
-        if self._connection is None:
-            try:
-                debug.write("CONnecting to device ({})...".format(
-                    self.description), 0, self.device_type)
-                self._connection = ble.Peripheral(self.device)
-            except Exception as ex:
-                debug.write("Device ({}) connection failed. Exception: {}"
-                            .format(self.description, ex), 1, self.device_type)
-                self._connection = None
-        return _f(self, *args)
-    return _conn_wrap
+from core.bulb import Bulb, connect_ble
 
 
 class Playbulb(Bulb):
@@ -59,9 +39,11 @@ class Playbulb(Bulb):
 
     @connect_ble
     def _write(self, color):
-        _oldcolor = self.state
+        if self._connection is None:
+            debug.write("Could not change device state for device ({})".format(
+                self.description), 1, self.device_type)
+            return False
         try:
-            if self._connection is not None:
                     # NOT YET STABLE
                 #                   state = self.server.get_state(self.devid)
                 #                   if (state == "0"):
@@ -80,27 +62,20 @@ class Playbulb(Bulb):
                 #                           self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(deltacolor))
                 #                           time.sleep(0.5)
 
-                self.state = color
-                self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0] \
-                                .write(bytearray.fromhex(color))
+            self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0] \
+                .write(bytearray.fromhex(color))
 
-                # Prebuilt animations: blink=00, pulse=01, hard rainbow=02, smooth rainbow=03, candle=04
-                # self._connection.getCharacteristics(uuid="0000fffb-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color+"02ffffff"))
-                self.success = True
-                debug.write("({}) color changed to {}".format(
-                    self.description, color), 0, self.device_type)
-                return True
-
-            self.state = _oldcolor
-            debug.write("Connection error to device ({}). Retrying"
-                        .format(self.description), 1, self.device_type)
-            time.sleep(0.2)
-            return False
+            # Prebuilt animations: blink=00, pulse=01, hard rainbow=02, smooth rainbow=03, candle=04
+            # self._connection.getCharacteristics(uuid="0000fffb-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color+"02ffffff"))
+            self.success = True
+            self.state = color
+            debug.write("({}) color changed to {}".format(
+                self.description, color), 0, self.device_type)
+            return True
 
         except Exception as ex:
             # TODO manage "overwritten" thread by queued requests
-            self.state = _oldcolor
-            debug.write("Unhandled response. Thread died?\n{}".format(
-                ex), 0, self.device_type)
+            debug.write("Connection error to device ({}) with error: {}. Retrying"
+                        .format(self.device, ex), 1, self.device_type)
             self.disconnect()
             return False

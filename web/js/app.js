@@ -857,8 +857,7 @@ function sendPowerRequest(devid, value, is_intensity=0) {
         reqtype: "setstate",
         devid: devid,
         value: value,
-        isintensity: is_intensity,
-        skiptime: $('input[name=skiptime2]').parent().hasClass("active")
+        isintensity: is_intensity
     };
 
     post_webserver(req_data, (data) => {
