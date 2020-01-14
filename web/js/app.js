@@ -75,6 +75,7 @@ async function post_webserver(data, callback) {
         callback(response);
     }).catch(error => {
         console.log(error);
+        enableElement(".dcard")
     });
 }
 
@@ -404,7 +405,7 @@ function generateCardForGroup(group, position) {
 function generateRoomForGroup(room) {
     let title = room.charAt(0).toUpperCase() + room.substr(1).toLowerCase()
     return `
-    <div class="card rcard mb-3 noselect-nooverflow" id="rcard-${room}">
+    <div class="card rcard mb-3 noselect-nooverflow" id="rcard-${room.replace(/\s/g, '')}">
         <h4 class="card-header title-header bg-danger text-white" style="font-weight:bold;">${title}</h4>
         <div class="card-body d-body card-columns" style="display:none;">
         </div>
@@ -606,7 +607,7 @@ function computeCards() {
                     let clone = $(this).clone(true)
                     let position = 9999
                     clone.attr("cloned", "1")
-                    $("#rcard-" + rgroups[_cnt]).find(".dcard").each(function() {
+                    $("#rcard-" + rgroups[_cnt].replace(/\s/g, '')).find(".dcard").each(function() {
                         let thisCid = parseInt($(this).attr("cid")) 
                         if (position > thisCid && thisCid > cid) {
                             position = thisCid
@@ -614,9 +615,9 @@ function computeCards() {
                     })
 
                     if (position != 9999) {
-                        clone.insertBefore($("#rcard-" + rgroups[_cnt] + " .dcard[cid='" + position + "']"))
+                        clone.insertBefore($("#rcard-" + rgroups[_cnt].replace(/\s/g, '') + " .dcard[cid='" + position + "']"))
                     } else {
-                        clone.appendTo($("#rcard-" + rgroups[_cnt] + " > .card-body"))
+                        clone.appendTo($("#rcard-" + rgroups[_cnt].replace(/\s/g, '') + " > .card-body"))
                     }
                 }
                 $(this).remove()
@@ -873,7 +874,7 @@ function sendGroupPowerRequest(group, value, devid) {
 
     const req_data = {
         reqtype: "setgroup",
-        group: group,
+        group: encodeURIComponent(group.replace(" ", "_")),
         value: value,
         skiptime: $('input[name=skiptime2]').parent().hasClass("active")
     };

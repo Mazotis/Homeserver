@@ -1,141 +1,748 @@
 <?xml version='1.0' encoding='utf8'?>
-<arguments>
-	<argument name="hexvalues">
-		<description><tl>State values for the devices</tl></description>
-		<type>str</type>
-		<metavar>value</metavar>
-		<nargs>*</nargs>
-		<default></default>
-		<placeholder>value_for_device1','value_for_device2'...</placeholder>
-	</argument>
-	<argument name="preset" disallow-editor="yes">
-		<description>Apply state change actions from specified preset name defined in home.ini</description>
-		<type>str</type>
-		<metavar>PRESET_NAME</metavar>
-		<nargs>?</nargs>
-		<action></action>
-		<default></default>
-		<placeholder>Name_of_preset</placeholder>
-	</argument>
-	<argument name="group">
-		<description><tl>Apply state change on specified device group(s)</tl></description>
-		<type>str</type>
-		<metavar>GROUP_NAME</metavar>
-		<nargs>+</nargs>
-		<action></action>
-		<default></default>
-		<placeholder>Name_of_group OR 'group1','group2'...</placeholder>
-	</argument>
-	<argument name="notime">
-		<description><tl>Skip the time check and run the script anyways</tl></description>
-		<type>bool</type>
-		<metavar></metavar>
-		<nargs></nargs>
-		<action>store_true</action>
-		<default>False</default>
-	</argument>
-	<argument name="delay">
-		<description><tl>Run the request after a given number of seconds</tl></description>
-		<type>int</type>
-		<metavar>DELAY_IN_SECS</metavar>
-		<nargs>?</nargs>
-		<action></action>
-		<default>0</default>
-	</argument>
-	<argument name="on">
-		<description><tl>Turn all devices selected in current request ON</tl></description>
-		<type>bool</type>
-		<metavar></metavar>
-		<nargs></nargs>
-		<action>store_true</action>
-		<default>False</default>
-	</argument>
-	<argument name="off">
-		<description><tl>Turn all devices selected in current request OFF</tl></description>
-		<type>bool</type>
-		<metavar></metavar>
-		<nargs></nargs>
-		<action>store_true</action>
-		<default>False</default>
-	</argument>
-	<argument name="restart">
-		<description><tl>Trigger a device restart for compatible devices</tl></description>
-		<type>bool</type>
-		<metavar></metavar>
-		<nargs></nargs>
-		<action>store_true</action>
-		<default>False</default>
-	</argument>
-	<argument name="toggle">
-		<description><tl>Toggle ON/OFF all devices selected in current request</tl></description>
-		<type>bool</type>
-		<metavar></metavar>
-		<nargs></nargs>
-		<action>store_true</action>
-		<default>False</default>
-	</argument>
-	<argument name="server" disallow-editor="yes">
-		<description>Start as a socket server daemon. This is required before running any requests</description>
-		<type>bool</type>
-		<metavar></metavar>
-		<nargs></nargs>
-		<action>store_true</action>
-		<default>False</default>
-	</argument>
-	<argument name="threaded" disallow-editor="yes">
-		<description>Starts the server daemon with threaded light change requests</description>
-		<type>bool</type>
-		<metavar></metavar>
-		<nargs></nargs>
-		<action>store_true</action>
-		<default>False</default>
-	</argument>
-	<argument name="stream-dev" disallow-editor="yes">
-		<description>Stream colors directly to device ID#</description>
-		<type>int</type>
-		<metavar>DEVICE#_TO_STREAM_TO</metavar>
-		<nargs>?</nargs>
-		<action></action>
-		<default></default>
-	</argument>
-	<argument name="stream-group" disallow-editor="yes">
-		<description>Stream colors directly to device group</description>
-		<type>str</type>
-		<metavar>GROUP_TO_STREAM_TO</metavar>
-		<nargs>?</nargs>
-		<action></action>
-		<default></default>
-	</argument>
-	<argument name="reset-mode">
-		<description><tl>Force device state change (whatever the actual mode) and set back devices to AUTO mode</tl></description>
-		<type>bool</type>
-		<metavar></metavar>
-		<nargs></nargs>
-		<action>store_true</action>
-		<default>False</default>
-	</argument>
-	<argument name="auto-mode">
-		<description><tl>Run non-DEVICE_SKIP state requests as AUTO mode</tl></description>
-		<type>bool</type>
-		<metavar></metavar>
-		<nargs></nargs>
-		<action>store_true</action>
-		<default>False</default>
-	</argument>
-	<argument name="set-mode-for-devid">
-		<description><tl>Force device ID# to change mode (as set by auto-mode)</tl></description>
-		<type>int</type>
-		<metavar>DEVICE#_TO_CHANGE_MODE</metavar>
-		<nargs>?</nargs>
-		<action></action>
-		<default></default>
-	</argument>
-	<argument name="reset-location-data">
-		<description><tl>Purge all RTT, locations and location training data</tl></description>
-		<type>bool</type>
-		<metavar></metavar>
-		<nargs></nargs>
-		<action>store_true</action>
-		<default>False</default>
-	</argument>
-</arguments>
+<configurations>
+	<arguments>
+		<argument name="hexvalues">
+			<description><tl>State values for the devices</tl></description>
+			<type>str</type>
+			<metavar>value</metavar>
+			<nargs>*</nargs>
+			<default></default>
+			<placeholder>value_for_device1','value_for_device2'...</placeholder>
+		</argument>
+		<argument name="configure">
+			<description>Run the Homeserver configuration tool</description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+		<argument name="preset" disallow-editor="yes">
+			<description>Apply state change actions from specified preset name defined in home.ini</description>
+			<type>str</type>
+			<metavar>PRESET_NAME</metavar>
+			<nargs>?</nargs>
+			<action></action>
+			<default></default>
+			<placeholder>Name_of_preset</placeholder>
+		</argument>
+		<argument name="group">
+			<description><tl>Apply state change on specified device group(s)</tl></description>
+			<type>str</type>
+			<metavar>GROUP_NAME</metavar>
+			<nargs>+</nargs>
+			<action></action>
+			<default></default>
+			<placeholder>Name_of_group OR 'group1','group2'...</placeholder>
+		</argument>
+		<argument name="notime">
+			<description><tl>Skip the time check and run the script anyways</tl></description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+		<argument name="delay">
+			<description><tl>Run the request after a given number of seconds</tl></description>
+			<type>int</type>
+			<metavar>DELAY_IN_SECS</metavar>
+			<nargs>?</nargs>
+			<action></action>
+			<default>0</default>
+		</argument>
+		<argument name="on">
+			<description><tl>Turn all devices selected in current request ON</tl></description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+		<argument name="off">
+			<description><tl>Turn all devices selected in current request OFF</tl></description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+		<argument name="restart">
+			<description><tl>Trigger a device restart for compatible devices</tl></description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+		<argument name="toggle">
+			<description><tl>Toggle ON/OFF all devices selected in current request</tl></description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+		<argument name="server" disallow-editor="yes">
+			<description>Start as a socket server daemon. This is required before running any requests</description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+		<argument name="threaded" disallow-editor="yes">
+			<description>Starts the server daemon with threaded light change requests</description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+		<argument name="stream-dev" disallow-editor="yes">
+			<description>Stream colors directly to device ID#</description>
+			<type>int</type>
+			<metavar>DEVICE#_TO_STREAM_TO</metavar>
+			<nargs>?</nargs>
+			<action></action>
+			<default></default>
+		</argument>
+		<argument name="stream-group" disallow-editor="yes">
+			<description>Stream colors directly to device group</description>
+			<type>str</type>
+			<metavar>GROUP_TO_STREAM_TO</metavar>
+			<nargs>?</nargs>
+			<action></action>
+			<default></default>
+		</argument>
+		<argument name="reset-mode">
+			<description><tl>Force device state change (whatever the actual mode) and set back devices to AUTO mode</tl></description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+		<argument name="auto-mode">
+			<description><tl>Run non-DEVICE_SKIP state requests as AUTO mode</tl></description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+		<argument name="set-mode-for-devid">
+			<description><tl>Force device ID# to change mode (as set by auto-mode)</tl></description>
+			<type>int</type>
+			<metavar>DEVICE#_TO_CHANGE_MODE</metavar>
+			<nargs>?</nargs>
+			<action></action>
+			<default></default>
+		</argument>
+		<argument name="reset-location-data">
+			<description><tl>Purge all RTT, locations and location training data</tl></description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+	</arguments>
+	<configentries>
+		<section name="SERVER">
+			<config name="HOST" manual="True">
+				<description>The RPI3 IP address. Should be configured as a static address in your router setup</description>
+				<fullname>Host (RPi) local LAN IP address</fullname>
+				<fulltype>IP address</fulltype>
+				<regex>^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$</regex>
+				<default></default>
+			</config>
+			<config name="PORT">
+				<description>The RPI3 server port. Must be accessible through firewall for local addresses</description>
+				<fullname>Host (RPI) server TCP port</fullname>
+				<fulltype>TCP port</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default>1234</default>
+			</config>
+			<config name="ENABLE_DEBUG">
+				<description>Enables or disables debugging (either to file or in console)</description>
+				<fullname>Debugging</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>True</default>
+			</config>
+			<config name="JOURNALING">
+				<description>Enables file journaling (debug logs to file)</description>
+				<fullname>File journaling</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>True</default>
+				<depends on="ENABLE_DEBUG" being="True" />
+			</config>
+			<config name="JOURNAL_DIR">
+				<description>The full path for the journal files</description>
+				<fullname>Journal files path</fullname>
+				<fulltype>Path</fulltype>
+				<regex>^(.+)/([^/]+)$</regex>
+				<default>/home/pi</default>
+				<depends on="ENABLE_DEBUG" being="True" />
+			</config>
+			<config name="MAX_DEBUG_FILES">
+				<description>Number of history debug files to keep</description>
+				<fullname>Number of debug logs to keep</fullname>
+				<fulltype># of logs</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default>3</default>
+				<depends on="ENABLE_DEBUG" being="True" />
+			</config>
+			<config name="REQUEST_TIMEOUT">
+				<description>Time (in seconds) before a device state change request times out. Increase if you have slow-communicating devices or stability issues.</description>
+				<fullname>Request timeout</fullname>
+				<fulltype>Time (seconds)</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default>10</default>
+			</config>
+			<config name="LANGUAGE">
+				<description>Change the UI display language. Available languages up to now: en, fr</description>
+				<fullname>UI display language</fullname>
+				<fulltype>Language</fulltype>
+				<default>en</default>
+			</config>
+			<config name="EVENT_HOUR">
+				<description>Time to launch devices-on events (non-SKIPTIME devices), in HH:mm format. Set it to EVENT_HOUR = auto to get sunset time from your current location.</description>
+				<fullname>Device-on events start time</fullname>
+				<fulltype>HH:mm</fulltype>
+				<regex>^(0[0-9]|1[0-9]|2[0-3]|[0-9]):[0-5][0-9]$</regex>
+				<default>18:00</default>
+			</config>
+			<config name="EVENT_HOUR_STOP">
+				<description>Time to stop devices-on events (non-SKIPTIME devices), in HH:mm format.</description>
+				<fullname>Device-on events stop time</fullname>
+				<fulltype>HH:mm</fulltype>
+				<regex>^(0[0-9]|1[0-9]|2[0-3]|[0-9]):[0-5][0-9]$</regex>
+				<default>06:00</default>
+			</config>
+			<config name="EVENT_LOCALIZATION">
+				<description>Current localization. Get this code from https://weather.com/weather/today/l/(THIS IS THE CODE), when searching for your city.</description>
+				<fullname>Localization code</fullname>
+				<fulltype>Localization code</fulltype>
+				<default></default>
+				<depends on="EVENT_HOUR" being="auto" />
+			</config>
+			<config name="TCP_START_HOUR">
+				<description>Hour of day to start accepting TCP socket-based requests, in HH:mm format.</description>
+				<fullname>TCP requests start time</fullname>
+				<fulltype>HH:mm</fulltype>
+				<regex>^(0[0-9]|1[0-9]|2[0-3]|[0-9]):[0-5][0-9]$</regex>
+				<default>18:00</default>
+			</config>
+			<config name="TCP_END_HOUR">
+				<description>Hour of day to start refusing TCP socket-based requests, in HH:mm format.</description>
+				<fullname>TCP requests end time</fullname>
+				<fulltype>HH:mm</fulltype>
+				<regex>^(0[0-9]|1[0-9]|2[0-3]|[0-9]):[0-5][0-9]$</regex>
+				<default>06:00</default>
+			</config>
+			<config name="MODULES" manual="True">
+				<description>Modules to load, comma-separated</description>
+				<fullname>Module list</fullname>
+				<fulltype>Modules</fulltype>
+				<default></default>
+			</config>
+			<config name="VOICE_SERVER_PORT" manual="True">
+				<description>Allows to choose the VOICE server port, if the ifttt or dialogflow module is active</description>
+				<fullname>Voice server TCP port</fullname>
+				<fulltype>TCP port</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default>2345</default>
+			</config>
+			<config name="WEBSERVER_PORT" manual="True">
+				<description>Allows to choose the webserver interface port, if the webserver module is active</description>
+				<fullname>Webserver port</fullname>
+				<fulltype>Port</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default>8080</default>
+			</config>
+		</section>
+		<section name="WEBSERVER">
+			<config name="SECURITY">
+				<description>Security level, either "restrictive" (connected devices IPs MUST be in the USERS list) or "permissive" (any user can connect)</description>
+				<fullname>Security level (restrictive or permissive)</fullname>
+				<fulltype>Security level</fulltype>
+				<regex>^(permissive|restrictive)$</regex>
+				<default>restrictive</default>
+			</config>
+			<config name="ROOM_GROUPS" manual="True">
+				<description>Optional. Set some device groups as rooms. The devices will be merged together on the webserver interface.</description>
+				<fullname>Rooms list</fullname>
+				<fulltype>Rooms list, comma-separated</fulltype>
+				<default></default>
+			</config>
+		</section>
+		<section name="DETECTOR">
+			<config name="TRACKED_IPS">
+				<description>Local IPs to track status. Comma-separated. There must be as many tracked_ips as there are tracked_pictures (next config option). If you want to show someone's picture in the detector module without using device tracking, use an underscore '_' here (example: 192.168.1.3,_,192.168.1.4...).</description>
+				<fullname>List of tracked IPs on the LAN</fullname>
+				<fulltype>IP list, comma-separated</fulltype>
+				<default></default>
+			</config>
+			<config name="TRACKED_PICTURES">
+				<description>Optional. This allows to show a picture of the people who owns the devices listed in TRACKED_IPS on the webserver as well as their presence status. Pictures are stored in the /web/images folder and you must provide the same number of pictures as there are TRACKED_IPS. Comma-separated (example: myself.jpg,mysister.jpg,mybrother.jpg...).</description>
+				<fullname>List of tracked users pictures</fullname>
+				<fulltype>Picture files list, comma-separated</fulltype>
+				<default></default>
+			</config>
+			<config name="MAX_STATE_LEVEL">
+				<description>Number of successful pings required to trigger an event change. Needed because some devices do turn off and on their wifi from time to time. Increase if events happens by mistake or reduce if events take too long to fire.</description>
+				<fullname>Number of successful pings required</fullname>
+				<fulltype># of pings</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default>3</default>
+			</config>
+			<config name="PING_FREQ_SEC">
+				<description>Ping frequency in seconds.</description>
+				<fullname>Time between pings</fullname>
+				<fulltype>Time (seconds)</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default>10</default>
+			</config>
+			<config name="START_HOUR">
+				<description>Time of day to start device pinging, to allow mobile going to sleep or prevent unwanted actions.</description>
+				<fullname>Time of day to start device pinging</fullname>
+				<fulltype>Time (HH:mm)</fulltype>
+				<regex>^(0[0-9]|1[0-9]|2[0-3]|[0-9]):[0-5][0-9]$</regex>
+				<default>08:00</default>
+			</config>
+			<config name="END_HOUR">
+				<description>Time of day to stop device pinging, to allow mobile going to sleep or prevent unwanted actions.</description>
+				<fullname>Time of day to stop device pinging</fullname>
+				<fulltype>Time (HH:mm)</fulltype>
+				<regex>^(0[0-9]|1[0-9]|2[0-3]|[0-9]):[0-5][0-9]$</regex>
+				<default>23:00</default>
+			</config>
+			<config name="FALLBACK_AUTO_ON_DISCONNECT">
+				<description>If true, will set all devices back to AUTO mode when tracked IPs are all offline.</description>
+				<fullname>Turn devices to AUTO mode when all tracked devices are offline</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>True</default>
+			</config>
+			<config name="FALLBACK_AUTO_ON_NEW_DAY">
+				<description>If true, will set all devices back to AUTO mode on the next day (when the detector restarts at START_HOUR). You might want to keep it True, as setting a device as MANUAL will prevent the detector from changing its state otherwise</description>
+				<fullname>Turn devices to AUTO Mode on new day</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>True</default>
+			</config>
+			<config name="ON_EVENT_HOUR_EVENT" silent="True">
+				<description>Event to run when EVENT_TIME (as defined in SERVER) is reached and/or has already passed and at least one device is detected.</description>
+				<fullname></fullname>
+				<fulltype></fulltype>
+				<default></default>
+			</config>
+			<config name="ON_ALL_DISCONNECT_EVENT" silent="True">
+				<description>Event that runs when all devices are disconnected during active DETECTOR hours. Useful for turning everything off.</description>
+				<fullname></fullname>
+				<fulltype></fulltype>
+				<default></default>
+			</config>
+			<config name="ON_DEVICE_CONNECT_EVENT" silent="True">
+				<description>Event to run when a device is connected, even before EVENT_HOUR.</description>
+				<fullname></fullname>
+				<fulltype></fulltype>
+				<default></default>
+			</config>
+			<config name="ON_DEVICE_DISCONNECT_EVENT" silent="True">
+				<description>Event to run when a device is disconnected, even before EVENT_HOUR.</description>
+				<fullname></fullname>
+				<fulltype></fulltype>
+				<default></default>
+			</config>
+			<config name="ON_EVENT_HOUR_DEVICE_CONNECT_EVENT" silent="True">
+				<description>Event to run when a device is connected after EVENT_HOUR. Will run with ON_DEVICE_CONNECT_EVENT if both are set.</description>
+				<fullname></fullname>
+				<fulltype></fulltype>
+				<default></default>
+			</config>
+			<config name="ON_EVENT_HOUR_DEVICE_DISCONNECT_EVENT" silent="True">
+				<description>Event to run when a device is disconnected after EVENT_HOUR.</description>
+				<fullname></fullname>
+				<fulltype></fulltype>
+				<default></default>
+			</config>
+		</section>
+		<section name="UPDATER">
+			<config name="UPDATER_HOUR">
+				<description>UPDATER_HOUR sets the hour-of-day to perform update check (here 10AM). If an update is found and AUTOMATIC_UPDATE is True, will perform a git fetch + reset to master of the Homeserver repo and a reboot of the server, so you may want to set this to a time when the server is not used and when most devices are OFF</description>
+				<fullname>Hour of day to perform update check</fullname>
+				<fulltype>Hour of day (HH)</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default>10</default>
+			</config>
+			<config name="AUTOMATIC_UPDATE">
+				<description>AUTOMATIC_UPDATE=True automatically fetches the updated version and restarts the Homeserver. Set it to False to add a Update Now button to the webserver itself for more control</description>
+				<fullname>Perform updates automatically</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>True</default>
+			</config>
+		</section>
+		<section name="TCP-PRESETS">
+			<config name="AUTOMATIC_MODE">
+				<description>Run all presets from this section in AUTO mode (will not change devices that are set to MANUAL)</description>
+				<fullname>Run presets as AUTO mode</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>True</default>
+			</config>
+		</section>
+		<section name="IFTTT">
+			<config name="AUTOMATIC_MODE"> 
+				<description>Run all presets from this section in AUTO mode (will not change devices that are set to MANUAL)</description>
+				<fullname>Run presets as AUTO mode</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>False</default>
+			</config>
+			<config name="SALT">
+				<description>Random SALT string. This can be basically anything you want. Will be used to secure (hash) the requests from IFTTT, so you need to remember it.</description>
+				<fullname>Random salt string</fullname>
+				<fulltype>Random salt string</fulltype>
+				<default>myrandomstring</default>
+			</config>
+			<config name="PROTOCOL">
+				<description>Protocol used to connect to/from IFTTT module. If you do not have a SSL key, use http.</description>
+				<fullname>HTTP protocol</fullname>
+				<fulltype>HTTP protocol (http or https)</fulltype>
+				<regex>^(http|https)$</regex>
+				<default>http</default>
+			</config>
+			<config name="IFTTT_HTTPS_CERTS_KEY">
+				<description>Link to SSL key file, if using https.</description>
+				<fullname>Path to .key file</fullname>
+				<fulltype>Full path to .key file</fulltype>
+				<regex>^(.+)/([^/]+)$</regex>
+				<default>/home/pi/webserver.key</default>
+				<depends on="PROTOCOL" being="https" />
+			</config>
+			<config name="IFTTT_HTTPS_CERTS_CERT">
+				<description>Link to SSL cert file, if using https.</description>
+				<fullname>Path to .cer file</fullname>
+				<fulltype>Full path to .cer file</fulltype>
+				<regex>^(.+)/([^/]+)$</regex>
+				<default>/home/pi/webserver.cer</default>
+				<depends on="PROTOCOL" being="https" />
+			</config>
+		</section>
+		<section name="DIALOGFLOW">
+			<config name="AUTOMATIC_MODE"> 
+				<description>Run all presets from this section in AUTO mode (will not change devices that are set to MANUAL)</description>
+				<fullname>Run presets as AUTO mode</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>False</default>
+			</config>
+			<config name="DIALOGFLOW_HTTPS_CERTS_KEY">
+				<description>Link to SSL key file, if using https.</description>
+				<fullname>Path to .key file</fullname>
+				<fulltype>Full path to .key file</fulltype>
+				<regex>^(.+)/([^/]+)$</regex>
+				<default>/home/pi/webserver.key</default>
+			</config>
+			<config name="DIALOGFLOW_HTTPS_CERTS_CERT">
+				<description>Link to SSL cert file, if using https.</description>
+				<fullname>Path to .cer file</fullname>
+				<fulltype>Full path to .cer file</fulltype>
+				<regex>^(.+)/([^/]+)$</regex>
+				<default>/home/pi/webserver.cer</default>
+			</config>
+		</section>
+		<section name="PRESETS">
+			<config name="AUTOMATIC_MODE"> 
+				<description>When called from the command line - and not via a module, will run as AUTO mode (will not change devices that are set to MANUAL)</description>
+				<fullname>Run presets as AUTO mode</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>True</default>
+			</config>
+		</section>
+		<section name="BACKUP">
+			<config name="DELAY_BETWEEN_BACKUPS"> 
+				<description>Delay in hours between each backups</description>
+				<fullname>Delay in hours between each backups</fullname>
+				<fulltype>Hours</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default>23</default>
+			</config>
+			<config name="BACKUP_SERVER"> 
+				<description>Backup server. Either write the DEVICE# of a Computer-type device or "local" to backup to the RPi/Homeserver itself. You may want to edit this value after you've configured all your devices.</description>
+				<fullname>Device to backup to: DEVICE# or 'local'</fullname>
+				<fulltype>DEVICE# or 'local'</fulltype>
+				<default></default>
+			</config>
+			<config name="BACKUP_SERVER_FORCE_ON"> 
+				<description>Whether to launch a ON request to power-on the backup server and turn it off after the backups. UNIX-systems only.</description>
+				<fullname>Power on backup server if OFF during backups</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>False</default>
+			</config>
+		</section>
+		<section name="DEVICE">
+			<config name="TYPE"> 
+				<description>Type of device. Must be the same as the device script name (case-sensitive)</description>
+				<fullname>Device type</fullname>
+				<fulltype>Device type</fulltype>
+				<default></default>
+			</config>
+			<config name="NAME"> 
+				<description>Name of device, as will be displayed in the UI</description>
+				<fullname>Device name (display name)</fullname>
+				<fulltype>Device name</fulltype>
+				<default></default>
+			</config>
+			<config name="DEVICE"> 
+				<description>Device name as configured in the manufacturer app. Needed for some device types.</description>
+				<fullname>Device name (configured name)</fullname>
+				<fulltype>Device name</fulltype>
+				<default></default>
+			</config>
+			<config name="ADDRESS"> 
+				<description>MAC address for the device. Required for connection to some device types. Usually can be found in the manufacturer app.</description>
+				<fullname>Device MAC address</fullname>
+				<fulltype>Device MAC address (00:11:22:aa:bb:cc)</fulltype>
+				<regex>^([0-9A-F]{2}[:-]){5}([0-9A-F]{2})$</regex>
+				<default></default>
+			</config>
+			<config name="IP_ADDRESS"> 
+				<description>IP address for the device. Required for connection to some device types.</description>
+				<fullname>Device LAN IP address</fullname>
+				<fulltype>Device LAN IP address (192.168.1.x)</fulltype>
+				<regex>^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])$</regex>
+				<default></default>
+			</config>
+			<config name="SSH_USER"> 
+				<description>Optional. SSH user name to log into this device. Needed for backups through SSH. You must configure a passwordless access using SSL keys beforehand.</description>
+				<fullname>SSH user name</fullname>
+				<fulltype>SSH user name</fulltype>
+				<default></default>
+			</config>
+			<config name="EMAIL"> 
+				<description>Account email, to allow connection to your device cloud.</description>
+				<fullname>Email</fullname>
+				<fulltype>Email</fulltype>
+				<regex>^([a-zA-Z0-9_\-\.]+)@([a-zA-Z0-9_\-\.]+)\.([a-zA-Z]{2,5})$</regex>
+				<default></default>
+			</config>
+			<config name="PASSWORD"> 
+				<description>Your account password. *Warning* this will be written in plain text in the home.ini file. Anyone with access to this file can read your password</description>
+				<fullname>Password</fullname>
+				<fulltype>Password</fulltype>
+				<default></default>
+			</config>
+			<config name="DESCRIPTION"> 
+				<description>A quick device description. Will be displayed in the web UI</description>
+				<fullname>Description</fullname>
+				<fulltype>Description</fulltype>
+				<default></default>
+			</config>
+			<config name="GROUP"> 
+				<description>Group that the device belongs to. Can be a 'type' group (light, fan, heating...), a 'room name' (living, bathroom...), a 'position' (outdoor, indoor...) or anything you like. Useful for organizing devices and calling state changes on multiple devices at the same time. Comma-separated list (example: lights,bathroom)</description>
+				<fullname>Groups list</fullname>
+				<fulltype>Groups list, comma-separated</fulltype>
+				<default></default>
+			</config>
+			<config name="DEFAULT_INTENSITY"> 
+				<description>Default intensity for this device when it is turned on. Useful for dimmable lights. Value must be a state that the device can accept - usually a value between 1 (min) to 100 (max) or a RRGGBB value for a color bulb.</description>
+				<fullname>Default intensity value</fullname>
+				<fulltype>Default intensity value</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default></default>
+			</config>
+			<config name="ICON"> 
+				<description>Optional. Icon for the device that will be displayed in the web UI. Uses fontawesome free (www.fontawesome.com). Value are the classes required for the icon (example - light bulb icon would be: fas fa-lightbulb)</description>
+				<fullname>Fontawesome icon classes</fullname>
+				<fulltype>Fontawesome icon classes</fulltype>
+				<default></default>
+			</config>
+			<config name="ON"> 
+				<description>Bash/sh script to run to turn device ON. Can be a .sh file or a single-liner bash code.</description>
+				<fullname>Bash/sh command</fullname>
+				<fulltype>Bash/sh command</fulltype>
+				<default></default>
+			</config>
+			<config name="OFF"> 
+				<description>Bash/sh script to run to turn device OFF. Can be a .sh file or a single-liner bash code.</description>
+				<fullname>Bash/sh command</fullname>
+				<fulltype>Bash/sh command</fulltype>
+				<default></default>
+			</config>
+			<config name="RESTART"> 
+				<description>Bash/sh script to run to restart device. Can be a .sh file or a single-liner bash code.</description>
+				<fullname>Bash/sh command</fullname>
+				<fulltype>Bash/sh command</fulltype>
+				<default></default>
+			</config>
+			<config name="DEFAULT_TEMP"> 
+				<description>Default white temperature (in kelvins) for color bulbs</description>
+				<fullname>Temperature</fullname>
+				<fulltype>Temperature (K)</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default>2700</default>
+			</config>
+			<config name="ID1"> 
+				<description>(Milight) ID1 value for milight bulb</description>
+				<fullname>ID1 value</fullname>
+				<fulltype>ID1 value (number)</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default></default>
+			</config>
+			<config name="ID2"> 
+				<description>(Milight) ID2 value for milight bulb</description>
+				<fullname>ID2 value</fullname>
+				<fulltype>ID2 value (number)</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default></default>
+			</config>
+			<config name="STATE"> 
+				<description>Bash/sh script to run to query device state. Can be a .sh file or a single-liner bash code. Should return a string/text value (stdout) that allows getting the device status.</description>
+				<fullname>Bash/sh command</fullname>
+				<fulltype>Bash/sh command</fulltype>
+				<default></default>
+			</config>
+			<config name="STATE_ON_EXPECT"> 
+				<description>Value or string to find in the STATE command output to consider device as ON</description>
+				<fullname>String or value</fullname>
+				<fulltype>String or value</fulltype>
+				<default></default>
+			</config>
+			<config name="DIMMABLE"> 
+				<description>Set the device as a dimmer device (changes state type from 0-1 (bool/on-off) to 0-100 (intensity level)). Not all devices support this.</description>
+				<fullname>Device is a dimmer</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>False</default>
+			</config>
+			<config name="SKIPTIME"> 
+				<description>Optional. If set to True, device will not follow the event start/stop time (which is used for light devices most of the time) and will receive state changes anytime.</description>
+				<fullname>Change states anytime</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default></default>
+			</config>
+			<config name="FORCEOFF"> 
+				<description>Always send a OFF request, even if the state is already OFF. Defaults to true, but you may want to set it to false to avoid sending useless requests or if you have a toggleable device (one where the ON and OFF requests are the same - for example some IR devices).</description>
+				<fullname>Always execute OFF requests</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default></default>
+			</config>
+			<config name="IGNOREMODE"> 
+				<description>Optional. If set to True, device will always receive state changes without considering its mode. Useful when a device should receive state changes all the time from any request origin (from ifttt, webserver, command-line...)</description>
+				<fullname>Ignore mode on state change</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default></default>
+			</config>
+			<config name="ACTION_DELAY"> 
+				<description>Allows a time delay before querying the device state. Useful for devices that have a boot-time delay, or lag, before they reach their final state (for example, wakeonlan and PCs). This should be the expected delay between the ON request and the proper state return from the STATE option.</description>
+				<fullname>Delay between action and state result</fullname>
+				<fulltype>Delay between action and state result (seconds)</fulltype>
+				<regex>^\d*(\.\d+)?$</regex>
+				<default></default>
+			</config>
+			<config name="STATE_INFERENCE_GROUP"> 
+				<description>This is a last resort option for devices fulfilling three conditions: - A high state change failure rate, - A high probability chance that the device will have the same state as other devices from a group, - A device that has no means of knowing its state in real-time programatically. In other words, this is a device that you would often switch manually, like a sound system connected via a IR controller that often fails, and that its state often follows the other devices in the same group (such as a TV or a HTPC). The required value is the group name itself. </description>
+				<fullname>Infer device state from a group overall state</fullname>
+				<fulltype>Infer device state from a group overall state (group name)</fulltype>
+				<default></default>
+			</config>
+			<config name="COLOR_TYPE"> 
+				<description>COLOR_TYPE Forces the input color/state type (as defined in the convert module). Type noop: the device is not-editable (it only get its state). Useful if you simply want to know if your device is on or off or connect it to a module (for example the backup module)</description>
+				<fullname>State value type</fullname>
+				<fulltype>State value type</fulltype>
+				<default></default>
+			</config>
+		</section>
+	</configentries>
+	<modules>
+		<module name="backup">
+			<description>Enables automatic file backup using Rsync (UNIX systems only) within the Homeserver</description>
+			<default>disabled</default>
+		</module>
+		<module name="detector">
+			<description>User detection. Allows configuring events when a device (user) connects to the home network.</description>
+			<default>enabled</default>
+		</module>
+		<module name="ifttt">
+			<description>Allows to run events using IFTTT webhooks. Useful for linking Google Assistant/Alexa via IFTTT for example.</description>
+			<default>enabled</default>
+		</module>
+		<module name="dialogflow">
+			<description>Allows to run events using a dialogflow app (none published yet)</description>
+			<default>disabled</default>
+		</module>
+		<module name="updater">
+			<description>Allows live patching/updating of the homeserver as soon as a new version is released</description>
+			<default>enabled</default>
+		</module>
+		<module name="webserver">
+			<description>Enables the web UI to control Homeserver</description>
+			<default>enabled</default>
+		</module>
+		<module name="weblog">
+			<description>Allows access to the debug log on the webserver itself.</description>
+			<default>disabled</default>
+		</module>
+	</modules>
+	<devices>
+		<device name="Computer">
+			<description>A UNIX/linux based computer</description>
+			<requirements>Must know the device IP and MAC addresses. Device must be accessible via SSH (using a passwordless SSL key) to allow backups to it. Must have set local IP as static in your router settings.</requirements>
+			<configs>DEVICE,NAME,DESCRIPTION,GROUP,ICON,IP_ADDRESS,ADDRESS</configs>
+			<optionals>SSH_USER,SKIPTIME,FORCEOFF,IGNOREMODE,ACTION_DELAY,STATE_INFERENCE_GROUP,COLOR_TYPE</optionals>
+		</device>
+		<device name="DecoraSwitch">
+			<description>A Decora switch handler (Leviton)</description>
+			<requirements>Must have configured the device in the Leviton app, must know the name (as configured in the app) of the device, your account email and password.</requirements>
+			<configs>DEVICE,NAME,DESCRIPTION,GROUP,ICON,EMAIL,PASSWORD,DEFAULT_INTENSITY</configs>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE</optionals>
+		</device>
+		<device name="GenericOnOff">
+			<description>A generic ON/OFF device. Anything that can be turned on/off or restarted using the command-line or a script.</description>
+			<requirements>Must have a working script/one-liner command to turn the device ON and/or OFF.</requirements>
+			<configs>DEVICE,DESCRIPTION,GROUP,ICON,ON,OFF,RESTART,STATE,STATE_ON_EXPECT</configs>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,ACTION_DELAY,STATE_INFERENCE_GROUP,COLOR_TYPE</optionals>
+		</device>
+		<device name="HDMITv">
+			<description>A HDMI-connected TV, directly to the Homeserver</description>
+			<requirements>TV and the selected TV HDMI port must support CEC. Your RPi/Homeserver microcomputer must support HDMI-CEC. You need to install the 'cec-client'.</requirements>
+			<configs>DEVICE,DESCRIPTION,GROUP,ICON</configs>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP</optionals>
+		</device>
+		<device name="MerossSwitch">
+			<description>A Meross Smart Switch/Plug device</description>
+			<requirements>You must configure your device in the meross app. You must provide the device MAC address (as found in the app), your account email and password.</requirements>
+			<configs>DEVICE,DESCRIPTION,GROUP,ICON,ADDRESS,EMAIL,PASSWORD</configs>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE</optionals>
+		</device>
+		<device name="Milight">
+			<description>A Milight BLE light bulb</description>
+			<requirements>You must identify the bulb IDs (see wiki for info on that). You must provide the device MAC address</requirements>
+			<configs>DESCRIPTION,GROUP,ICON,ADDRESS,ID1,ID2,DEFAULT_TEMP,DEFAULT_INTENSITY</configs>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE</optionals>
+		</device>
+		<device name="Playbulb">
+			<description>A Playbulb BLE light bulb</description>
+			<requirements>You must provide the device MAC address</requirements>
+			<configs>NAME,DESCRIPTION,GROUP,ICON,ADDRESS,DEFAULT_INTENSITY</configs>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE</optionals>
+		</device>
+		<device name="TPLinkSwitch">
+			<description>A TP-Link Kasa smart switch</description>
+			<requirements>You must provide the device IP address and device name as configured in the Kasa app. Must have set local IP as static in your router settings.</requirements>
+			<configs>NAME,DEVICE,DESCRIPTION,GROUP,ICON,IP_ADDRESS,DIMMABLE,DEFAULT_INTENSITY</configs>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE</optionals>
+		</device>
+	</devices>
+</configurations>

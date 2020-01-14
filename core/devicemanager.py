@@ -12,10 +12,12 @@ import datetime
 import re
 import subprocess
 import time
+import unidecode
 try:
     import queue
 except ImportError:
     import Queue as queue
+from copy import deepcopy
 from core.common import *
 from core.convert import convert_to_web_rgb, convert_color
 try:
@@ -206,7 +208,9 @@ class DeviceManager(object):
         weblist = []
         for obj in self.modules:
             try:
-                weblist.append(obj.web)
+                # TODO - fix non-permanent modules such as weblog
+                if obj.isAlive() or obj.__class__.__name__ == "weblog":
+                    weblist.append(obj.web)
             except AttributeError:
                 weblist.append("none")
                 pass
@@ -310,12 +314,12 @@ class DeviceManager(object):
         if type(request.group) == str:
             request.group = [request.group]
         for _cnt, _gr in enumerate(request.group):
-            request.group[_cnt] = _gr.lower()
+            request.group[_cnt] = unidecode.unidecode(_gr.lower())
         for _cnt, _device in enumerate(self):
-            if request.group is not None and set(request.group).issubset(_device.group):
+            if request.group is not None and set(request.group).issubset([unidecode.unidecode(x) for x in _device.group]):
                 continue
-            debug.write("Skipping device {} as it does not belong in the {} group(s)"
-                        .format(_device.device, request.group), 0)
+            debug.write("Skipping device '{}' as it does not belong in the {} group(s)"
+                        .format(_device.name, request.group), 0)
             request[_cnt] = DEVICE_SKIP
 
     def get_toggle(self):
@@ -541,8 +545,10 @@ class DeviceManager(object):
                                 _delay_colors[_acnt] = colors[_acnt]
                                 colors[_acnt] = DEVICE_SKIP
                             dev_delays[_acnt] = 0
-                    delayed_req = request
+
+                    delayed_req = StateRequestObject()
                     delayed_req.initialize_dm(self)
+                    delayed_req.from_request(request)
                     delayed_req.set_colors(_delay_colors)
                     debug.write("Scheduling device state change ({}) after {} seconds".format(
                         _delay_colors, _delay), 0)
@@ -554,7 +560,11 @@ class DeviceManager(object):
     def _set_lights(self):
         lock.acquire()
         if self.threaded:
-            self.light_pool = ThreadPoolExecutor(max_workers=len(self))
+            if len(self) == 0:
+                max_workers = 1
+            else:
+                max_workers = len(self)
+            self.light_pool = ThreadPoolExecutor(max_workers=max_workers)
         debug.write("Running a change of states...", 0)
         firstran = False
         colors = None
@@ -597,8 +607,8 @@ class DeviceManager(object):
                                         break
                                     self.light_threads[i] = self.light_pool.submit(
                                         self[i].pre_run, _color)
-                                else:
-                                    self[i].pre_run(_color)
+                        if not self.threaded:
+                            self[i].pre_run(_color)
 
                     i += 1
 
@@ -637,6 +647,8 @@ class DeviceManager(object):
                                 if not self.queue.empty():
                                     break
                                 if not self[_cnt].success:
+                                    debug.write("Device {} ({}) success bool off".format(
+                                        _cnt, self[_cnt].name), 1)
                                     i = 0
                         tries = tries + 1
                         if tries == 5:
@@ -778,7 +790,7 @@ class StateRequestObject(object):
             allowed_keys.append(_dev)
         for k, v in kwargs.items():
             k = k.replace("-", "_")
-            if k not in allowed_keys:
+            if k not in allowed_keys and v is not None:
                 debug.write(
                     "Missing or unallowed variable in request: {}".format(k), 1)
                 return False
@@ -791,11 +803,23 @@ class StateRequestObject(object):
             if getattr(self, k, False) != v:
                 self.changed_vars[k] = v
             if k in getDevices(True):
-                if not self.set_typed_colors(k, v):
+                if v is not None and not self.set_typed_colors(k, v):
                     return False
         self.__dict__.update((k, v)
                              for k, v in kwargs.items() if k in allowed_keys)
         return True
+
+    def from_request(self, request):
+        '''
+        Create new request from old request, keeping only the
+        options and parameters not related to requested state
+        values
+        '''
+        ignore_vars = ['devices', 'changed_vars',
+                       'length', 'device_list', 'colors', 'preset']
+        for k, v in request.__dict__.items():
+            if k not in ignore_vars and k not in getDevices(True):
+                self.set(**{k: v})
 
     def from_string(self, json_str):
         if json_str is None or json_str == "":
@@ -884,6 +908,7 @@ class RequestExecutor(object):
         try:
             while True:
                 self.execute(request_queue.get(), dm)
+                time.sleep(0.1)
         except (KeyboardInterrupt, SystemExit):
             pass
 

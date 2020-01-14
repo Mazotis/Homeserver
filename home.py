@@ -37,6 +37,10 @@ if __name__ == "__main__":
             "You should not set the mode to AUTO then reset it back to AUTO. Quitting.", 2)
         sys.exit()
 
+    if args.configure:
+        debug.config.configure_prompt()
+        sys.exit()
+
     if args.server:
         dm = DeviceManager()
 

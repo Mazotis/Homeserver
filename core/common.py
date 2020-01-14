@@ -70,7 +70,7 @@ class DebugLog(object):
         self.write("Starting debug logger", 0)
 
     def enable_debug(self):
-        if self.get_set_lock(True) and self.debug_enabled:
+        if self.get_set_lock(True) and self.debug_enabled and self.journaling_enabled:
             # Server not yet initialized. Create log files
             for n in reversed(range(0, self.config.get_value("MAX_DEBUG_FILES", int))):
                 if os.path.isfile(self.config['JOURNAL_DIR'] + "/home." + str(n) + ".log"):
@@ -119,8 +119,9 @@ class DebugLog(object):
                     with open(self.config['JOURNAL_DIR'] + "/home.0.log", "a+") as jfile:
                         jfile.write(_debugtext + "\n")
                 except IOError:
-                    print("Directory {} does not exist. Quitting.".format(
+                    print("* Directory {} does not exist. Running configuration tool...".format(
                         self.config['JOURNAL_DIR']))
+                    self.config.configure_prompt()
                     quit()
 
 

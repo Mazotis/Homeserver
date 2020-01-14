@@ -96,6 +96,8 @@ class backup(Thread):
                 continue
             try:
                 destination = ""
+                if not self.config.has_option("BACKUP", "CLIENT" + str(i)):
+                    break
                 if self.config["CLIENT" + str(i)] != "local":
                     client = self.dm[self.config.get_value(
                         "CLIENT" + str(i), int)]

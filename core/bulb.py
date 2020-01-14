@@ -25,18 +25,20 @@ def connect_ble(_f):
                 debug.write("CONnecting to device ({})...".format(
                     self.description), 0, self.device_type)
                 self._connection = ble.Peripheral(self.device)
+                break
             except Exception as ex:
                 debug.write("Device ({}) connection failed. Exception: {}"
                             .format(self.description, ex), 1, self.device_type)
                 self._connection = None
-            if self._connection is None:
-                debug.write("Attempting reconnection to device ({})...".format(
-                    self.description), 0, self.device_type)
             tries = tries + 1
             if tries == 6:
                 debug.write("Device ({}) connection failed."
                             .format(self.description), 1, self.device_type)
                 self._connection = None
+                break
+            elif self._connection is None:
+                debug.write("Attempting reconnection to device ({})...".format(
+                    self.description), 0, self.device_type)
         return _f(self, *args)
     return _conn_wrap
 

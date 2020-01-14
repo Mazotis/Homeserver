@@ -18,7 +18,7 @@ class TPLinkSwitch(device):
     def __init__(self, devid):
         super().__init__(devid)
         # TODO Support multiple TP-Link KASA cloud accounts at the same time ?
-        self.ip = self.config["IP"]
+        self.ip = self.config["IP_ADDRESS"]
         self.device_type = "TPLinkSwitch"
         self.device = self.config["DEVICE"]
         self.plug = None

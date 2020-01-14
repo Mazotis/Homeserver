@@ -81,17 +81,17 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 req.set(skip_time=True)
                 req.set_colors([DEVICE_OFF])
 
-            group = postvars['group'][0].split()
-            group = [unidecode.unidecode(x) for x in group]
-            groups = self.dm.all_groups
+            group = unidecode.unidecode(postvars['group'][0])
+            groups = [unidecode.unidecode(x) for x in self.dm.all_groups]
             changed_groups = []
             has_priority_group = False
-            for _group in group:
-                if _group.lower() in groups:
+            for _group in groups:
+                if _group.lower() in group:
                     if _group in self.priority_groups:
                         has_priority_group = True
                     changed_groups.append(_group)
-                # TODO add a proper pluralization and support for latin characters ?
+            # TODO add a proper pluralization and support for latin characters ?
+            for _group in group.split():
                 if _group.lower() + "s" in groups:
                     changed_groups.append(_group + "s")
             if len(changed_groups) != 0:

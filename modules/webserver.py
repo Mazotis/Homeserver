@@ -71,10 +71,14 @@ class WebServerHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.config["WEBSERVER"]["SECURITY"] == "restrictive":
             if not self.allowed_ips:
-                for _user in self.config["USERS"]:
-                    _ips = self.config["USERS"][_user].split(",")
-                    for _ip in _ips:
-                        self.allowed_ips.append(_ip)
+                try:
+                    for _user in self.config["USERS"]:
+                        _ips = self.config["USERS"][_user].split(",")
+                        for _ip in _ips:
+                            self.allowed_ips.append(_ip)
+                except KeyError:
+                    debug.write("Users need to be configured for 'restrictive' security.", 1, "WEBSERVER")
+                    return
             if self.client_address[0] not in self.allowed_ips:
                 _path = os.path.join(
                     self.translate_path(self.path), "index.html")
@@ -110,16 +114,19 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         _page = _page.replace(
                             "_(" + _translatable + ")", getTextHTML(_translatable.replace("\\", "")))
                     if self.path == "/":
-                        for _user in self.config["USERS"]:
-                            _ips = self.config["USERS"][_user].split(",")
-                            if self.client_address[0] in _ips:
-                                debug.write("{} connected to the webserver".format(
-                                    _user.title()), 0, "WEBSERVER")
-                                _page += '<script>setTimeout(function(){{$("#detector-user-name").html(" {}")}}, 500)</script>'.format(
-                                    _user.split(" ")[0].title())
-                                for _ip in _ips:
-                                    _page += '<style>img[ip="{}"]{{box-shadow:0px 0px 5px 5px #B0C4DE; }}</style>'.format(
-                                        _ip)
+                        try:
+                            for _user in self.config["USERS"]:
+                                _ips = self.config["USERS"][_user].split(",")
+                                if self.client_address[0] in _ips:
+                                    debug.write("{} connected to the webserver".format(
+                                        _user.title()), 0, "WEBSERVER")
+                                    _page += '<script>setTimeout(function(){{$("#detector-user-name").html(" {}")}}, 500)</script>'.format(
+                                        _user.split(" ")[0].title())
+                                    for _ip in _ips:
+                                        _page += '<style>img[ip="{}"]{{box-shadow:0px 0px 5px 5px #B0C4DE; }}</style>'.format(
+                                            _ip)
+                        except KeyError:
+                            debug.write("User tracking support disabled.", 0, "WEBSERVER")
                     self.send_response(200)
                     self.send_header("Content-type", super().guess_type(_path))
                     if self.path != "/":
@@ -207,7 +214,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
 
                 if reqtype == "setgroup":
                     # TODO GET SUCCESS STATE
-                    group = str(postvars[b'group'][0].decode('utf-8')).strip()
+                    group = urllib.parse.unquote(str(postvars[b'group'][0].decode('utf-8')).strip().replace("_", " "))
                     value = int(postvars[b'value'][0].decode('utf-8'))
                     skiptime = postvars[b'skiptime'][0].decode(
                         'utf-8') in ['true', True]

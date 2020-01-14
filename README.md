@@ -60,11 +60,11 @@ sudo systemctl start homeserver
 
 ### On a RPi3 or a linux-based bluetooth-enabled processor board (manual use)
 1) Setup python3 + required pip imports.
-2) Configure your server and devices in the home.ini file. Read the file itself or the wiki for all the tweakable parameters.
-3) Run 
+2) Configure your server and devices in the home.ini file or run the configuration utility. Read the file itself or the wiki for all the tweakable parameters.
 ```
 ./home.py --server 
 Optional command-line options:
+--configure (run the configuration utility to generate a home.ini file)
 --threaded (runs device state changes on different threads - faster but might be less stable)
 --notime (ignores the EVENT_HOUR parameter. Run events anytime)
 ```

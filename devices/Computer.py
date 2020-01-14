@@ -22,7 +22,7 @@ class Computer(device):
         if self.color_type is None:
             self.color_type = "io-ops"
         self.ip = self.config["IP_ADDRESS"]
-        self.mac = self.config["MAC_ADDRESS"]
+        self.mac = self.config["ADDRESS"]
         self.user = self.config["SSH_USER"]
         self.device_type = "Computer"
         debug.write("Created computer device named: {}".format(

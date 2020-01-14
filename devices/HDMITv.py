@@ -17,12 +17,11 @@ from core.device import device
 class HDMITv(device):
     def __init__(self, devid):
         super().__init__(devid)
-        self.device = self.config["DEVICE"]
         self.device_type = "HDMITv"
         if self.color_type is None:
             self.color_type = "io"
         debug.write("Created HDMITv device named: {}".format(
-            self.device), 0, self.device_type)
+            self.name), 0, self.device_type)
 
     def get_state(self):
         if not self.success:
@@ -42,19 +41,19 @@ class HDMITv(device):
     def run(self, color):
         if color == DEVICE_OFF:
             debug.write("Turning device {} OFF".format(
-                self.device), 0, self.device_type)
+                self.name), 0, self.device_type)
             os.system("echo 'standby 0' | cec-client -s")
             self.success = True
             self.state = 0
             return True
         elif color == DEVICE_ON:
             debug.write("Turning device {} ON".format(
-                self.device), 0, self.device_type)
+                self.name), 0, self.device_type)
             os.system("echo 'on 0' | cec-client -s")
             self.success = True
             self.state = 1
             return True
         debug.write("Request for state {} cannot be handled for device {}".format(
-            color, self.device), 1, self.device_type)
+            color, self.name), 1, self.device_type)
         self.success = True
         return True

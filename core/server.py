@@ -2,20 +2,22 @@
 '''
     File name: server.py
     Author: Maxime Bergeron
-    Date last modified: 18/11/2019
-    Python Version: 3.5
+    Date last modified: 13/01/2020
+    Python Version: 3.7
 
     The homeserver request server
 '''
 import pickle
 import socket
+import sys
 import traceback
 from core.common import *
-from threading import Thread, Timer, Event
+from threading import Thread, Event
 
 
 class HomeServer(Thread):
     """ Handles server-side request reception and handling """
+    closing = False
 
     def __init__(self, dm):
         Thread.__init__(self)
@@ -23,13 +25,20 @@ class HomeServer(Thread):
         self.config = getConfigHandler().set_section("SERVER")
         self.host = self.config['HOST']
         self.port = self.config.get_value('PORT', int)
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.sock.bind((self.host, self.port))
-        self.tcp_start_hour = self.config.get_value('TCP_START_HOUR', "hours")
-        self.tcp_end_hour = self.config.get_value('TCP_END_HOUR', "hours")
         self.conn_sockets = []
         self.stopevent = Event()
+        if not HomeServer.closing:
+            try:
+                self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                self.sock.bind((self.host, self.port))
+            except OSError:
+                print("Server address/port ({}:{}) already in use or closed. Quitting.".format(self.host, self.port))
+                HomeServer.closing = True
+                self.stop()
+                sys.exit()
+            self.tcp_start_hour = self.config.get_value('TCP_START_HOUR', "hours")
+            self.tcp_end_hour = self.config.get_value('TCP_END_HOUR', "hours")
 
     def run(self):
         """ Starts the server """

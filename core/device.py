@@ -89,32 +89,32 @@ class device(object):
             if not self.ignoremode:
                 if not self.auto_mode and self.request_auto_mode and not self.reset_mode:
                     # AUTO mode request on MANUAL device
-                    debug.write("{} device {} is set in MANUAL mode, skipping."
-                                .format(self.device_type, self.device), 0)
+                    debug.write("{} device '{}' is set in MANUAL mode, skipping."
+                                .format(self.device_type, self.name), 0)
                     self.success = True
                     return True
                 if self.auto_mode and not self.request_auto_mode and not self.reset_mode:
-                    debug.write("{} device {} set to MANUAL mode."
-                                .format(self.device_type, self.device), 0)
+                    debug.write("{} device '{}' set to MANUAL mode."
+                                .format(self.device_type, self.name), 0)
                     self.auto_mode = False
                 if self.reset_mode:
                     if not self.auto_mode:
-                        debug.write("{} device {} set back to AUTO mode."
-                                    .format(self.device_type, self.device), 0)
+                        debug.write("{} device '{}' set back to AUTO mode."
+                                    .format(self.device_type, self.name), 0)
                     self.auto_mode = True
             else:
-                debug.write("Skipping mode evaluation for {} device {}."
-                            .format(self.device_type, self.device), 0)
+                debug.write("Skipping mode evaluation for '{}' device {}."
+                            .format(self.device_type, self.name), 0)
             if self.state == self.convert(color) and str(color) not in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
                 self.success = True
-                debug.write("Device ({}) {} is already of the requested state, skipping."
-                            .format(self.device_type, self.device), 0)
+                debug.write("Device ({}) '{}' is already of the requested state, skipping."
+                            .format(self.device_type, self.name), 0)
                 return True
 
             if self.state == self.convert(color) and str(color) in [DEVICE_OFF, DEVICE_INFERRED_OFF] and not self.forceoff:
                 self.success = True
-                debug.write("Device ({}) {} is already off and forcing-off disabled, skipping."
-                            .format(self.device_type, self.device), 0)
+                debug.write("Device ({}) '{}' is already off and forcing-off disabled, skipping."
+                            .format(self.device_type, self.name), 0)
                 return True
 
             if self.action_delay != 0:

@@ -57,6 +57,10 @@ class detector(Thread):
 
     def first_detect(self):
         debug.write("Starting ping-based device detector", 0, "DETECTOR")
+        if self.TRACKED_IPS[0] == "":
+            debug.write("No IPs to track. Quitting module.", 1, "DETECTOR")
+            self.stop()
+            return
         for _cnt, device in enumerate(self.TRACKED_IPS):
             if device == "_":
                 continue
@@ -177,6 +181,8 @@ class detector(Thread):
         web = ""
         pictures = self.config["TRACKED_PICTURES"].split(',')
         for _cnt, pic in enumerate(pictures):
+            if self.TRACKED_IPS[_cnt] == "":
+                continue
             if _cnt == 5:
                 debug.write(
                     "Max amount of pictures for detector web module is 5. Hiding the rest.", 1, "DETECTOR")
