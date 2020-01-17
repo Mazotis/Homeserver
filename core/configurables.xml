@@ -677,10 +677,12 @@
 		<module name="ifttt">
 			<description>Allows to run events using IFTTT webhooks. Useful for linking Google Assistant/Alexa via IFTTT for example.</description>
 			<default>enabled</default>
+			<conflicts>dialogflow</conflicts>
 		</module>
 		<module name="dialogflow">
 			<description>Allows to run events using a dialogflow app (none published yet)</description>
 			<default>disabled</default>
+			<conflicts>ifttt</conflicts>
 		</module>
 		<module name="updater">
 			<description>Allows live patching/updating of the homeserver as soon as a new version is released</description>

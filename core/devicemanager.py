@@ -17,7 +17,6 @@ try:
     import queue
 except ImportError:
     import Queue as queue
-from copy import deepcopy
 from core.common import *
 from core.convert import convert_to_web_rgb, convert_color
 try:
@@ -270,12 +269,15 @@ class DeviceManager(object):
             i = i + 1
 
     def get_modules_list(self):
-        loaded_modules = getConfigHandler()['SERVER']['MODULES'].split(",")
-        # TODO put that check in some module?
-        if all(x in loaded_modules for x in ['ifttt', 'dialogflow']):
-            debug.write(
-                "You cannot load ifttt and dialogflow at the same time. Quitting.", 2)
-            sys.exit()
+        _config = getConfigHandler()
+        loaded_modules = _config['SERVER']['MODULES'].split(",")
+
+        for _mod in _config.configurables.find("modules").findall("module"):
+            if _mod.find("conflicts") is not None:
+                if _mod.find("conflicts").text in loaded_modules and _mod.attrib["name"] in loaded_modules:
+                    debug.write("You cannot load {} and {} at the same time. Quitting.".format(
+                        _mod.attrib["name"], _mod.find("conflicts").text), 2)
+                    sys.exit()
 
         self.modules = []
         for _cnt, _mod in enumerate(loaded_modules):
@@ -454,6 +456,7 @@ class DeviceManager(object):
 
     def set_light_stream(self, devid, color, is_group):
         """ Simplified function for quick, streamed light change requests """
+        # TODO - check if still working
         if is_group:
             for device in self:
                 if device.group == devid:
@@ -854,7 +857,7 @@ class StateRequestObject(object):
             self.colors = [DEVICE_SKIP] * int(self.length)
 
     def set_colors(self, colors):
-        if self.colors is None:
+        if self.device_list is None:
             debug.write(
                 "ERROR - You need to initialize the request using initialize_dm() first", 1)
             return False
@@ -876,21 +879,15 @@ class StateRequestObject(object):
         device_indexes = [i for i, x in enumerate(
             self.device_list) if x.lower() == device_type.lower()]
 
-        # TODO Fix that
-        if type(device_args) == str:
-            device_args = [device_args]
-
-        if len(device_args) == 1 and len(device_indexes) > 1:
+        if (type(device_args) == str or len(device_args) == 1) and len(device_indexes) > 1:
             debug.write("Expanding state {} to {} ({}) devices."
                         .format(len(device_args), len(device_indexes), device_type), 0)
-            for i in device_indexes:
-                self[i] = device_args[0]
+            device_args = device_args[0] * len(device_indexes)
         elif len(device_indexes) != len(device_args):
-            debug.write("Received state hexvalues length {} ({}) for {} ({}) device(s). Quitting"
-                        .format(len(device_args), device_args, len(device_indexes), device_type), 2)
-            return False
-        else:
-            for _cnt, i in enumerate(device_indexes):
+            debug.write("Received state hexvalues length {} ({}) for {} '{}' device(s). Considering last devices as skipped.".format(len(device_args), device_args, len(device_indexes), device_type), 0)
+
+        for _cnt, i in enumerate(device_indexes):
+            if _cnt < len(device_args):
                 self[i] = device_args[_cnt]
         return True
 
@@ -963,30 +960,58 @@ class RequestExecutor(object):
             os.remove("../dnn/train.log")
             debug.write("Purged location and RTT data", 0)
 
+        if request.preset is not None:
+            debug.write(
+                "Received change to preset [{}] request".format(request.preset), 0)
+            try:
+                if not request.from_string(config["PRESETS"][request.preset]):
+                    return False
+                request.auto_mode = config["PRESETS"].getboolean(
+                    "AUTOMATIC_MODE")
+            except KeyError:
+                debug.write(
+                    "Preset '{}' not found in home.ini. Quitting.".format(request.preset), 3)
+                return False
+
         has_device_requests = False
         for _dev in getDevices(True):
             if getattr(request, _dev, None) is not None:
                 has_device_requests = True
-        if (request.colors is not None and len(request.colors) == len(dm.devices)) or request.set_mode_for_devid is not None:
+
+        if (not all(x == DEVICE_SKIP for x in request.colors) and len(request.colors) == len(dm.devices)) or request.set_mode_for_devid is not None:
             has_device_requests = True
 
-        if request.hexvalues and has_device_requests:
-            debug.write("Got color hexvalues for multiple devices in the same request, which is not \
-                        supported. Use '{} -h' for help. Quitting".format(sys.argv[0]),
-                        2)
-            return False
-
-        if len(request.hexvalues) != len(dm.devices) and not any([request.notime, request.off, request.on,
-                                                                  request.toggle, request.preset, request.restart,
-                                                                  request.group, has_device_requests,
-                                                                  request.force_auto_mode]):
-            debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting"
-                        .format(len(request.hexvalues), len(dm.devices), sys.argv[0]), 2)
-            return False
         if request.hexvalues:
-            debug.write("Received color hexvalues length {} for {} devices"
-                        .format(len(request.hexvalues), len(dm.devices)), 0)
-            request.set_colors(request.hexvalues)
+            if has_device_requests:
+                debug.write("Got color hexvalues for multiple devices in the same request, which is not \
+                            supported. Use '{} -h' for help. Quitting".format(sys.argv[0]),
+                            2)
+                return False
+
+            has_optional_requests = any([request.notime, request.off, request.on,
+                                         request.toggle, request.preset, request.restart,
+                                         request.group, has_device_requests,
+                                         request.force_auto_mode])
+
+            _colors = [DEVICE_SKIP] * len(dm)
+            for _cnt, _col in enumerate(request.hexvalues):
+                if ":" in _col:
+                    has_optional_requests = True
+                    _vals = _col.split(":")
+                    if int(_vals[0]) < len(_colors):
+                        _colors[int(_vals[0])] = _vals[1]
+                else:
+                    _colors[_cnt] = _col
+
+            if not has_optional_requests:
+                _colors = request.hexvalues
+                if len(request.hexvalues) != len(dm.devices):
+                    debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Quitting"
+                                .format(len(request.hexvalues), len(dm.devices), sys.argv[0]), 2)
+                    return False
+
+            debug.write("Got state changes from hexvalues: {}".format(_colors), 0)
+            request.set_colors(_colors)
         else:
             if request.set_mode_for_devid is not None:
                 try:
@@ -1003,18 +1028,6 @@ class RequestExecutor(object):
                     if not request.set_typed_colors(_dev, getattr(request, _dev, None)):
                         return False
 
-            if request.preset is not None:
-                debug.write(
-                    "Received change to preset [{}] request".format(request.preset), 0)
-                try:
-                    if not request.from_string(config["PRESETS"][request.preset]):
-                        return False
-                    request.auto_mode = config["PRESETS"].getboolean(
-                        "AUTOMATIC_MODE")
-                except KeyError:
-                    debug.write(
-                        "Preset '{}' not found in home.ini. Quitting.".format(request.preset), 3)
-                    return False
             if request.off:
                 debug.write("Received OFF change request", 0)
                 request.set_colors([DEVICE_OFF])
