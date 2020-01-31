@@ -2,8 +2,8 @@
 '''
     File name: backup.py
     Author: Maxime Bergeron
-    Date last modified: 19/11/2019
-    Python Version: 3.5
+    Date last modified: 31/01/2020
+    Python Version: 3.7
 
     A backup manager/rsync wrapper module for the homeserver
 '''

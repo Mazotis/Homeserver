@@ -135,8 +135,10 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     self.wfile.write(_page.encode('utf-8'))
             else:
                 super().do_GET()
+        except BrokenPipeError:
+            pass
         except Exception as ex:
-            debug.write("Got exception in GET request: {}".format(ex), 1)
+            debug.write("Got exception {} in GET request: {}".format(type(ex).__name__, ex), 1)
 
     def do_POST(self):
         try:
@@ -200,6 +202,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         'utf-8') in ['true', True]
                     devid = int(postvars[b'devid'][0].decode('utf-8'))
                     req = StateRequestObject()
+                    req.initialize_dm(self.dm)
                     debug.write(
                         'Running a single device mode change', 0, "WEBSERVER")
                     req.set(set_mode_for_devid=devid)
@@ -237,6 +240,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                 if reqtype == "setallmode":
                     # TODO GET SUCCESS STATE ?
                     req = StateRequestObject()
+                    req.initialize_dm(self.dm)
                     debug.write(
                         'Running an all-devices mode change', 0, "WEBSERVER")
                     req.set(force_auto_mode=True)

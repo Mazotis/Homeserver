@@ -67,15 +67,17 @@ class HomeServer(Thread):
                     # TODO use the recv length to determine pickled vs non-pickled requests ?
                     if msize != 4096:
                         req = StateRequestObject()
+                        req.initialize_dm(self.dm)
                         if self.check_for_function_request(data.decode('utf-8'), req, client):
                             break
                     try:
                         req = pickle.loads(data)
+                        req.initialize_dm(self.dm)
                     except:
                         debug.write(
                             "Error - improperly formatted pickle. Got: {}".format(data.decode('utf-8')), 2, "SERVER")
                         break
-                    debug.write('Change of lights requested with request: {}'.format(
+                    debug.write('Change of states requested with request: {}'.format(
                         req), 0, "SERVER")
                     req()
                     break

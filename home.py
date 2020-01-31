@@ -118,7 +118,7 @@ if __name__ == "__main__":
         s.close()
 
     else:
-        req = StateRequestObject()
+        req = StateRequestObject(client=True)
         req.parse_args(args)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((HOMECONFIG['SERVER']['HOST'], int(

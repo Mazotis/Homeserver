@@ -218,6 +218,7 @@ async function getResult() {
 
     await post_webserver(req_data, (data) => {
         stateJSON = data
+        console.log(stateJSON)
         drawTimeBar();
         let cnt = 0
         $('#suntime').html(stateJSON.starttime)
@@ -712,16 +713,31 @@ function computeCards() {
     })
 
     $(".gcard").each(function() {
-        var group, cid, cinit
-        group = $(this).find("h5.card-header").text()
+        var cgroup, cid, cinit, cindex, cgstate
+        cgroup = $(this).find("h5.card-header").text()
         cinit = $(this).attr("cinit")
         cid = $(this).attr("id")
+        cindex = stateJSON['groups'].indexOf(cgroup.toLowerCase())
+        cgstate = stateJSON['groupstates'][cindex]
 
         if (cinit != "1") {
             $(this).find(".gcard-toggle").bootstrapToggle({width:"100px"})
             $(this).find(".gcard-toggle").change(function() {
                 sendGroupPowerRequest(group, this.checked ? 1 : 0, cid)
             })
+        }
+
+        $(this).find(".card-header").removeClass("bg-success")
+        $(this).find(".card-header").removeClass("bg-warning")
+        $(this).find(".card-header").removeClass("bg-danger")
+        $(this).find(".gcard-toggle").bootstrapToggle('off', true)
+        if (cgstate == "2") {
+            $(this).find(".card-header").addClass("bg-success")
+            $(this).find(".gcard-toggle").bootstrapToggle('on', true)
+        } else if  (cgstate == "1") {
+            $(this).find(".card-header").addClass("bg-warning")
+        } else if (cgstate == "0") {
+            $(this).find(".card-header").addClass("bg-danger")
         }
 
         $(this).attr("cinit", "1")
@@ -733,23 +749,11 @@ function computeCards() {
 var hasOpenRcard = false
 function computeRCards() {
     $(".rcard").each(function() {
-        var cinit, cgroup, hasoffdevices, hasondevices
+        var cinit, cgroup, cindex, cgstate
         cinit = $(this).attr("cinit")
         cgroup = $(this).find("h4.card-header").text()
-        hasoffdevices = hasondevices = false
-        hasdefectdevices = false
-
-        $(this).find(".card").each(function() {
-            cid = parseInt($(this).attr("cid"))
-            if (parseInt(stateJSON.state[cid]) == 0 || stateJSON.state[cid] == "*0") {
-                hasoffdevices = true
-            } else {
-                hasondevices = true
-            }
-            if (stateJSON.state[cid] == "X") {
-                hasdefectdevices = true
-            }
-        })
+        cindex = stateJSON['groups'].indexOf(cgroup.toLowerCase())
+        cgstate = stateJSON['groupstates'][cindex]
 
         if (cinit != "1") {
             $(this).find(".title-header").on("click", function() {
@@ -816,21 +820,21 @@ function computeRCards() {
         $(this).find(".d-count").removeClass("bg-warning")
         $(this).find(".d-count").removeClass("bg-success")
         $(this).find(".rcard-toggle").bootstrapToggle('enable')
-        if (hasoffdevices == false && hasdefectdevices == false) {
+        if (cgstate == "2") {
             $(this).addClass("border-success")
             $(this).find(".title-header").addClass("bg-success")
             $(this).find(".d-count").addClass("bg-success")
             if (!$(this).find(".rcard-toggle").prop('checked')) {
                 $(this).find(".rcard-toggle").bootstrapToggle('on', true)
             }
-        } else if (hasondevices == false && hasdefectdevices == false) {
+        } else if (cgstate == "0") {
             $(this).addClass("border-danger")
             $(this).find(".title-header").addClass("bg-danger")
             $(this).find(".d-count").addClass("bg-danger")
             if ($(this).find(".rcard-toggle").prop('checked')) {
                 $(this).find(".rcard-toggle").bootstrapToggle('off', true)
             }
-        } else if (hasdefectdevices == false) {
+        } else if (cgstate == "1") {
             $(this).addClass("border-warning")
             $(this).find(".title-header").addClass("bg-warning")
             $(this).find(".d-count").addClass("bg-warning")

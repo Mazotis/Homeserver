@@ -29,12 +29,12 @@ class HDMITv(device):
                 _stdout = subprocess.check_output("echo 'pow 0' | cec-client -s",
                                                   shell=True).decode('UTF-8')
             except subprocess.CalledProcessError:
-                self.state = 0
+                self.state = DEVICE_OFF
                 return 0
             if "power status: on" in _stdout:
-                self.state = 1
+                self.state = DEVICE_ON
                 return 1
-            self.state = 0
+            self.state = DEVICE_OFF
             return 0
         return self.state
 

@@ -2,8 +2,8 @@
 '''
     File name: dialogflow.py
     Author: Maxime Bergeron
-    Date last modified: 19/11/2019
-    Python Version: 3.5
+    Date last modified: 31/01/2020
+    Python Version: 3.7
 
     The Google DIALOGFLOW receiver module for the homeserver
 '''
@@ -19,8 +19,9 @@ from threading import Thread
 
 
 class DFServer(BaseHTTPRequestHandler):
-    def __init__(self, config, *args, **kwargs):
+    def __init__(self, config, dm, *args, **kwargs):
         self.config = config
+        self.dm = dm
         super().__init__(*args, **kwargs)
 
     def _set_response(self):
@@ -41,6 +42,7 @@ class DFServer(BaseHTTPRequestHandler):
         groups = request['queryResult']['parameters']['LightserverGroups']
 
         req = StateRequestObject()
+        req.initialize_dm(self.dm)
         if action == "on":
             req.set(on=True)
         else:
@@ -58,13 +60,14 @@ class DFServer(BaseHTTPRequestHandler):
 class dialogflow(Thread):
     def __init__(self, dm):
         Thread.__init__(self)
+        self.dm = dm
         self.init_from_config()
 
     def run(self):
         self.running = True
         debug.write('Getting lightserver POST requests on port {}'
                     .format(self.port), 0, "DIALOGFLOW")
-        DialogflowServerPartial = partial(DFServer, self.config)
+        DialogflowServerPartial = partial(DFServer, self.config, self.dm)
         httpd = HTTPServer(('', self.port), DialogflowServerPartial)
         httpd.socket = ssl.wrap_socket(httpd.socket,
                                        keyfile=self.key,

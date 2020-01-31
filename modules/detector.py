@@ -2,8 +2,8 @@
 '''
     File name: detector.py
     Author: Maxime Bergeron
-    Date last modified: 15/11/2019
-    Python Version: 3.5
+    Date last modified: 31/01/2020
+    Python Version: 3.7
 
     The device-pinging detector module for the homeserver
 '''
@@ -44,6 +44,7 @@ class detector(Thread):
                     "Setting back all devices to AUTO mode for new day", 0, "DETECTOR")
                 req = StateRequestObject(force_auto_mode=True,
                                          notime=True)
+                req.initialize_dm(self.dm)
                 req()
             _is_running = True
             self.detect_devices()
@@ -81,7 +82,6 @@ class detector(Thread):
             if self.status and all(s == 0 for s in self.device_state_level):
                 debug.write(
                     "All devices are disconnected, running ON_DISCONNECT.", 0, "DETECTOR")
-                req = StateRequestObject()
                 if self.config.get_value('FALLBACK_AUTO_ON_DISCONNECT', bool):
                     self.run_state_request(
                         "ON_ALL_DISCONNECT_EVENT", reset_mode=True)

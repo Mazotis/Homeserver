@@ -84,7 +84,7 @@ class device(object):
             if color == DEVICE_SKIP:
                 self.success = True
                 return True
-            if not self.get_time_check():
+            if color != DEVICE_OFF and not self.get_time_check():
                 return True
             if not self.ignoremode:
                 if not self.auto_mode and self.request_auto_mode and not self.reset_mode:

@@ -60,6 +60,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 debug.write('Running action : {}'.format(
                     self.config[action]), 0, "IFTTT")
                 req = StateRequestObject()
+                req.initialize_dm(self.dm)
                 req.set(preset=self.config[action])
                 req()
             else:
@@ -122,19 +123,18 @@ class IFTTTServer(BaseHTTPRequestHandler):
         try:
             # TODO rewrite this more elegantly
             post_action = postvars['postaction'][0]
-            delay = int(postvars['delay'][0]) * 60 - 5
+            delay = int(postvars['delay'][0]) * 60
 
             if delay != 0:
                 debug.write('Will run action {} in {} seconds'.format(
-                    post_action, delay + 5), 0, "IFTTT")
-                time.sleep(5)
+                    post_action, delay), 0, "IFTTT")
                 if post_action in self.config:
-                    if not self.config.get_value('AUTOMATIC_MODE', bool):
-                        os.system(
-                            "./homeclient.py --delay {} {}".format(delay, self.config[post_action]))
-                    else:
-                        os.system("./homeclient.py --delay {} --auto-mode {}".format(
-                            delay, self.config[post_action]))
+                    req = StateRequestObject()
+                    req.initialize_dm(self.dm)
+                    req.set(delay=delay, preset=self.config[post_action])
+                    if self.config.get_value('AUTOMATIC_MODE', bool):
+                        req.set(auto_mode=True)
+                    req()
                 else:
                     #
                     # Complex delayed actions should be hardcoded here if needed

@@ -2,8 +2,8 @@
 '''
     File name: convert.py
     Author: Maxime Bergeron
-    Date last modified: 03/10/2019
-    Python Version: 3.5
+    Date last modified: 31/01/2020
+    Python Version: 3.7
 
     A general color/state code converter. Accepts various formats and tries to output a usable
     color/state code value for the device 
@@ -42,6 +42,13 @@ def convert_color(color, output_type=None):
             return lum
         if output_type == "255":
             return color
+
+    if color == DEVICE_OFF:
+        if output_type == "rgb":
+            return "000000"
+        elif output_type == "argb":
+            return "00000000"
+        return DEVICE_OFF
 
     ''' Type autodetect '''
     is_argb = bool(
