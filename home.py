@@ -42,9 +42,13 @@ if __name__ == "__main__":
         debug.config.configure_prompt()
         sys.exit()
 
+    if args.update:
+        from modules.updater import check_for_updates, run_upgrade
+        if check_for_updates():
+            run_upgrade(None)
+
     if args.server:
         dm = DeviceManager()
-
         dm.get_modules_list()
 
         if HOMECONFIG['SERVER'].getboolean('ENABLE_WIFI_RTT'):
@@ -122,36 +126,39 @@ if __name__ == "__main__":
         req = StateRequestObject(client=True)
         req.parse_args(args)
         _tries = 0
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(20)
-        debug.write('Sending request: {}'.format(req), 0, "CLIENT")
-        while True:
-            try:
-                debug.write('Connecting with homeserver daemon', 0, "CLIENT")
-                s.connect((HOMECONFIG['SERVER']['HOST'], int(
-                    HOMECONFIG['SERVER'].getint('PORT'))))
-                break
-            except (ConnectionRefusedError, ConnectionAbortedError):
-                debug.write('Connection to homeserver failed. Retrying', 1, "CLIENT")
+        if req.has_requested_changes():
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(20)
+            debug.write('Sending request: {}'.format(req), 0, "CLIENT")
+            while True:
+                try:
+                    debug.write('Connecting with homeserver daemon', 0, "CLIENT")
+                    s.connect((HOMECONFIG['SERVER']['HOST'], int(
+                        HOMECONFIG['SERVER'].getint('PORT'))))
+                    break
+                except (ConnectionRefusedError, ConnectionAbortedError):
+                    debug.write('Connection to homeserver failed. Retrying', 1, "CLIENT")
+                    time.sleep(2)
+                    _tries = _tries + 1
+                    if _tries == 5:
+                        debug.write('Cannot connect to homeserver. Check that it is running and properly configured.', 2, "CLIENT")
+                        quit()
+            s.sendall("4096".encode('utf-8'))
+            s.sendall(pickle.dumps(req))
+            if not args.nowait:
+                debug.write('Connected, waiting for results...', 0, "CLIENT")
                 time.sleep(2)
-                _tries = _tries + 1
-                if _tries == 5:
-                    debug.write('Cannot connect to homeserver. Check that it is running and properly configured.', 2, "CLIENT")
-                    quit()
-        s.sendall("4096".encode('utf-8'))
-        s.sendall(pickle.dumps(req))
-        if not args.nowait:
-            debug.write('Connected, waiting for results...', 0, "CLIENT")
-            time.sleep(2)
-            s.sendall("1".encode("UTF-8"))
-            data = pickle.loads(s.recv(1024))
-            if data != "":
-                debug.write("States changed to: {}".format(data),0, "CLIENT")
+                s.sendall("1".encode("UTF-8"))
+                data = pickle.loads(s.recv(1024))
+                if data != "":
+                    debug.write("States changed to: {}".format(data),0, "CLIENT")
+                else:
+                    debug.write("Command failure or timeout", 1, "CLIENT")
             else:
-                debug.write("Command failure or timeout", 1, "CLIENT")
+                time.sleep(2)
+                s.sendall("0".encode("UTF-8"))
+            s.close()
         else:
-            time.sleep(2)
-            s.sendall("0".encode("UTF-8"))
-        s.close()
+            debug.write("Nothing requested of the homeserver", 0)
 
     quit()

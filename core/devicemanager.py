@@ -791,6 +791,8 @@ class StateRequestObject(object):
 
     def __str__(self):
         _str = ""
+        if len(self.changed_vars.items()) == 0:
+            return "* No changes requested *"
         for i, (_var, _chg) in enumerate(self.changed_vars.items()):
             if i != 0:
                 _str += ", "
@@ -839,7 +841,7 @@ class StateRequestObject(object):
         allowed_keys = ['hexvalues', 'off', 'on', 'restart', 'toggle', 'group', 'client',
                         'notime', 'delay', 'preset', 'manual_mode', 'reset_location_data',
                         'force_auto_mode', 'auto_mode', 'reset_mode', 'skip_time', 'set_mode_for_devid']
-        ignored_keys = ['nowait']
+        ignored_keys = ['nowait', 'update']
         for _dev in getDevices(True):
             allowed_keys.append(_dev)
         for k, v in kwargs.items():
@@ -863,7 +865,8 @@ class StateRequestObject(object):
                 if getattr(self, k, False) != v:
                     self.changed_vars[k] = v
                     continue
-            self.changed_vars[k] = v
+                self.changed_vars[k] = v
+
         self.__dict__.update((k, v)
                              for k, v in kwargs.items() if k in allowed_keys)
         return True
@@ -943,6 +946,11 @@ class StateRequestObject(object):
 
     def run(self):
         request_queue.put(self)
+
+    def has_requested_changes(self):
+        if len(self.changed_vars) == 0:
+            return False
+        return True
 
     def check_for_initialization(self):
         if (not hasattr(self, 'dm') or self.dm is None) and not hasattr(self, 'client'):
