@@ -270,6 +270,15 @@ class DeviceManager(object):
             devrooms = [""] * len(self)
         return devrooms
 
+    @property
+    def get_toggle(self):
+        """ Toggles the devices on/off """
+        states = [DEVICE_ON] * len(self)
+        for _cnt, _state in enumerate(self.get_state(is_async=True)):
+            if _state not in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
+                states[_cnt] = [DEVICE_OFF]
+        return states
+
     def get_devices_list(self):
         i = 0
         while True:
@@ -342,21 +351,17 @@ class DeviceManager(object):
             request.group = [request.group]
         for _cnt, _gr in enumerate(request.group):
             request.group[_cnt] = unidecode.unidecode(_gr.lower())
+        _has_skips = False
         for _cnt, _device in enumerate(self):
             if request.group is not None and set(request.group).issubset([unidecode.unidecode(x) for x in _device.group]):
                 continue
-            debug.write("Skipping device '{}' as it does not belong in the {} group(s)"
-                        .format(_device.name, request.group), 0)
+            if not _has_skips:
+                debug.write("Skipping the following devices as they do not belong in the {} group(s):"
+                            .format(request.group), 0)
+            _has_skips = True
+            debug.write("Device '{}'"
+                        .format(_device.name, request.group), 0, _device.device_type, prefix="\t")
             request[_cnt] = DEVICE_SKIP
-
-    def get_toggle(self):
-        """ Toggles the devices on/off """
-        # TODO Check if this still works or deprecate it.
-        states = [DEVICE_ON] * len(self)
-        for _cnt, _state in enumerate(self.get_state(is_async=True)):
-            if _state not in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
-                states[_cnt] = [DEVICE_OFF]
-        return states
 
     def get_descriptions(self, as_list=False):
         """ Getter for configured devices descriptions """
@@ -430,7 +435,7 @@ class DeviceManager(object):
                 _dev.set_event_time(self.starttime)
         if not skip_time and datetime.datetime.strptime(self.config['SERVER']['EVENT_HOUR_STOP'], '%H:%M').time() < now_time < self.starttime:
             for _device, _color in zip(self, request.colors):
-                if _color not in [DEVICE_SKIP, DEVICE_OFF] and _device.get_time_check(now_time):
+                if _color == DEVICE_OFF or (_color != DEVICE_SKIP and _device.get_time_check(now_time)):
                     debug.write("Not all devices will be changed. Device changes begins at {}"
                                 .format(self.starttime), 0)
                     return True
@@ -834,10 +839,13 @@ class StateRequestObject(object):
         allowed_keys = ['hexvalues', 'off', 'on', 'restart', 'toggle', 'group', 'client',
                         'notime', 'delay', 'preset', 'manual_mode', 'reset_location_data',
                         'force_auto_mode', 'auto_mode', 'reset_mode', 'skip_time', 'set_mode_for_devid']
+        ignored_keys = ['nowait']
         for _dev in getDevices(True):
             allowed_keys.append(_dev)
         for k, v in kwargs.items():
             k = k.replace("-", "_")
+            if k in ignored_keys:
+                continue
             if k not in allowed_keys and v is not None:
                 debug.write(
                     "Missing or unallowed variable in request: {}".format(k), 1)
@@ -855,6 +863,7 @@ class StateRequestObject(object):
                 if getattr(self, k, False) != v:
                     self.changed_vars[k] = v
                     continue
+            self.changed_vars[k] = v
         self.__dict__.update((k, v)
                              for k, v in kwargs.items() if k in allowed_keys)
         return True
@@ -887,8 +896,7 @@ class StateRequestObject(object):
     def parse_args(self, args):
         for _arg in vars(args):
             if getattr(self, _arg, False) != vars(args)[_arg]:
-                self.changed_vars[_arg] = vars(args)[_arg]
-                setattr(self, _arg, vars(args)[_arg])
+                self.set(**{ k:v for k,v in vars(args).items() if _arg in k })
         for _dev in getDevices(True):
             if type(getattr(self, _dev, None)) == "str":
                 debug.write(
@@ -915,6 +923,9 @@ class StateRequestObject(object):
         if self.check_for_initialization():
             device_indexes = [i for i, x in enumerate(
                 self.device_list) if x.lower() == device_type.lower()]
+            if len(device_args) > len(device_indexes):
+                debug.write("Got {} states for only {} device(s). Quitting.".format(len(device_args), len(device_indexes)), 1, device_type)
+                return False
 
             if (type(device_args) == str or len(device_args) == 1) and len(device_indexes) > 1:
                 debug.write("Expanding state {} to {} ({}) devices."
@@ -1023,14 +1034,12 @@ class RequestExecutor(object):
             if request.on:
                 debug.write("Received ON change request", 0)
                 _colors = [DEVICE_ON] * len(dm)
-            # TODO - fix those two
             if request.restart:
                 debug.write("Received RESTART change request", 0)
-                request.device_type = "GenericOnOff"
-                request.device_type_args = ["2"]
+                _colors = request.set_typed_colors("GenericOnOff", "2", _colors)
             if request.toggle:
                 debug.write("Received TOGGLE change request", 0)
-                request.set_colors(dm.get_toggle())
+                _colors = dm.get_toggle
 
             request.set_colors(_colors)
         dm.set_mode(request)

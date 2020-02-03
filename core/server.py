@@ -2,7 +2,7 @@
 '''
     File name: server.py
     Author: Maxime Bergeron
-    Date last modified: 13/01/2020
+    Date last modified: 03/02/2020
     Python Version: 3.7
 
     The homeserver request server
@@ -10,8 +10,10 @@
 import pickle
 import socket
 import sys
+import time
 import traceback
 from core.common import *
+from core.devicemanager import ExecutionState
 from threading import Thread, Event
 
 
@@ -33,11 +35,13 @@ class HomeServer(Thread):
                 self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 self.sock.bind((self.host, self.port))
             except OSError:
-                print("Server address/port ({}:{}) already in use or closed. Quitting.".format(self.host, self.port))
+                print(
+                    "Server address/port ({}:{}) already in use or closed. Quitting.".format(self.host, self.port))
                 HomeServer.closing = True
                 self.stop()
                 sys.exit()
-            self.tcp_start_hour = self.config.get_value('TCP_START_HOUR', "hours")
+            self.tcp_start_hour = self.config.get_value(
+                'TCP_START_HOUR', "hours")
             self.tcp_end_hour = self.config.get_value('TCP_END_HOUR', "hours")
 
     def run(self):
@@ -83,6 +87,7 @@ class HomeServer(Thread):
                     break
 
         except socket.timeout:
+            debug.write("Timeout error", 1)
             pass
 
         except Exception as ex:
@@ -93,8 +98,16 @@ class HomeServer(Thread):
                                 ), 2, "SERVER")
 
         finally:
+            try:
+                data = client.recv(1)
+                if (data.decode("UTF-8") == "1"):
+                    while ExecutionState.get():
+                        time.sleep(0.5)
+                    client.sendall(pickle.dumps(
+                        self.dm.get_state(is_async=True)))
+            except Exception as ex:
+                debug.write("Got exception: {}".format(ex), 1)
             debug.write('Closing connection.', 0, "SERVER")
-            self.dm.reinit()
             client.close()
 
     def check_for_function_request(self, data, req, client):

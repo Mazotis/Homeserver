@@ -131,6 +131,14 @@
 			<action>store_true</action>
 			<default>False</default>
 		</argument>
+		<argument name="nowait">
+			<description>Do not wait for the homeserver to report back request results</description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
 		<argument name="set-mode-for-devid">
 			<description><tl>Force device ID# to change mode (as set by auto-mode)</tl></description>
 			<type>int</type>

@@ -2,8 +2,8 @@
 '''
     File name: ifttt.py
     Author: Maxime Bergeron
-    Date last modified: 22/12/2019
-    Python Version: 3.5
+    Date last modified: 03/02/2020
+    Python Version: 3.7
 
     The IFTTT receiver module for the homeserver
 '''
@@ -11,7 +11,6 @@
 import hashlib
 import requests
 import ssl
-import time
 import unidecode
 import urllib.parse
 from core.common import *
@@ -47,9 +46,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
             content_length).decode('UTF-8'), keep_blank_values=1)
         self._set_response()
 
-        try:
-            # TODO rewrite this more elegantly
-            # TODO link directly to the LM server ?
+        if 'hash' in postvars:
             _hash = postvars['hash'][0]
             action = postvars['action'][0]
             if _hash != hashlib.sha512(bytes(SALT.encode('utf-8') + action.encode('utf-8'))).hexdigest():
@@ -66,8 +63,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
             else:
                 debug.write('Unknown action: {}'.format(action), 1, "IFTTT")
 
-        except KeyError:
-            # TODO hash group requests somehow or require HTTPS?
+        else:
             req = StateRequestObject()
             func = postvars['function'][0]
 
@@ -77,10 +73,10 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 return
             req.initialize_dm(self.dm)
             if func == "on":
-                req.set_colors([DEVICE_ON])
+                req.set_colors([DEVICE_ON] * len(self.dm))
             elif func == "off":
                 req.set(skip_time=True)
-                req.set_colors([DEVICE_OFF])
+                req.set_colors([DEVICE_OFF] * len(self.dm))
 
             group = unidecode.unidecode(postvars['group'][0])
             groups = [unidecode.unidecode(x) for x in self.dm.all_groups]
@@ -91,7 +87,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                     if _group in self.priority_groups:
                         has_priority_group = True
                     changed_groups.append(_group)
-            # TODO add a proper pluralization and support for latin characters ?
+            # TODO add a proper pluralization ?
             for _group in group.split():
                 if _group.lower() + "s" in groups:
                     changed_groups.append(_group + "s")
@@ -111,17 +107,16 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 req.set(reset_mode=True)
             req()
 
-            if "delay" in postvars and int(postvars['delay'][0]) != 0:
+            if 'delay' in postvars and int(postvars['delay'][0]) != 0:
                 if func == "on":
-                    req.set_colors([DEVICE_OFF])
+                    req.set_colors([DEVICE_OFF] * len(self.dm))
                 elif func == "off":
                     req.set(skip_time=True)
-                    req.set_colors([DEVICE_ON])
+                    req.set_colors([DEVICE_ON] * len(self.dm))
                 req.set(delay=int(postvars['delay'][0]) * 60)
                 req()
 
-        try:
-            # TODO rewrite this more elegantly
+        if 'postaction' in postvars:
             post_action = postvars['postaction'][0]
             delay = int(postvars['delay'][0]) * 60
 
@@ -141,8 +136,6 @@ class IFTTTServer(BaseHTTPRequestHandler):
                     #
                     debug.write('Unknown action: {}'.format(
                         post_action), 1, "IFTTT")
-        except KeyError:
-            pass
 
 
 class ifttt(Thread):
@@ -181,7 +174,7 @@ class ifttt(Thread):
     def stop(self):
         debug.write('Stopping.', 0, "IFTTT")
         self.running = False
-        # Needs a last call to shut down properly
+        # Needs a last call to shut down properly on python3.5
         try:
             requests.get("http://localhost:{}/".format(self.port))
         except requests.exceptions.ConnectionError:

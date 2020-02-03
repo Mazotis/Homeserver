@@ -84,5 +84,4 @@ class TPLinkSwitch(device):
         self.get_state()
 
     def disconnect(self):
-        # TODO - Check if disconnection is required
         pass

@@ -10,6 +10,7 @@
 import pickle
 import socket
 import sys
+import time
 from core.common import *
 from core.devicemanager import DeviceManager, StateRequestObject, RequestExecutor
 from core.server import HomeServer
@@ -120,15 +121,37 @@ if __name__ == "__main__":
     else:
         req = StateRequestObject(client=True)
         req.parse_args(args)
+        _tries = 0
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((HOMECONFIG['SERVER']['HOST'], int(
-            HOMECONFIG['SERVER'].getint('PORT'))))
-        # TODO report connection errors or allow feedback response
-        debug.write('Connecting with homeserver daemon', 0)
-        debug.write('Sending request: {}'.format(
-            req), 0, "CLIENT")
+        s.settimeout(20)
+        debug.write('Sending request: {}'.format(req), 0, "CLIENT")
+        while True:
+            try:
+                debug.write('Connecting with homeserver daemon', 0, "CLIENT")
+                s.connect((HOMECONFIG['SERVER']['HOST'], int(
+                    HOMECONFIG['SERVER'].getint('PORT'))))
+                break
+            except (ConnectionRefusedError, ConnectionAbortedError):
+                debug.write('Connection to homeserver failed. Retrying', 1, "CLIENT")
+                time.sleep(2)
+                _tries = _tries + 1
+                if _tries == 5:
+                    debug.write('Cannot connect to homeserver. Check that it is running and properly configured.', 2, "CLIENT")
+                    quit()
         s.sendall("4096".encode('utf-8'))
         s.sendall(pickle.dumps(req))
+        if not args.nowait:
+            debug.write('Connected, waiting for results...', 0, "CLIENT")
+            time.sleep(2)
+            s.sendall("1".encode("UTF-8"))
+            data = pickle.loads(s.recv(1024))
+            if data != "":
+                debug.write("States changed to: {}".format(data),0, "CLIENT")
+            else:
+                debug.write("Command failure or timeout", 1, "CLIENT")
+        else:
+            time.sleep(2)
+            s.sendall("0".encode("UTF-8"))
         s.close()
 
     quit()

@@ -94,7 +94,7 @@ class DebugLog(object):
                 print("Server is already running. Shutting down.")
                 sys.exit()
 
-    def write(self, msg, level, devicetype=None):
+    def write(self, msg, level, devicetype=None, prefix=""):
         if self.debug_enabled:
             if devicetype is not None:
                 if devicetype in self.device_colors.keys():
@@ -104,15 +104,15 @@ class DebugLog(object):
                         str(random.randint(100, 230)) + "m"
                     self.device_colors[devicetype] = _dcolor
 
-                _cdebugtext = "({}) - [{}{}\033[0m] {}[{}] {}\033[0m".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-                                                                             self.COLOR_LEVELS[level], self.LEVELS[level], _dcolor, devicetype, msg)
-                _debugtext = "({}) - [{}] [{}] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-                                                          self.LEVELS[level], devicetype, msg)
+                _cdebugtext = "({}) - [{}{}\033[0m] {}{}[{}] {}\033[0m".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                                                               self.COLOR_LEVELS[level], self.LEVELS[level], prefix, _dcolor, devicetype, msg)
+                _debugtext = "({}) - [{}] {}[{}] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                                            self.LEVELS[level], prefix, devicetype, msg)
             else:
-                _cdebugtext = "({}) - [{}{}\033[0m] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-                                                               self.COLOR_LEVELS[level], self.LEVELS[level], msg)
-                _debugtext = "({}) - [{}] {}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
-                                                     self.LEVELS[level], msg)
+                _cdebugtext = "({}) - [{}{}\033[0m] {}{}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                                                 self.COLOR_LEVELS[level], self.LEVELS[level], prefix, msg)
+                _debugtext = "({}) - [{}] {}{}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
+                                                       self.LEVELS[level], prefix, msg)
             print(_cdebugtext)
             if self.journaling_enabled:
                 try:

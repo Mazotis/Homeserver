@@ -230,7 +230,8 @@ class ConfigHandler(ConfigParser):
                 while True:
                     if input("Do you wish to create a new user? <N/y>") == "y":
                         _us1 = input("User full name: ")
-                        print("* Tracked devices local LAN IP for user {}. Comma-separated, if there are more than one (for example: 192.168.1.2,192.168.1.3...)")
+                        print(
+                            "* Tracked devices local LAN IP for user {}. Comma-separated, if there are more than one (for example: 192.168.1.2,192.168.1.3...)")
                         _us2 = input("Tracked devices IP list: ")
                         self.set_config_entry(
                             "USERS", _us1, expected_value=_us2, silent=True)
@@ -255,7 +256,8 @@ class ConfigHandler(ConfigParser):
             if "dialogflow" in module_list:
                 print(
                     "* [DIALOGFLOW] You need to provide a key and cert file to enable SSL, as dialogflow only accepts HTTPS.")
-                print("* [DIALOGFLOW] Dialogflow action presets can be configured later from the webserver or in the home.ini file directly")
+                print(
+                    "* [DIALOGFLOW] Dialogflow action presets can be configured later from the webserver or in the home.ini file directly")
 
             for _mod in module_list:
                 self.module_config_prompt(_mod)
@@ -296,14 +298,16 @@ class ConfigHandler(ConfigParser):
             print("*******")
             print("* Presets are predefined state changes for your devices")
             self.set_config_entry("PRESETS", "AUTOMATIC_MODE")
-            print("* Presets can be configured later from the webserver or in the home.ini file directly")
+            print(
+                "* Presets can be configured later from the webserver or in the home.ini file directly")
 
             if self.get_value("TCP_START_HOUR", parent="SERVER") != "":
                 print("\n**************************")
                 print("TCP socket request presets")
                 print("**************************")
                 self.set_config_entry("TCP-PRESETS", "AUTOMATIC_MODE")
-                print("TCP socket request presets can be configured later from the webserver or in the home.ini file directly")
+                print(
+                    "TCP socket request presets can be configured later from the webserver or in the home.ini file directly")
         else:
             # _for_devices
             for _mod in self.configurables.find("modules").findall("module"):
@@ -323,7 +327,8 @@ class ConfigHandler(ConfigParser):
         while True:
             if self.has_section("DEVICE" + str(_cnt)):
                 if self.has_option("DEVICE" + str(_cnt), "GROUP"):
-                    _grps = self.get_value("GROUP", parent="DEVICE" + str(_cnt))
+                    _grps = self.get_value(
+                        "GROUP", parent="DEVICE" + str(_cnt))
                     for _grp in _grps.split(","):
                         _known_groups.append(_grp)
             else:
@@ -362,9 +367,11 @@ class ConfigHandler(ConfigParser):
                         _cnt, _name, _dtype))
                     if input("Do you wish to reconfigure this device? <Y/n> ") == "n":
                         self.remove_section("DEVICE" + str(_cnt))
-                        _dtype = input("\n[DEVICE{}] What is the new device type? ".format(_cnt))
+                        _dtype = input(
+                            "\n[DEVICE{}] What is the new device type? ".format(_cnt))
                 else:
-                    _dtype = input("\n[DEVICE{}] What is the new device type? ".format(_cnt))
+                    _dtype = input(
+                        "\n[DEVICE{}] What is the new device type? ".format(_cnt))
                 if _dtype not in _devices:
                     print(
                         "Device type '{}' does not exist. Choose from the Available devices list".format(_dtype))
@@ -408,7 +415,8 @@ class ConfigHandler(ConfigParser):
                                 if self.has_option("DEVICE" + str(_cnt), _entry):
                                     _value = self.get_value(
                                         _entry, parent="DEVICE" + str(_cnt))
-                                self.set_config_entry("DEVICE" + str(_cnt), _entry, expected_value=_value)
+                                self.set_config_entry(
+                                    "DEVICE" + str(_cnt), _entry, expected_value=_value)
             else:
                 if not self.has_section("DEVICE" + str(_cnt)):
                     break
