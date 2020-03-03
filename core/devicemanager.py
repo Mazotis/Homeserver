@@ -2,7 +2,7 @@
 '''
     File name: devicemanager.py
     Author: Maxime Bergeron
-    Date last modified: 22/12/2019
+    Date last modified: 03/03/2020
     Python Version: 3.7
 
     The device and modules manager for the homeserver. Not a module per-se
@@ -351,16 +351,16 @@ class DeviceManager(object):
             request.group = [request.group]
         for _cnt, _gr in enumerate(request.group):
             request.group[_cnt] = unidecode.unidecode(_gr.lower())
-        _has_skips = False
+        _has_devices = False
         for _cnt, _device in enumerate(self):
             if request.group is not None and set(request.group).issubset([unidecode.unidecode(x) for x in _device.group]):
+                if request[_cnt] == DEVICE_SKIP:
+                    request[_cnt] = DEVICE_ON
+                if not _has_devices:
+                    debug.write("Got the following devices from the {} group(s):".format(request.group), 0)
+                    _has_devices = True
+                debug.write("Device '{}'".format(_device.name, request.group), 0, _device.device_type, prefix="\t")
                 continue
-            if not _has_skips:
-                debug.write("Skipping the following devices as they do not belong in the {} group(s):"
-                            .format(request.group), 0)
-            _has_skips = True
-            debug.write("Device '{}'"
-                        .format(_device.name, request.group), 0, _device.device_type, prefix="\t")
             request[_cnt] = DEVICE_SKIP
 
     def get_descriptions(self, as_list=False):
@@ -467,7 +467,11 @@ class DeviceManager(object):
                     if async_only_for_devid is not None and _cnt != async_only_for_devid:
                         states[_cnt] = dev.state
                     else:
+                        _old_state = dev.state
                         states[_cnt] = dev.get_state()
+                        if _old_state != states[_cnt] and DEVICE_STANDBY not in [_old_state, states[_cnt]]:
+                            debug.write("Device {} state changed without involvement of the Homeserver. Consider as a MANUAL change".format(dev.name), 0)
+                            dev.auto_mode = False
                 if webcolors:
                     states[_cnt] = convert_to_web_rgb(
                         states[_cnt], dev.color_type, dev.color_brightness)
@@ -1028,9 +1032,9 @@ class RequestExecutor(object):
             # Priority 3 - handling device changes
             for _dev in getDevices(True):
                 if getattr(request, _dev, None) is not None:
-                    debug.write("Received {} change request".format(_dev), 0)
+                    debug.write("Received {} change request".format(capitalize(_dev)), 0)
                     _colors = request.set_typed_colors(
-                        _dev, getattr(request, _dev, None), _colors)
+                        capitalize(_dev), getattr(request, _dev, None), _colors)
                     if not _colors:
                         return False
 

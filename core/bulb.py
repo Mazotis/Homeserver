@@ -10,7 +10,6 @@
 
 import bluepy.btle as ble
 import functools
-import time
 from core.common import *
 from core.device import device
 

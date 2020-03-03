@@ -90,6 +90,10 @@ class HomeServer(Thread):
             debug.write("Timeout error", 1)
             pass
 
+        except ValueError as ex:
+            debug.write("Got incorrect value or timing error. Traceback: {}".format(traceback.format_tb(
+                ex.__traceback__)), 2, "SERVER")
+
         except Exception as ex:
             debug.write('Unhandled exception of type {}: {}, {}'
                         .format(type(ex), ex,

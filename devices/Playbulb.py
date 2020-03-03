@@ -2,7 +2,7 @@
 '''
     File name: Playbulb.py
     Author: Maxime Bergeron
-    Date last modified: 9/01/2020
+    Date last modified: 29/02/2020
     Python Version: 3.7
 
     The Playbulb BLE bulbs handler class
@@ -14,6 +14,7 @@ from core.bulb import Bulb, connect_ble
 
 class Playbulb(Bulb):
     """ Methods for driving a rainbow BLE lightbulb """
+    _COLOR_UUID = "0000fffc-0000-1000-8000-00805f9b34fb"
 
     def __init__(self, devid):
         super().__init__(devid)
@@ -38,6 +39,13 @@ class Playbulb(Bulb):
         return True
 
     @connect_ble
+    def get_state(self):
+        if self._connection is not None:
+            self.state = self._connection.getCharacteristics(
+                uuid=Playbulb._COLOR_UUID)[0].read().hex()
+        return self.state
+
+    @connect_ble
     def _write(self, color):
         if self._connection is None:
             debug.write("Could not change device state for device ({})".format(
@@ -59,18 +67,19 @@ class Playbulb(Bulb):
                 #                   for _iter in range(20):
                 #                       if (int(_iter*delta_w) != 0 and int(_iter*delta_r) != 0 and int(_iter*delta_g) != 0 and int(_iter*delta_b) != 0):
                 #                           deltacolor = str(int(color[0:2]) + int(_iter*delta_w)) + str(int(color[2:4]) + int(_iter*delta_r)) + str(int(color[4:6]) + int(_iter*delta_g)) + str(int(color[6:8]) + int(_iter*delta_b))
-                #                           self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(deltacolor))
+                #                           self._connection.getCharacteristics(uuid=Playbulb._COLOR_UUID)[0].write(bytearray.fromhex(deltacolor))
                 #                           time.sleep(0.5)
 
-            self._connection.getCharacteristics(uuid="0000fffc-0000-1000-8000-00805f9b34fb")[0] \
+            self._connection.getCharacteristics(uuid=Playbulb._COLOR_UUID)[0] \
                 .write(bytearray.fromhex(color))
 
             # Prebuilt animations: blink=00, pulse=01, hard rainbow=02, smooth rainbow=03, candle=04
-            # self._connection.getCharacteristics(uuid="0000fffb-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(color+"02ffffff"))
+            # self._connection.getCharacteristics(uuid=_COLOR_UUID)[0].write(bytearray.fromhex(color+"02ffffff"))
             self.success = True
             self.state = color
             debug.write("({}) color changed to {}".format(
                 self.description, color), 0, self.device_type)
+            # self.disconnect()
             return True
 
         except Exception as ex:

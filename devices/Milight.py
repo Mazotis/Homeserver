@@ -2,8 +2,8 @@
 '''
     File name: Milight.py
     Author: Maxime Bergeron
-    Date last modified: 9/01/2020
-    Python Version: 3.5
+    Date last modified: 03/03/2020
+    Python Version: 3.7
 
     The Milight BLE bulbs handler class
 '''
@@ -118,16 +118,20 @@ class Milight(Bulb):
     @connect_ble
     def _write(self, command, color):
         try:
-            self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0] \
-                .write(bytearray.fromhex(command
-                                         .replace('\n', '')
-                                         .replace('\r', '')))
-            self.success = True
-            self.state = color
-            return True
+            if self._connection is not None:
+                self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0] \
+                    .write(bytearray.fromhex(command
+                                             .replace('\n', '')
+                                             .replace('\r', '')))
+                self.success = True
+                self.state = color
+                return True
+            debug.write("Connection to device '{}' unavailable".format(
+                self.name), 1, self.device_type)
+            return False
         except Exception as ex:
             debug.write("({}) Error sending data to device ({}). Retrying"
-                        .format(ex, self.description), 1, self.device_type)
+                        .format(ex, self.name), 1, self.device_type)
             self.disconnect()
             return False
 

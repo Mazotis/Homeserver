@@ -70,6 +70,9 @@ class MerossSwitch(device):
             except CommandTimeoutException:
                 debug.write(
                     "Failed to obtain current state for device {}. Fallback to server-side reported state.".format(self.device), 1)
+                debug.write("Supports reading: {}".format(self.meross_dev.supports_electricity_reading()), 1)
+                debug.write("Set state: {}".format(self.state), 1)
+                debug.write("Device: {}".format(self.meross_dev), 1)
                 return self.state
             except AttributeError:
                 debug.write(

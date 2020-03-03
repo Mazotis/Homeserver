@@ -27,6 +27,9 @@ class IFTTTServer(BaseHTTPRequestHandler):
         self.priority_groups = []
         if self.config.has_option("IFTTT", "PRIORITY_GROUPS"):
             self.priority_groups = self.config["PRIORITY_GROUPS"].split(",")
+        self.global_group = None
+        if self.config.has_option("IFTTT", "GLOBAL_GROUP"):
+            self.global_group = self.config["GLOBAL_GROUP"]
         super().__init__(*args, **kwargs)
 
     def _set_response(self):
@@ -82,18 +85,23 @@ class IFTTTServer(BaseHTTPRequestHandler):
             groups = [unidecode.unidecode(x) for x in self.dm.all_groups]
             changed_groups = []
             has_priority_group = False
+            has_global_group = False
             for _group in groups:
                 if _group.lower() in group:
-                    if _group in self.priority_groups:
+                    if _group.lower() in self.priority_groups:
                         has_priority_group = True
                     changed_groups.append(_group)
             # TODO add a proper pluralization ?
             for _group in group.split():
+                if _group == self.global_group:
+                    has_global_group = True
+                    changed_groups.append(self.global_group)
+                    debug.write("Got global group. Running request on all devices.", 0, "IFTTT")
                 if _group.lower() + "s" in groups:
                     changed_groups.append(_group + "s")
-            if len(changed_groups) != 0:
+            if len(changed_groups) != 0 and not has_global_group:
                 req.set(group=changed_groups)
-            else:
+            elif not has_global_group:
                 debug.write("No devices belong to group {}. Request aborted.".format(
                     group), 1, "IFTTT")
                 return
