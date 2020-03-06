@@ -2,7 +2,7 @@
 '''
     File name: devicemanager.py
     Author: Maxime Bergeron
-    Date last modified: 03/03/2020
+    Date last modified: 06/03/2020
     Python Version: 3.7
 
     The device and modules manager for the homeserver. Not a module per-se
@@ -74,7 +74,7 @@ class DeviceManager(object):
         self.queue = queue.Queue()
         self.scheduled_changes = []
         self.scheduled_disconnect = None
-        self.states = self.get_state()
+        self.states = self.get_state(_ignore_manuals=True)
         self.skip_time = False
         debug.write("Got initial device states {}".format(self.states), 0)
         self.light_threads = [None] * len(self)
@@ -444,7 +444,10 @@ class DeviceManager(object):
             return False
         return True
 
-    def get_state(self, devid=None, is_async=False, async_only_for_devid=None, webcolors=False, intensity=False, _for_state_change=False):
+    def get_state(self, devid=None, is_async=False,
+                  async_only_for_devid=None, webcolors=False,
+                  intensity=False, _for_state_change=False,
+                  _ignore_manuals=False):
         """ Getter for configured devices actual colors """
         if state_lock.locked():
             # There's most likely another SYNC state getter running
@@ -469,7 +472,7 @@ class DeviceManager(object):
                     else:
                         _old_state = dev.state
                         states[_cnt] = dev.get_state()
-                        if _old_state != states[_cnt] and DEVICE_STANDBY not in [_old_state, states[_cnt]]:
+                        if _old_state != states[_cnt] and DEVICE_STANDBY not in [_old_state, states[_cnt]] and not _ignore_manuals:
                             debug.write("Device {} state changed without involvement of the Homeserver. Consider as a MANUAL change".format(dev.name), 0)
                             dev.auto_mode = False
                 if webcolors:
@@ -1032,9 +1035,9 @@ class RequestExecutor(object):
             # Priority 3 - handling device changes
             for _dev in getDevices(True):
                 if getattr(request, _dev, None) is not None:
-                    debug.write("Received {} change request".format(capitalize(_dev)), 0)
+                    debug.write("Received {} change request".format(_dev.capitalize()), 0)
                     _colors = request.set_typed_colors(
-                        capitalize(_dev), getattr(request, _dev, None), _colors)
+                        _dev.capitalize(), getattr(request, _dev, None), _colors)
                     if not _colors:
                         return False
 

@@ -67,7 +67,6 @@ class DebugLog(object):
         self.debug_enabled = self.config.get_value("ENABLE_DEBUG", bool)
         self.journaling_enabled = self.config.get_value('JOURNALING', bool)
         self._lock_socket = None
-        self.write("Starting debug logger", 0)
 
     def enable_debug(self):
         if self.get_set_lock(True) and self.debug_enabled and self.journaling_enabled:
@@ -79,6 +78,7 @@ class DebugLog(object):
                 if os.path.isfile(self.config['JOURNAL_DIR'] + "/home." + str(n - 1) + ".log"):
                     os.rename(self.config['JOURNAL_DIR'] + "/home." + str(n - 1) + ".log",
                               self.config['JOURNAL_DIR'] + "/home." + str(n) + ".log")
+            self.write("Starting debug logger", 0)
 
     def get_set_lock(self, get=False):
         self._lock_socket = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
@@ -137,12 +137,10 @@ class LanguageHandler(object):
     def installLanguage(self):
         if self.installed_language is None:
             if language.getLanguage() == "fr":
-                debug.write("Setting language as fr", 0)
                 lang = gettext.translation(
                     'base', localedir=os.path.join(CORE_DIR, '../locales'), languages=['fr'])
                 lang.install()
             else:
-                debug.write("Setting language as en", 0)
                 lang = gettext.translation(
                     'base', localedir=os.path.join(CORE_DIR, '../locales'), languages=['en'])
                 lang.install()

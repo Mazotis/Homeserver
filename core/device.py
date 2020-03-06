@@ -72,13 +72,13 @@ class device(object):
                 return True
             if (self.color_type == "noop" or self.request_locked):
                 if self.convert(color) != DEVICE_SKIP:
-                    debug.write("Device ({}) {} does not handle requests."
-                                .format(self.device_type, self.device), 0, self.device_type)
+                    debug.write("Device '{}' does not handle requests."
+                                .format(self.name), 0, self.device_type)
                 self.success = True
                 return True
             if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
-                debug.write("Device ({}) {} is still executing previous request."
-                            .format(self.device_type, self.device), 0, self.device_type)
+                debug.write("Device '{}' is still executing previous request."
+                            .format(self.name), 0, self.device_type)
                 self.state = DEVICE_STANDBY
                 return True
             if color == DEVICE_SKIP:
@@ -89,32 +89,32 @@ class device(object):
             if not self.ignoremode:
                 if not self.auto_mode and self.request_auto_mode and not self.reset_mode:
                     # AUTO mode request on MANUAL device
-                    debug.write("{} device '{}' is set in MANUAL mode, skipping."
-                                .format(self.device_type, self.name), 0, self.device_type)
+                    debug.write("Device '{}' is set in MANUAL mode, skipping."
+                                .format(self.name), 0, self.device_type)
                     self.success = True
                     return True
                 if self.auto_mode and not self.request_auto_mode and not self.reset_mode:
-                    debug.write("{} device '{}' set to MANUAL mode."
-                                .format(self.device_type, self.name), 0, self.device_type)
+                    debug.write("Device '{}' set to MANUAL mode."
+                                .format(self.name), 0, self.device_type)
                     self.auto_mode = False
                 if self.reset_mode:
                     if not self.auto_mode:
-                        debug.write("{} device '{}' set back to AUTO mode."
-                                    .format(self.device_type, self.name), 0, self.device_type)
+                        debug.write("Device '{}' set back to AUTO mode."
+                                    .format(self.name), 0, self.device_type)
                     self.auto_mode = True
             else:
-                debug.write("Skipping mode evaluation for '{}' device {}."
-                            .format(self.device_type, self.name), 0, self.device_type)
+                debug.write("Skipping mode evaluation for device '{}'."
+                            .format(self.name), 0, self.device_type)
             if self.state == self.convert(color) and str(color) not in [self.convert(DEVICE_OFF), DEVICE_INFERRED_OFF]:
                 self.success = True
-                debug.write("Device ({}) '{}' is already of the requested state, skipping."
-                            .format(self.device_type, self.name), 0, self.device_type)
+                debug.write("Device '{}' is already of the requested state, skipping."
+                            .format(self.name), 0, self.device_type)
                 return True
 
             if self.state == self.convert(color) and str(color) in [self.convert(DEVICE_OFF), DEVICE_INFERRED_OFF] and not self.forceoff:
                 self.success = True
-                debug.write("Device ({}) '{}' is already off and forcing-off disabled, skipping."
-                            .format(self.device_type, self.name), 0, self.device_type)
+                debug.write("Device '{}' is already off and forcing-off disabled, skipping."
+                            .format(self.name), 0, self.device_type)
                 return True
 
             if self.action_delay != 0:
@@ -125,7 +125,7 @@ class device(object):
 
     def convert(self, color):
         if self.color_type is None:
-            debug.write("Device {} must declare a state type. Quitting.".format(
+            debug.write("Device '{}' must declare a state type. Quitting.".format(
                 self.name), 2, self.device_type)
             quit()
         return convert_color(color, self.color_type)
@@ -174,14 +174,14 @@ class device(object):
             now_time = datetime.datetime.now().time()
         if self.start_event_time is not None and not self.skip_time and datetime.time(6, 00) < now_time < self.start_event_time:
             self.success = True
-            debug.write("Device ({}) {} skipped due to actual time."
-                        .format(self.device_type, self.device), 0, self.device_type)
+            debug.write("Device '{}' skipped due to actual time."
+                        .format(self.name), 0, self.device_type)
             return False
         return True
 
     def lock_unlock_requests(self, is_locked):
-        debug.write("Device ({}) {} is set to locked = {}."
-                    .format(self.device_type, self.device, bool(is_locked)), 0, self.device_type)
+        debug.write("Device '{}' is set to locked = {}."
+                    .format(self.name, bool(is_locked)), 0, self.device_type)
         self.request_locked = bool(is_locked)
         return
 

@@ -38,14 +38,14 @@ class HDMITv(device):
         if color == DEVICE_OFF:
             debug.write("Turning device {} OFF".format(
                 self.name), 0, self.device_type)
-            os.system("echo 'standby 0' | cec-client -s &> /dev/null")
+            os.system("echo 'standby 0' | cec-client -s > /dev/null")
             self.success = True
             self.state = DEVICE_OFF
             return True
         elif color == DEVICE_ON:
             debug.write("Turning device {} ON".format(
                 self.name), 0, self.device_type)
-            os.system("echo 'on 0' | cec-client -s &> /dev/null")
+            os.system("echo 'on 0' | cec-client -s > /dev/null")
             self.success = True
             self.state = DEVICE_ON
             return True

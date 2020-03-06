@@ -2,11 +2,12 @@
 '''
     File name: home.py
     Author: Maxime Bergeron
-    Date last modified: 18/11/2019
+    Date last modified: 06/03/2020
     Python Version: 3.5
 
     A python home control server/client
 '''
+import os
 import pickle
 import socket
 import sys
@@ -48,6 +49,9 @@ if __name__ == "__main__":
             run_upgrade(None)
 
     if args.server:
+        if os.name == "nt":
+            debug.write("The Homeserver cannot run on Windows. Quitting.", 2)
+            quit()
         dm = DeviceManager()
         dm.get_modules_list()
 
@@ -132,16 +136,19 @@ if __name__ == "__main__":
             debug.write('Sending request: {}'.format(req), 0, "CLIENT")
             while True:
                 try:
-                    debug.write('Connecting with homeserver daemon', 0, "CLIENT")
+                    debug.write(
+                        'Connecting with homeserver daemon', 0, "CLIENT")
                     s.connect((HOMECONFIG['SERVER']['HOST'], int(
                         HOMECONFIG['SERVER'].getint('PORT'))))
                     break
                 except (ConnectionRefusedError, ConnectionAbortedError):
-                    debug.write('Connection to homeserver failed. Retrying', 1, "CLIENT")
+                    debug.write(
+                        'Connection to homeserver failed. Retrying', 1, "CLIENT")
                     time.sleep(2)
                     _tries = _tries + 1
                     if _tries == 5:
-                        debug.write('Cannot connect to homeserver. Check that it is running and properly configured.', 2, "CLIENT")
+                        debug.write(
+                            'Cannot connect to homeserver. Check that it is running and properly configured.', 2, "CLIENT")
                         quit()
             s.sendall("4096".encode('utf-8'))
             s.sendall(pickle.dumps(req))
@@ -151,7 +158,8 @@ if __name__ == "__main__":
                 s.sendall("1".encode("UTF-8"))
                 data = pickle.loads(s.recv(1024))
                 if data != "":
-                    debug.write("States changed to: {}".format(data),0, "CLIENT")
+                    debug.write("States changed to: {}".format(
+                        data), 0, "CLIENT")
                 else:
                     debug.write("Command failure or timeout", 1, "CLIENT")
             else:

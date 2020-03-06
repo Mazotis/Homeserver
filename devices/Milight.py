@@ -34,8 +34,8 @@ class Milight(Bulb):
             debug.write(
                 "Default bulb brightness should be between 0 and 100. Quitting.", 2, self.device_type)
             quit()
-        debug.write("Created device Milight: {}.".format(
-            self.description), 0, self.device_type)
+        debug.write("Created device '{}'.".format(
+            self.name), 0, self.device_type)
 
     def turn_on(self):
         """ Helper function to turn on device """
@@ -45,14 +45,14 @@ class Milight(Bulb):
 
     def turn_off(self):
         """ Helper function to turn off device """
-        debug.write("Setting ({}) OFF".format(
-            self.description), 0, self.device_type)
+        debug.write("Setting '{}' OFF".format(
+            self.name), 0, self.device_type)
         return self._write(self.get_query(32, 161, 2, self.id1, self.id2), "0")
 
     def turn_on_and_set_color(self, color):
         """ Helper function to change color """
-        debug.write("Setting ({}) to COLOR {}".format(
-            self.description, color), 0, self.device_type)
+        debug.write("Setting device '{}' to COLOR {}".format(
+            self.name, color), 0, self.device_type)
         if self.state == DEVICE_OFF:
             if not self.turn_on():
                 return False
@@ -67,8 +67,8 @@ class Milight(Bulb):
 
     def turn_on_and_dim_on(self, color, intensity=None):
         """ Helper function to turn on device to default intensity """
-        debug.write("Setting ({}) ON".format(
-            self.description), 0, self.device_type)
+        debug.write("Setting device '{}' ON".format(
+            self.name), 0, self.device_type)
         if not self.turn_on():
             return False
         return self.dim_on(color, intensity)
@@ -101,8 +101,8 @@ class Milight(Bulb):
             if hue is not None:
                 if not self.turn_on_and_set_color(color):
                     return False
-        debug.write("({}) color changed to {}".format(
-            self.description, color), 0, self.device_type)
+        debug.write("Device '{}' color changed to {}".format(
+            self.name, color), 0, self.device_type)
         return True
 
     def get_query(self, value1, value2, value3, id1, id2, value4=0, value5=2, value6=0):
@@ -130,7 +130,7 @@ class Milight(Bulb):
                 self.name), 1, self.device_type)
             return False
         except Exception as ex:
-            debug.write("({}) Error sending data to device ({}). Retrying"
+            debug.write("({}) Error sending data to device '{}'. Retrying"
                         .format(ex, self.name), 1, self.device_type)
             self.disconnect()
             return False
