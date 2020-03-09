@@ -190,7 +190,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         pass
                     _col[devid] = value
                     req.set_colors(_col)
-                    req.set(skip_time=True)
+                    req.set(skip_time=True, history_origin="Webserver")
                     req()
                     while ExecutionState().get():
                         time.sleep(0.5)
@@ -205,7 +205,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     req.initialize_dm(self.dm)
                     debug.write(
                         'Running a single device mode change', 0, "WEBSERVER")
-                    req.set(set_mode_for_devid=devid)
+                    req.set(set_mode_for_devid=devid, history_origin="Webserver")
                     if cmode:
                         req.set(auto_mode=True)
                     req()
@@ -230,7 +230,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         req.set(skip_time=True)
                     if value == 1:
                         _col = [DEVICE_ON]
-                    req.set_colors(_col)
+                    req.set_colors(_col, history_origin="Webserver")
                     req.set(group=[group.replace("0", "").lower()])
                     req()
                     while ExecutionState().get():
@@ -243,7 +243,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     req.initialize_dm(self.dm)
                     debug.write(
                         'Running an all-devices mode change', 0, "WEBSERVER")
-                    req.set(force_auto_mode=True)
+                    req.set(force_auto_mode=True, history_origin="Webserver")
                     req()
                     while ExecutionState().get():
                         time.sleep(0.5)

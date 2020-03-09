@@ -50,7 +50,8 @@ def run_upgrade(dm):
         return
     debug.write("Restarting the Homeserver main script", 0, "UPDATER")
 
-    dm.shutdown_modules()
+    if dm is not None:
+        dm.shutdown_modules()
     python = sys.executable
     os.execl(python, python, *sys.argv)
 

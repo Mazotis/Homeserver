@@ -189,7 +189,7 @@ class backup(Thread):
         _col = [DEVICE_SKIP] * len(self.dm)
         _col[int(devid)] = state
         req.set_colors(_col)
-        req.set(skip_time=True, auto_mode=False)
+        req.set(skip_time=True, auto_mode=False, history_origin="Backup")
         req()
 
     def init_from_config(self):

@@ -52,14 +52,13 @@ if __name__ == "__main__":
         if os.name == "nt":
             debug.write("The Homeserver cannot run on Windows. Quitting.", 2)
             quit()
-        dm = DeviceManager()
+        dm = DeviceManager(threaded=args.threaded)
         dm.get_modules_list()
 
         if HOMECONFIG['SERVER'].getboolean('ENABLE_WIFI_RTT'):
             from dnn.dnn import run_tensorflow
         if args.notime:
             dm.set_serverwide_skiptime()
-        dm.threaded = args.threaded
 
         hs = HomeServer(dm)
         hs.start()

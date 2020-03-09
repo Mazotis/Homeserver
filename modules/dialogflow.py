@@ -50,7 +50,7 @@ class DFServer(BaseHTTPRequestHandler):
 
         if self.config.get_value('AUTOMATIC_MODE', bool):
             req.set(auto_mode=True)
-        req.set(skip_time=True, group=' '.join(groups))
+        req.set(skip_time=True, group=' '.join(groups), history_origin="Dialogflow")
 
         debug.write('Running detected request: {}'.format(
             request), 0, "DIALOGFLOW")

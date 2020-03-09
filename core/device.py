@@ -10,6 +10,7 @@
 
 import time
 import datetime
+from collections import deque
 from core.common import *
 from core.convert import convert_color
 
@@ -40,6 +41,8 @@ class device(object):
         self.has_pseudodevice = None
         self.request_locked = False
         self.state_inference_group = None
+        self.history_origin = "Unknown"
+        self.history = deque(maxlen=10)
         self.init_from_config()
 
     def init_from_config(self):
@@ -86,6 +89,7 @@ class device(object):
                 return True
             if color not in (self.convert(DEVICE_OFF), DEVICE_SKIP) and not self.get_time_check():
                 return True
+
             if not self.ignoremode:
                 if not self.auto_mode and self.request_auto_mode and not self.reset_mode:
                     # AUTO mode request on MANUAL device
@@ -97,10 +101,14 @@ class device(object):
                     debug.write("Device '{}' set to MANUAL mode."
                                 .format(self.name), 0, self.device_type)
                     self.auto_mode = False
+                    self.history.append("({}) [Mode change] Auto => Manual (Origin: {})".format(
+                        self._get_time(), self.history_origin))
                 if self.reset_mode:
                     if not self.auto_mode:
                         debug.write("Device '{}' set back to AUTO mode."
                                     .format(self.name), 0, self.device_type)
+                        self.history.append("({}) [Mode change] Manual => Auto (Origin: {})".format(
+                            self._get_time(), self.history_origin))
                     self.auto_mode = True
             else:
                 debug.write("Skipping mode evaluation for device '{}'."
@@ -119,6 +127,9 @@ class device(object):
 
             if self.action_delay != 0:
                 self.last_action_timestamp = time.time()
+            self.history.append("({}) [State change] {} => {} (Origin: {})".format(
+                self._get_time(), self.state, color, self.history_origin))
+            self.history_origin = "Unknown"
             return self.run(color)
         except NewRequestException:
             return False
@@ -160,6 +171,8 @@ class device(object):
 
     def set_state(self, state):
         """ Setter for the actual state """
+        self.history.append("({}) [State change] {} => {} (Origin: {})".format(
+            self._get_time(), self.state, state, "Manual"))
         if state in ["0", 0]:
             self.state = DEVICE_OFF
         elif state in ["1", 1]:
@@ -180,6 +193,8 @@ class device(object):
         return True
 
     def lock_unlock_requests(self, is_locked):
+        self.history.append("({}) [Device locked] (Origin: {})".format(
+            self._get_time(), self.history_origin))
         debug.write("Device '{}' is set to locked = {}."
                     .format(self.name, bool(is_locked)), 0, self.device_type)
         self.request_locked = bool(is_locked)
@@ -211,3 +226,7 @@ class device(object):
     def get_pseudodevice(self, pseudodevice):
         """ Used to receive the shared pseudo-devices class from the devicemanager """
         pass
+
+    @staticmethod
+    def _get_time():
+        return datetime.datetime.now().strftime("%Y-%m-%d %H:%M")

@@ -157,7 +157,7 @@ class detector(Thread):
                 req.set(reset_mode=True)
             else:
                 req.set(auto_mode=True)
-            req.set(preset=self.config[request])
+            req.set(preset=self.config[request], history_origin="Detector")
             req()
 
     def init_from_config(self):

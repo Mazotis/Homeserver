@@ -2,7 +2,7 @@
 '''
     File name: ifttt.py
     Author: Maxime Bergeron
-    Date last modified: 03/02/2020
+    Date last modified: 09/03/2020
     Python Version: 3.7
 
     The IFTTT receiver module for the homeserver
@@ -61,7 +61,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                     self.config[action]), 0, "IFTTT")
                 req = StateRequestObject()
                 req.initialize_dm(self.dm)
-                req.set(preset=self.config[action])
+                req.set(preset=self.config[action], history_origin="IFTTT")
                 req()
             else:
                 debug.write('Unknown action: {}'.format(action), 1, "IFTTT")
@@ -75,6 +75,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                     "Function {} not defined. Request aborted.", 1, "IFTTT")
                 return
             req.initialize_dm(self.dm)
+            req.set(history_origin="IFTTT")
             if func == "on":
                 req.set_colors([DEVICE_ON] * len(self.dm))
             elif func == "off":
@@ -96,7 +97,8 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 if _group == self.global_group:
                     has_global_group = True
                     changed_groups.append(self.global_group)
-                    debug.write("Got global group. Running request on all devices.", 0, "IFTTT")
+                    debug.write(
+                        "Got global group. Running request on all devices.", 0, "IFTTT")
                 if _group.lower() + "s" in groups:
                     changed_groups.append(_group + "s")
             if len(changed_groups) != 0 and not has_global_group:
@@ -134,7 +136,8 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 if post_action in self.config:
                     req = StateRequestObject()
                     req.initialize_dm(self.dm)
-                    req.set(delay=delay, preset=self.config[post_action])
+                    req.set(
+                        delay=delay, preset=self.config[post_action], history_origin="IFTTT")
                     if self.config.get_value('AUTOMATIC_MODE', bool):
                         req.set(auto_mode=True)
                     req()

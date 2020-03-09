@@ -49,7 +49,7 @@ class ExecutionState():
 class DeviceManager(object):
     """ Methods for instanciating and managing devices """
 
-    def __init__(self):
+    def __init__(self, threaded=False):
         debug.get_set_lock()
         debug.enable_debug()
         self.config = getConfigHandler()
@@ -74,12 +74,15 @@ class DeviceManager(object):
         self.queue = queue.Queue()
         self.scheduled_changes = []
         self.scheduled_disconnect = None
-        self.states = self.get_state(_ignore_manuals=True)
-        self.skip_time = False
-        debug.write("Got initial device states {}".format(self.states), 0)
+        self.threaded = threaded
         self.light_threads = [None] * len(self)
         self.light_pool = None
+        self.state_threads = [None] * len(self)
+        self.state_pool = None
+        self.states = self.get_state(_ignore_manuals=True)
+        self.skip_time = False
         self.all_groups = None
+        debug.write("Got initial device states {}".format(self.states), 0)
 
     def __len__(self):
         return len(self.devices)
@@ -131,6 +134,7 @@ class DeviceManager(object):
             dm_status["roomgroups"] = self.config["WEBSERVER"]["ROOM_GROUPS"]
         dm_status["deviceroom"] = self.room_groups
         dm_status["version"] = VERSION
+        dm_status["history"] = self.history
         return dm_status
 
     @property
@@ -279,6 +283,13 @@ class DeviceManager(object):
                 states[_cnt] = [DEVICE_OFF]
         return states
 
+    @property
+    def history(self):
+        historylist = []
+        for obj in self:
+            historylist.append(list(obj.history))
+        return historylist
+
     def get_devices_list(self):
         i = 0
         while True:
@@ -344,6 +355,10 @@ class DeviceManager(object):
             debug.write("All devices set to AUTO mode", 0)
         if request.reset_mode:
             debug.write("All non-skipped devices set back to AUTO mode", 0)
+
+    def set_history_origin(self, origin):
+        for _dev in self:
+            _dev.history_origin = origin
 
     def get_group(self, request):
         """ Gets devices from a specific group for the light change """
@@ -457,7 +472,11 @@ class DeviceManager(object):
                 # Do not run state checks while there are state changes ?
                 time.sleep(0.2)
         with state_lock:
+            old_states = [None] * len(self)
             states = [None] * len(self)
+            if self.threaded and not is_async and async_only_for_devid is None:
+                max_workers = len(self)
+                self.state_pool = ThreadPoolExecutor(max_workers=max_workers)
             for _cnt, dev in enumerate(self):
                 if devid is not None and devid != _cnt:
                     continue
@@ -470,14 +489,28 @@ class DeviceManager(object):
                     if async_only_for_devid is not None and _cnt != async_only_for_devid:
                         states[_cnt] = dev.state
                     else:
-                        _old_state = dev.state
-                        states[_cnt] = dev.get_state()
-                        if _old_state != states[_cnt] and DEVICE_STANDBY not in [_old_state, states[_cnt]] and not _ignore_manuals:
-                            debug.write("Device {} state changed without involvement of the Homeserver. Consider as a MANUAL change".format(dev.name), 0)
-                            dev.auto_mode = False
-                if webcolors:
-                    states[_cnt] = convert_to_web_rgb(
-                        states[_cnt], dev.color_type, dev.color_brightness)
+                        old_states[_cnt] = dev.state
+
+                        if self.threaded:
+                            self.state_threads[_cnt] = self.state_pool.submit(dev.get_state)
+                        else:
+                            states[_cnt] = dev.get_state()
+
+            if not is_async and devid is None:
+                for _cnt, dev in enumerate(self):
+                    if async_only_for_devid is not None and _cnt != async_only_for_devid:
+                        continue
+
+                    if self.threaded:
+                        states[_cnt] = self.state_threads[_cnt].result()
+
+                    if old_states[_cnt] != states[_cnt] and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _ignore_manuals:
+                        debug.write("Device {} state changed ({} -> {}) without involvement of the Homeserver. Consider as a MANUAL change".format(dev.name, old_states[_cnt], states[_cnt]), 0)
+                        dev.auto_mode = False
+
+                    if webcolors:
+                        states[_cnt] = convert_to_web_rgb(states[_cnt], dev.color_type, dev.color_brightness)
+
             if not is_async and devid is None:
                 debug.write(
                     "All devices state status updated in real-time", 0)
@@ -588,6 +621,7 @@ class DeviceManager(object):
 
                     delayed_req = StateRequestObject()
                     delayed_req.initialize_dm(self)
+                    delayed_req.set(history_origin="Scheduler")
                     delayed_req.from_request(request)
                     delayed_req.set_colors(_delay_colors)
                     debug.write("Scheduling device state change ({}) after {} seconds".format(
@@ -775,6 +809,7 @@ class StateRequestObject(object):
         self.reset_location_data = False
         self.stream_group = None
         self.stream_dev = None
+        self.history_origin = "Unknown"
         self.changed_vars = {}
 
         """ Initialization data from the devicemanager """
@@ -827,7 +862,7 @@ class StateRequestObject(object):
 
     def __setattr__(self, name, value):
         ''' Checks for collisions or undefined behaviour in variable settings '''
-        if value not in [None, 0, [], {}] and name != 'dm' and self.check_for_initialization():
+        if value not in [None, 0, [], {}, "Unknown"] and name != 'dm' and self.check_for_initialization():
             if self.dm is not None:
                 if name == "hexvalues" and len(value) != len(self.dm):
                     debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Skipping".format(
@@ -845,9 +880,11 @@ class StateRequestObject(object):
         super().__setattr__(name, value)
 
     def set(self, **kwargs):
-        allowed_keys = ['hexvalues', 'off', 'on', 'restart', 'toggle', 'group', 'client',
-                        'notime', 'delay', 'preset', 'manual_mode', 'reset_location_data',
-                        'force_auto_mode', 'auto_mode', 'reset_mode', 'skip_time', 'set_mode_for_devid']
+        allowed_keys = ['hexvalues', 'off', 'on', 'restart', 'toggle', 'group',
+                        'client', 'notime', 'delay', 'preset', 'manual_mode',
+                        'reset_location_data', 'force_auto_mode', 'auto_mode',
+                        'reset_mode', 'skip_time', 'set_mode_for_devid',
+                        'history_origin']
         ignored_keys = ['nowait', 'update']
         for _dev in getDevices(True):
             allowed_keys.append(_dev)
@@ -865,7 +902,7 @@ class StateRequestObject(object):
                 v = False
             elif v == "":
                 v = None
-            if k != 'client':
+            if k not in ['client', 'history_origin']:
                 if k in getDevices(True) and v is not None:
                     self.changed_vars[k] = v
                     continue
@@ -990,6 +1027,7 @@ class RequestExecutor(object):
         if not request.check_for_initialization():
             request.initialize_dm(dm)
         dm.clean_delayed_changes()
+        dm.set_history_origin(request.history_origin)
 
         if request.preset is not None:
             debug.write(

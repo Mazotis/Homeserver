@@ -210,7 +210,6 @@ async function getResult() {
     getConfig()
     showLoading()
 
-
     const req_data = {
         reqtype: "getstate",
         isasync: "True"
@@ -218,7 +217,7 @@ async function getResult() {
 
     await post_webserver(req_data, (data) => {
         stateJSON = data
-        console.log(stateJSON)
+        //console.log(stateJSON)
         drawTimeBar();
         let cnt = 0
         $('#suntime').html(stateJSON.starttime)
@@ -347,6 +346,15 @@ function closeTooltips() {
     });
 }
 
+function enableHistoryTooltips() {
+    $("span[class='historytooltip']").each(function() {
+        $(this).tooltip({
+            container: 'body',
+            template: '<div class="tooltip" role="tooltip"><div class="arrow"></div><div class="tooltip-inner" style="max-width:500px !important"></div></div>'
+        });
+    });
+}
+
 function getJSONForId(device_id, state_json) {
     if (state_json != null) {
         cardJSON = new Object;
@@ -427,6 +435,7 @@ function generateCardForId(device_id) {
     <div class="dcard card text-center mb-3" cid="${device_id}">
         <div class="card-loader" style="display:none;"></div>
         <div class="card-header text-white" style="padding:5px;min-height: 30px;">
+            <span class="historytooltip" style="float:right" data-placement="right" data-toggle="tooltip" data-html="true" data-title="N/A"><i class="fas fa-history"></i>&nbsp;</span>
             <center>
                 <i class="iconi"></i>
             </center>
@@ -680,6 +689,11 @@ function computeCards() {
                 }
             });
 
+            if (stateJSON.history[cid] != "") {
+                history = stateJSON.history[cid].join("<br>")
+                $(this).find(".historytooltip").attr("data-title", stateJSON.history[cid].join("<br>"))
+            }
+
             var sliderVal = $(this).find(".slider").roundSlider("getValue")
             if (parseInt(sliderVal) == 0) {
                 $(this).find(".rs-handle").css("border", "5px solid #dc3545")
@@ -744,6 +758,7 @@ function computeCards() {
     })
 
     computeRCards()
+    enableHistoryTooltips()
 }
 
 var hasOpenRcard = false
