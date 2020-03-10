@@ -2,7 +2,7 @@
 '''
     File name: devicemanager.py
     Author: Maxime Bergeron
-    Date last modified: 06/03/2020
+    Date last modified: 09/03/2020
     Python Version: 3.7
 
     The device and modules manager for the homeserver. Not a module per-se
@@ -96,10 +96,10 @@ class DeviceManager(object):
         except IndexError:
             self.devices.append(device)
 
-    def __call__(self, is_async=True, async_only_for_devid=None):
+    def __call__(self, is_async=True, sync_only_for_devid=None):
         dm_status = {}
         dm_status["state"] = self.get_state(
-            is_async=is_async, async_only_for_devid=async_only_for_devid, webcolors=True)
+            is_async=is_async, sync_only_for_devid=sync_only_for_devid, webcolors=True)
         dm_status["intensity"] = self.get_state(
             is_async=True, intensity=True)
         dm_status["mode"] = self.modes
@@ -460,7 +460,7 @@ class DeviceManager(object):
         return True
 
     def get_state(self, devid=None, is_async=False,
-                  async_only_for_devid=None, webcolors=False,
+                  sync_only_for_devid=None, webcolors=False,
                   intensity=False, _for_state_change=False,
                   _ignore_manuals=False):
         """ Getter for configured devices actual colors """
@@ -474,7 +474,7 @@ class DeviceManager(object):
         with state_lock:
             old_states = [None] * len(self)
             states = [None] * len(self)
-            if self.threaded and not is_async and async_only_for_devid is None:
+            if self.threaded and not is_async and sync_only_for_devid is None:
                 max_workers = len(self)
                 self.state_pool = ThreadPoolExecutor(max_workers=max_workers)
             for _cnt, dev in enumerate(self):
@@ -486,34 +486,28 @@ class DeviceManager(object):
                     else:
                         states[_cnt] = dev.state
                 else:
-                    if async_only_for_devid is not None and _cnt != async_only_for_devid:
+                    old_states[_cnt] = dev.state
+
+                    if sync_only_for_devid is not None and _cnt != sync_only_for_devid:
                         states[_cnt] = dev.state
                     else:
-                        old_states[_cnt] = dev.state
-
                         if self.threaded:
                             self.state_threads[_cnt] = self.state_pool.submit(dev.get_state)
                         else:
                             states[_cnt] = dev.get_state()
 
-            if not is_async and devid is None:
-                for _cnt, dev in enumerate(self):
-                    if async_only_for_devid is not None and _cnt != async_only_for_devid:
-                        continue
-
-                    if self.threaded:
+            for _cnt, dev in enumerate(self):
+                if not is_async:
+                    if self.threaded and (sync_only_for_devid is None or _cnt == sync_only_for_devid):
                         states[_cnt] = self.state_threads[_cnt].result()
+                    if old_states[_cnt] is not None and states[_cnt] is not None:
+                        if old_states[_cnt] != states[_cnt] and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _ignore_manuals:
+                            debug.write("Device {} state changed ({} -> {}) without involvement of the Homeserver. Consider as a MANUAL change".format(dev.name, old_states[_cnt], states[_cnt]), 0)
+                            dev.auto_mode = False
 
-                    if old_states[_cnt] != states[_cnt] and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _ignore_manuals:
-                        debug.write("Device {} state changed ({} -> {}) without involvement of the Homeserver. Consider as a MANUAL change".format(dev.name, old_states[_cnt], states[_cnt]), 0)
-                        dev.auto_mode = False
+                if webcolors:
+                    states[_cnt] = convert_to_web_rgb(states[_cnt], dev.color_type, dev.color_brightness)
 
-                    if webcolors:
-                        states[_cnt] = convert_to_web_rgb(states[_cnt], dev.color_type, dev.color_brightness)
-
-            if not is_async and devid is None:
-                debug.write(
-                    "All devices state status updated in real-time", 0)
             if devid is not None:
                 if self[devid].state_inference_group is not None:
                     states[devid] = self[devid].get_inferred_group_state(self)
@@ -522,6 +516,9 @@ class DeviceManager(object):
                 # Has to be called after device states all updated ? Only relevant on non-async requests ?
                 if self[_cnt].state_inference_group is not None:
                     states[_cnt] = self[_cnt].get_inferred_group_state(self)
+
+        if not is_async and devid is None:
+            debug.write("All devices state status updated in real-time", 0)
         return states
 
     def set_light_stream(self, devid, color, is_group):
@@ -970,11 +967,13 @@ class StateRequestObject(object):
         if self.check_for_initialization():
             device_indexes = [i for i, x in enumerate(
                 self.device_list) if x.lower() == device_type.lower()]
+            if type(device_args) == str:
+                device_args = [device_args]
             if len(device_args) > len(device_indexes):
                 debug.write("Got {} states for only {} device(s). Quitting.".format(len(device_args), len(device_indexes)), 1, device_type)
                 return False
 
-            if (type(device_args) == str or len(device_args) == 1) and len(device_indexes) > 1:
+            if len(device_args) == 1 and len(device_indexes) > 1:
                 debug.write("Expanding state {} to {} ({}) devices."
                             .format(len(device_args), len(device_indexes), device_type), 0)
                 device_args = device_args[0] * len(device_indexes)

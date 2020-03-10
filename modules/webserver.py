@@ -169,7 +169,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                             self.dm(is_async=is_async)).encode('UTF-8'))
                     else:
                         response.write(json.dumps(
-                            self.dm(async_only_for_devid=devid)).encode('UTF-8'))
+                            self.dm(sync_only_for_devid=devid)).encode('UTF-8'))
 
                 if reqtype == "setstate":
                     # TODO GET SUCCESS STATE ?
