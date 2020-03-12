@@ -230,8 +230,8 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         req.set(skip_time=True)
                     if value == 1:
                         _col = [DEVICE_ON]
-                    req.set_colors(_col, history_origin="Webserver")
-                    req.set(group=[group.replace("0", "").lower()])
+                    req.set_colors(_col)
+                    req.set(group=[group.replace("0", "").lower()], history_origin="Webserver")
                     req()
                     while ExecutionState().get():
                         time.sleep(0.5)

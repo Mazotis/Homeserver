@@ -229,7 +229,7 @@ a:hover{
 .wrench-btn {
     position:absolute;
     line-height:inherit;
-    right:10px;
+    left:10px;
     top:5px;
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
     cursor:pointer;
@@ -237,7 +237,7 @@ a:hover{
 .check-btn {
     position:absolute;
     line-height:inherit;
-    right:10px;
+    left:10px;
     top:5px;
     text-shadow: -1px 0 black, 0 1px black, 1px 0 black, 0 -1px black;
     cursor:pointer;

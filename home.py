@@ -128,6 +128,7 @@ if __name__ == "__main__":
     else:
         req = StateRequestObject(client=True)
         req.parse_args(args)
+        req.set(history_origin="CLI")
         _tries = 0
         if req.has_requested_changes():
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

@@ -1104,8 +1104,8 @@ class RequestExecutor(object):
         if request.delay is not 0:
             delay = request.delay
             debug.write(
-                "Delaying request for {} seconds".format(request.delay), 0)
-            request.set(delay=0)
+                "Delaying request for {} seconds".format(delay), 0)
+            request.set(delay=0, preset=None)
             _sched = Timer(int(delay), self.execute, (request, dm,))
             _sched.start()
             dm.scheduled_changes.append(_sched)
