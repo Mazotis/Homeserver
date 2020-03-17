@@ -51,7 +51,8 @@ HOMECONFIG = getConfigHandler()
 
 class NewRequestException(Exception):
     def __init__(self):
-        debug.write("Aborting state change due to new request", 0)
+        # TODO - is there anything else to cleanup here ?
+        debug.write("Aborting state change due to new request", 3)
 
     def __str__(self):
         return "Aborting state change due to new request"
@@ -61,8 +62,8 @@ class DebugLog(object):
     def __init__(self):
         """ Handles debug logging """
         self.config = HOMECONFIG.set_section("SERVER")
-        self.LEVELS = {0: "DEBUG", 1: "ERROR", 2: "FATAL"}
-        self.COLOR_LEVELS = {0: "\033[93m", 1: "\033[91m", 2: "\033[41m"}
+        self.LEVELS = {0: "DEBUG", 1: "ERROR", 2: "FATAL", 3: "WARNING"}
+        self.COLOR_LEVELS = {0: "\033[93m", 1: "\033[91m", 2: "\033[41m", 3:"\033[43m"}
         self.device_colors = {}
         self.debug_enabled = self.config.get_value("ENABLE_DEBUG", bool)
         self.journaling_enabled = self.config.get_value('JOURNALING', bool)

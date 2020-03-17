@@ -691,6 +691,13 @@
 				<fulltype>State value type</fulltype>
 				<default></default>
 			</config>
+			<config name="STATE_GETTER_MODE">
+				<description>Optional. Sets the behavior of the async state getter (if available for your device). Default is "always" - gets the state from the device every time it is required. The other option is "init" - gets the state only when the server starts, and then use the server-reported state afterwards. Useful when a device shouldn't change by itself after the server is started.</description>
+				<fullname>State getter operation mode</fullname>
+				<fulltype>always or init</fulltype>
+				<regex>^(always|init)$</regex>
+				<default>always</default>
+			</config>
 		</section>
 	</configentries>
 	<modules>

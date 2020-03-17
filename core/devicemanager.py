@@ -79,7 +79,7 @@ class DeviceManager(object):
         self.light_pool = None
         self.state_threads = [None] * len(self)
         self.state_pool = None
-        self.states = self.get_state(_ignore_manuals=True)
+        self.states = self.get_state(_ignore_manuals=True, _initial_call=True)
         self.skip_time = False
         self.all_groups = None
         debug.write("Got initial device states {}".format(self.states), 0)
@@ -462,7 +462,7 @@ class DeviceManager(object):
     def get_state(self, devid=None, is_async=False,
                   sync_only_for_devid=None, webcolors=False,
                   intensity=False, _for_state_change=False,
-                  _ignore_manuals=False):
+                  _ignore_manuals=False, _initial_call=False):
         """ Getter for configured devices actual colors """
         if state_lock.locked():
             # There's most likely another SYNC state getter running
@@ -491,19 +491,23 @@ class DeviceManager(object):
                     if sync_only_for_devid is not None and _cnt != sync_only_for_devid:
                         states[_cnt] = dev.state
                     else:
-                        if self.threaded:
-                            self.state_threads[_cnt] = self.state_pool.submit(dev.get_state)
+                        if dev.state_getter_mode == "always" or (dev.state_getter_mode == "init" and _initial_call):
+                            if self.threaded:
+                                self.state_threads[_cnt] = self.state_pool.submit(dev.get_state)
+                            else:
+                                states[_cnt] = dev.get_state()
                         else:
-                            states[_cnt] = dev.get_state()
+                            states[_cnt] = dev.state
 
             for _cnt, dev in enumerate(self):
                 if not is_async:
-                    if self.threaded and (sync_only_for_devid is None or _cnt == sync_only_for_devid):
-                        states[_cnt] = self.state_threads[_cnt].result()
-                    if old_states[_cnt] is not None and states[_cnt] is not None:
-                        if old_states[_cnt] != states[_cnt] and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _ignore_manuals:
-                            debug.write("Device {} state changed ({} -> {}) without involvement of the Homeserver. Consider as a MANUAL change".format(dev.name, old_states[_cnt], states[_cnt]), 0)
-                            dev.auto_mode = False
+                    if dev.state_getter_mode == "always" or (dev.state_getter_mode == "init" and _initial_call):
+                        if self.threaded and (sync_only_for_devid is None or _cnt == sync_only_for_devid):
+                            states[_cnt] = self.state_threads[_cnt].result()
+                        if old_states[_cnt] is not None and states[_cnt] is not None:
+                            if old_states[_cnt] != states[_cnt] and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _ignore_manuals:
+                                debug.write("Device {} state changed ({} -> {}) without involvement of the Homeserver. Consider as a MANUAL change".format(dev.name, old_states[_cnt], states[_cnt]), 0)
+                                dev.auto_mode = False
 
                 if webcolors:
                     states[_cnt] = convert_to_web_rgb(states[_cnt], dev.color_type, dev.color_brightness)
@@ -703,7 +707,7 @@ class DeviceManager(object):
                                             i = 0
                                     except NewRequestException:
                                         debug.write(
-                                            "Sent exception for new request", 0)
+                                            "Sent exception for new request", 3)
                                         break
                                     except TimeoutError:
                                         debug.write(
@@ -728,7 +732,7 @@ class DeviceManager(object):
                             break
 
         except queue.Empty:
-            debug.write("Nothing in queue", 0)
+            debug.write("Nothing in queue", 3)
             pass
 
         finally:
@@ -867,11 +871,11 @@ class StateRequestObject(object):
                     return
                 if name == "preset" and not dm.config.has_option("PRESETS", value):
                     debug.write(
-                        "Preset '{}' not found in home.ini. Skipping.".format(value), 2)
+                        "Preset '{}' not found in home.ini. Skipping.".format(value), 3)
                     return
                 if name == "set_mode_for_devid" and value > len(self.dm):
                     debug.write(
-                        "Devid {} does not exist. Skipping".format(value), 2)
+                        "Devid {} does not exist. Skipping".format(value), 3)
                     return
 
         super().__setattr__(name, value)
@@ -1117,7 +1121,6 @@ class RequestExecutor(object):
         elif dm.threaded:
             for _thread in dm.light_threads:
                 if _thread is not None and not _thread.done():
-                    debug.write("Canceling thread {}".format(_thread), 1)
                     _thread.set_exception(NewRequestException)
                     _thread.cancel()
         dm.scheduled_disconnect = Timer(
