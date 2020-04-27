@@ -39,13 +39,20 @@ class detector(Thread):
                 _is_running = False
                 self.stopevent.wait(30)
                 continue
-            if not _is_running and self.config.get_value('FALLBACK_AUTO_ON_NEW_DAY', bool):
-                debug.write(
-                    "Setting back all devices to AUTO mode for new day", 0, "DETECTOR")
-                req = StateRequestObject(force_auto_mode=True,
-                                         notime=True)
-                req.initialize_dm(self.dm)
-                req()
+            if not _is_running:
+                if self.config.get_value('AUTO_RECONNECT_ON_NEW_DAY', bool):
+                    debug.write(
+                        "Attempting disabled devices reconnection for new day", 0, "DETECTOR")
+                    for _dev in self.dm:
+                        if _dev.state == DEVICE_DISABLED:
+                            _dev.reconnect()
+                if self.config.get_value('FALLBACK_AUTO_ON_NEW_DAY', bool):
+                    debug.write(
+                        "Setting back all devices to AUTO mode for new day", 0, "DETECTOR")
+                    req = StateRequestObject(force_auto_mode=True,
+                                             notime=True)
+                    req.initialize_dm(self.dm)
+                    req()
             _is_running = True
             self.detect_devices()
             self.stopevent.wait(self.config.get_value('PING_FREQ_SEC', int))

@@ -11,6 +11,7 @@
 from meross_iot.manager import MerossManager
 from meross_iot.api import UnauthorizedException
 from meross_iot.cloud.exceptions.OfflineDeviceException import OfflineDeviceException
+from meross_iot.cloud.exceptions.CommandTimeoutException import CommandTimeoutException
 from core.common import *
 
 
@@ -26,7 +27,8 @@ class Meross(object):
             "Created pseudo-device Meross with account {}.".format(self.email), 0)
 
     def get_meross_device(self, address):
-        self.connect()
+        if not self.connected:
+            self.connect()
         if not self.disabled and self.connected:
             meross_devices = self.manager.get_supported_devices()
             for _dev in meross_devices:
@@ -35,25 +37,27 @@ class Meross(object):
                         return _dev
                 except OfflineDeviceException:
                     continue
+                except CommandTimeoutException:
+                    pass
             debug.write(
                 "MerossSwitch device {} not found in cloud or offline.".format(address), 1)
         return False
 
     def connect(self):
-        if not self.connected:
-            try:
-                self.disabled = False
-                self.manager = MerossManager(
-                    meross_email=self.email, meross_password=self.password)
-                self.manager.start()
-                self.connected = True
-                return
-            except UnauthorizedException:
-                self.disabled = True
-                debug.write("Connection failed for meross email {}, disabling devices.".format(
-                    self.email), 1)
-                pass
-        return
+        if self.connected:
+            self.manager.stop()
+        try:
+            self.disabled = False
+            self.manager = MerossManager(
+                meross_email=self.email, meross_password=self.password)
+            self.manager.start()
+            self.connected = True
+            return
+        except UnauthorizedException:
+            self.disabled = True
+            debug.write("Connection failed for meross email {}, disabling devices.".format(
+                self.email), 1)
+            pass
 
     def disconnect(self):
         # For some reason, does not play well with disconnects

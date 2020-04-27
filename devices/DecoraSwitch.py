@@ -2,7 +2,7 @@
 '''
     File name: DecoraSwitch.py
     Author: Maxime Bergeron
-    Date last modified: 17/10/2019
+    Date last modified: 27/04/2020
     Python Version: 3.5
 
     The DecoraSwitch for Leviton Decora Switches handler class
@@ -55,6 +55,14 @@ class DecoraSwitch(device):
                 "Skipping device {} - handler connection failed.".format(self.device), 0, self.device_type)
             self.state = DEVICE_DISABLED
             return True
+
+    def get_state(self):
+        if self.state != DEVICE_DISABLED:
+            pstate = self.decora.get_switch(self.device).power
+            self.state = DEVICE_OFF
+            if pstate == "ON":
+                self.state = DEVICE_ON
+        return self.state
 
     def create_pseudodevice(self):
         return Decora(self.device_id)

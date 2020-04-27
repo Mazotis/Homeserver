@@ -480,7 +480,7 @@ class DeviceManager(object):
             for _cnt, dev in enumerate(self):
                 if devid is not None and devid != _cnt:
                     continue
-                if is_async:
+                if is_async and dev.state_getter_mode != "always":
                     if intensity and self[_cnt].color_type in ["argb", "rgb", "255"]:
                         states[_cnt] = convert_color(dev.state, "100")
                     else:
@@ -491,7 +491,7 @@ class DeviceManager(object):
                     if sync_only_for_devid is not None and _cnt != sync_only_for_devid:
                         states[_cnt] = dev.state
                     else:
-                        if dev.state_getter_mode == "always" or (dev.state_getter_mode == "init" and _initial_call):
+                        if dev.state_getter_mode in ["always","normal"] or (dev.state_getter_mode == "init" and _initial_call):
                             if self.threaded:
                                 self.state_threads[_cnt] = self.state_pool.submit(dev.get_state)
                             else:
@@ -500,12 +500,14 @@ class DeviceManager(object):
                             states[_cnt] = dev.state
 
             for _cnt, dev in enumerate(self):
+                if devid is not None and devid != _cnt:
+                    continue
                 if not is_async:
-                    if dev.state_getter_mode == "always" or (dev.state_getter_mode == "init" and _initial_call):
+                    if dev.state_getter_mode in ["always","normal"] or (dev.state_getter_mode == "init" and _initial_call):
                         if self.threaded and (sync_only_for_devid is None or _cnt == sync_only_for_devid):
                             states[_cnt] = self.state_threads[_cnt].result()
                         if old_states[_cnt] is not None and states[_cnt] is not None:
-                            if old_states[_cnt] != states[_cnt] and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _ignore_manuals:
+                            if old_states[_cnt] != states[_cnt] and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _ignore_manuals and states[_cnt] != DEVICE_DISABLED:
                                 debug.write("Device {} state changed ({} -> {}) without involvement of the Homeserver. Consider as a MANUAL change".format(dev.name, old_states[_cnt], states[_cnt]), 0)
                                 dev.auto_mode = False
 
@@ -521,8 +523,9 @@ class DeviceManager(object):
                 if self[_cnt].state_inference_group is not None:
                     states[_cnt] = self[_cnt].get_inferred_group_state(self)
 
-        if not is_async and devid is None:
+        if not is_async:
             debug.write("All devices state status updated in real-time", 0)
+
         return states
 
     def set_light_stream(self, devid, color, is_group):
@@ -669,7 +672,7 @@ class DeviceManager(object):
 
                         if _color != DEVICE_SKIP:
                             self.states[i] = self.get_state(
-                                i, _for_state_change=True)
+                                devid=i, _for_state_change=True)
                             if _color != self.states[i] or _color == DEVICE_OFF:
                                 debug.write(("Device '{}', change {} => "
                                              "{} (Automatic mode: {})")

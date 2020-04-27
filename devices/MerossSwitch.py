@@ -2,7 +2,7 @@
 '''
     File name: MerossSwitch.py
     Author: Maxime Bergeron
-    Date last modified: 06/03/2020
+    Date last modified: 27/04/2020
     Python Version: 3.7
 
     The MerossSwitch for Meross Switches handler class
@@ -79,7 +79,7 @@ class MerossSwitch(device):
                 debug.write("Device: {}".format(
                     self.meross_dev), 1, self.device_type)
                 #
-
+                self.state = DEVICE_DISABLED
                 return self.state
             except AttributeError:
                 debug.write(
@@ -107,8 +107,9 @@ class MerossSwitch(device):
         # self.meross.disconnect()
 
     def reconnect(self):
+        # TODO - fix the TypeError on offline reconnect attempt.
         debug.write("Attempting reconnection of device '{}'.".format(
             self.name), 0, self.device_type)
-        if self.meross.disabled:
-            self.meross.connect()
+        self.meross.connect()
+        self.meross_dev = self.meross.get_meross_device(self.device)
         self.get_state()

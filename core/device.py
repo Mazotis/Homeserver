@@ -41,7 +41,7 @@ class device(object):
         self.has_pseudodevice = None
         self.request_locked = False
         self.state_inference_group = None
-        self.state_getter_mode = "always"
+        self.state_getter_mode = "normal"
         self.history_origin = "Unknown"
         self.history = deque(maxlen=10)
         self.init_from_config()

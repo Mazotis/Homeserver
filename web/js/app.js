@@ -567,6 +567,7 @@ function generateCardForId(device_id) {
 
     if (cardJSON.icon != "none") {
         $(cardhtml).find(".iconi").attr("class", "iconi " + cardJSON.icon)
+        $(cardhtml).find(".iconi").css("margin-left", "16px")
     }
 
     return $(cardhtml).html()
@@ -744,6 +745,7 @@ function computeCards() {
         $(this).find(".card-header").removeClass("bg-success")
         $(this).find(".card-header").removeClass("bg-warning")
         $(this).find(".card-header").removeClass("bg-danger")
+        $(this).find(".card-header").removeClass("text-white")
         $(this).find(".gcard-toggle").bootstrapToggle('off', true)
         if (cgstate == "2") {
             $(this).find(".card-header").addClass("bg-success")
@@ -752,6 +754,7 @@ function computeCards() {
             $(this).find(".card-header").addClass("bg-warning")
         } else if (cgstate == "0") {
             $(this).find(".card-header").addClass("bg-danger")
+            $(this).find(".card-header").addClass("text-white")
         }
 
         $(this).attr("cinit", "1")
