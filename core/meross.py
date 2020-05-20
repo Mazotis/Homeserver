@@ -2,8 +2,8 @@
 '''
     File name: Meross.py
     Author: Maxime Bergeron
-    Date last modified: 17/10/2019
-    Python Version: 3.5
+    Date last modified: 20/05/2020
+    Python Version: 3.7
 
     The Meross device handler. Allows connections to Meross Cloud. Not a device per-se.
 '''
@@ -48,7 +48,7 @@ class Meross(object):
             self.manager.stop()
         try:
             self.disabled = False
-            self.manager = MerossManager(
+            self.manager = MerossManager.from_email_and_password(
                 meross_email=self.email, meross_password=self.password)
             self.manager.start()
             self.connected = True
@@ -60,8 +60,7 @@ class Meross(object):
             pass
 
     def disconnect(self):
-        # For some reason, does not play well with disconnects
-        pass
-        # if self.manager is not False:
-        #    self.manager.stop()
-        #    self.manager = False
+        if self.manager is not False:
+            self.manager.stop()
+            self.manager = False
+            self.connected = False
