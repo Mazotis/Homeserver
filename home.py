@@ -43,7 +43,7 @@ if __name__ == "__main__":
 
     if args.update:
         from modules.updater import check_for_updates, run_upgrade
-        if check_for_updates():
+        if check_for_updates(with_pip=HOMECONFIG['UPDATER'].getboolean('UPDATE_PYTHON_PACKAGES')):
             run_upgrade(None)
 
     if args.status:

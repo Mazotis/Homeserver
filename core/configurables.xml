@@ -425,6 +425,13 @@
 				<regex>^([Tt]rue|[Ff]alse)$</regex>
 				<default>True</default>
 			</config>
+			<config name="UPDATE_PYTHON_PACKAGES">
+				<description>UPDATE_PYTHON_PACKAGES=True runs a pip install -r requirements.txt for the actual user upon a update request, which installs/upgrades all packages from the requirements file.</description>
+				<fullname>Perform pip updates automatically</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>True</default>
+			</config>
 		</section>
 		<section name="TCP-PRESETS">
 			<config name="AUTOMATIC_MODE">

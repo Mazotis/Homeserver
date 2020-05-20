@@ -2,13 +2,14 @@
 '''
     File name: updater.py
     Author: Maxime Bergeron
-    Date last modified: 03/02/2020
-    Python Version: 3.5
+    Date last modified: 20/05/2020
+    Python Version: 3.7
 
     The updater module for the homeserver
 '''
 
 import subprocess
+import sys
 from core.common import *
 from threading import Thread, Event
 from urllib.error import HTTPError
@@ -17,7 +18,7 @@ from urllib.request import urlopen
 VERSION_FILE = "https://raw.githubusercontent.com/Mazotis/Homeserver/master/VERSION"
 
 
-def check_for_updates():
+def check_for_updates(with_pip=False):
     debug.write("Checking for updates (actual version: {})...".format(
         VERSION), 0, "UPDATER")
     try:
@@ -32,6 +33,18 @@ def check_for_updates():
         return True
     else:
         debug.write("Homeserver is up to date.", 0, "UPDATER")
+
+    if with_pip:
+        debug.write("Updating required python packages...".format(
+            VERSION), 0, "UPDATER")
+        _pip = None
+        if (sys.version_info > (3, 0)):
+            _pip = subprocess.Popen(
+                "pip3 install -r requirements.txt", shell=True)
+        else:
+            _pip = subprocess.Popen(
+                "pip install -r requirements.txt", shell=True)
+        _pip.wait()
     return False
 
 
@@ -64,7 +77,7 @@ class updater(Thread):
         self.init_from_config()
 
     def run(self):
-        if check_for_updates() and self.AUTOMATIC_UPDATE:
+        if check_for_updates(with_pip=self.config.get_value('UPDATE_PYTHON_PACKAGES', bool)) and self.AUTOMATIC_UPDATE:
             run_upgrade(self.dm)
         last_update = datetime.datetime.now().date()
 
