@@ -12,8 +12,10 @@ import datetime
 import gettext
 import glob
 import os
+import pickle
 import random
 import socket
+import struct
 import sys
 from os.path import dirname, basename, isfile
 from core.confighandler import ConfigHandler
@@ -33,6 +35,34 @@ with open(CORE_DIR + "/../VERSION") as f:
     VERSION = f.read()
 
 ###
+
+
+def send_msg(sock, msg):
+    # TODO - secure hashing
+    msg = pickle.dumps(msg)
+    msg = struct.pack('>I', len(msg)) + msg
+    sock.sendall(msg)
+
+
+def recv_msg(sock):
+    raw_msglen = recvall(sock, 4)
+    if not raw_msglen:
+        return None
+    msglen = struct.unpack('>I', raw_msglen)[0]
+    return recvall(sock, msglen, unpickle=True)
+
+
+def recvall(sock, n, unpickle=False):
+    data = bytearray()
+    while len(data) < n:
+        packet = sock.recv(n - len(data))
+        if not packet:
+            return None
+        data.extend(packet)
+    if unpickle:
+        return pickle.loads(data)
+    else:
+        return data
 
 
 def getConfigHandler(renew=False):

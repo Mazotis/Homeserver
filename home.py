@@ -7,8 +7,9 @@
 
     A python home control server/client
 '''
+import json
 import os
-import pickle
+import pprint
 import socket
 import sys
 import time
@@ -25,18 +26,15 @@ if __name__ == "__main__":
     # TODO add back device state change  request validation or just ignore?
     if args.server and (args.on or args.off or args.toggle or args.stream_dev
                         or args.stream_group or args.preset or args.restart):
-        debug.write(
-            "You cannot start the daemon and send arguments at the same time. Quitting.", 2)
+        print("You cannot start the daemon and send arguments at the same time. Quitting.")
         sys.exit()
 
     if args.stream_dev and args.stream_group:
-        debug.write(
-            "You cannot stream data to both devices and groups. Quitting.", 2)
+        print("You cannot stream data to both devices and groups. Quitting.")
         sys.exit()
 
     if args.reset_mode and args.auto_mode:
-        debug.write(
-            "You should not set the mode to AUTO then reset it back to AUTO. Quitting.", 2)
+        print("You should not set the mode to AUTO then reset it back to AUTO. Quitting.")
         sys.exit()
 
     if args.configure:
@@ -47,6 +45,28 @@ if __name__ == "__main__":
         from modules.updater import check_for_updates, run_upgrade
         if check_for_updates():
             run_upgrade(None)
+
+    if args.status:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((HOMECONFIG['SERVER']['HOST'], int(
+                HOMECONFIG['SERVER'].getint('PORT'))))
+            send_msg(s, "getstate".encode('utf-8'))
+            status_data = recv_msg(s)
+            if json.dumps(status_data) == "null":
+                print("Failed to fetch server status")
+                s.close()
+                sys.exit()
+            pprint.pprint(json.loads(status_data))
+        except socket.timeout:
+            print("Server failed to answer request. Quitting.")
+        except ConnectionRefusedError:
+            print("Server is unavailable. Quitting.")
+        except Exception as ex:
+            print("Unhandled exception: {}".format(ex))
+        finally:
+            s.close()
+            sys.exit()
 
     if args.server:
         if os.name == "nt":
@@ -75,20 +95,19 @@ if __name__ == "__main__":
         debug.write("Threaded modules stopped.", 0)
 
     elif args.stream_dev or args.stream_group:
+        # TODO Extensive testing - this might not work anymore
         colorval = ""
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((HOMECONFIG['SERVER']['HOST'], int(
             HOMECONFIG['SERVER'].getint('PORT'))))
         if args.stream_dev:
-            s.sendall("0006".encode('utf-8'))
-            s.sendall("stream".encode('utf-8'))
-            s.sendall(('%04d' % args.stream_dev).encode('utf-8'))
-            s.sendall(str(args.stream_dev).encode('utf-8'))
+            send_msg(s, "stream".encode('utf-8'))
+            send_msg(s, ('%04d' % args.stream_dev).encode('utf-8'))
+            send_msg(s, str(args.stream_dev).encode('utf-8'))
         else:
-            s.sendall("0011".encode('utf-8'))
-            s.sendall("streamgroup".encode('utf-8'))
-            s.sendall(('%04d' % len(args.stream_group)).encode('utf-8'))
-            s.sendall(args.stream_group.encode('utf-8'))
+            send_msg(s, "streamgroup".encode('utf-8'))
+            send_msg(s, ('%04d' % len(args.stream_group)).encode('utf-8'))
+            send_msg(s, args.stream_group.encode('utf-8'))
         while colorval != "quit":
             if args.stream_dev:
                 colorval = input("Set device {} to state value ('quit' to exit): "
@@ -98,11 +117,10 @@ if __name__ == "__main__":
                                  .format(args.stream_group))
             try:
                 if colorval == "quit":
-                    s.sendall("0008".encode('utf-8'))
-                    s.sendall("nostream".encode('utf-8'))
+                    send_msg(s, "nostream".encode('utf-8'))
                     break
-                s.sendall(('%04d' % len(colorval)).encode('utf-8'))
-                s.sendall(colorval.encode('utf-8'))
+                send_msg(s, ('%04d' % len(colorval)).encode('utf-8'))
+                send_msg(s, colorval.encode('utf-8'))
             except BrokenPipeError:
                 if colorval != "quit":
                     s.close()
@@ -110,18 +128,16 @@ if __name__ == "__main__":
                     s.connect((HOMECONFIG['SERVER']['HOST'], int(
                         HOMECONFIG['SERVER'].getint('PORT'))))
                     if args.stream_dev:
-                        s.sendall("0006".encode('utf-8'))
-                        s.sendall("stream".encode('utf-8'))
-                        s.sendall(('%04d' % args.stream_dev).encode('utf-8'))
-                        s.sendall(str(args.stream_dev).encode('utf-8'))
+                        send_msg(s, "stream".encode('utf-8'))
+                        send_msg(s, ('%04d' % args.stream_dev).encode('utf-8'))
+                        send_msg(s, str(args.stream_dev).encode('utf-8'))
                     else:
-                        s.sendall("0011".encode('utf-8'))
-                        s.sendall("streamgroup".encode('utf-8'))
-                        s.sendall(
-                            ('%04d' % len(args.stream_group)).encode('utf-8'))
-                        s.sendall(args.stream_group.encode('utf-8'))
-                    s.sendall(('%04d' % len(colorval)).encode('utf-8'))
-                    s.sendall(colorval.encode('utf-8'))
+                        send_msg(s, "streamgroup".encode('utf-8'))
+                        send_msg(
+                            s, ('%04d' % len(args.stream_group)).encode('utf-8'))
+                        send_msg(s, args.stream_group.encode('utf-8'))
+                    send_msg(s, ('%04d' % len(colorval)).encode('utf-8'))
+                    send_msg(s, colorval.encode('utf-8'))
                     continue
         s.close()
 
@@ -150,13 +166,12 @@ if __name__ == "__main__":
                         debug.write(
                             'Cannot connect to homeserver. Check that it is running and properly configured.', 2, "CLIENT")
                         quit()
-            s.sendall("4096".encode('utf-8'))
-            s.sendall(pickle.dumps(req))
+            send_msg(s, req)
             if not args.nowait:
                 debug.write('Connected, waiting for results...', 0, "CLIENT")
                 time.sleep(2)
                 s.sendall("1".encode("UTF-8"))
-                data = pickle.loads(s.recv(1024))
+                data = recv_msg(s)
                 if data != "":
                     debug.write("States changed to: {}".format(
                         data), 0, "CLIENT")

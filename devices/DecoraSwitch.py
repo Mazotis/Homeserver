@@ -21,7 +21,7 @@ class DecoraSwitch(device):
         self.has_pseudodevice = 'Decora'
         self.device = self.config["DEVICE"]
         self.device_type = "DecoraSwitch"
-        self.state = "0"
+        self.state = DEVICE_OFF
         if self.color_type is None:
             self.color_type = "100"
         debug.write("Created device DecoraSwitch named {}.".format(

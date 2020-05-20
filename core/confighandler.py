@@ -2,16 +2,19 @@
 '''
     File name: confighandler.py
     Author: Maxime Bergeron
-    Date last modified: 10/01/2020
+    Date last modified: 20/05/2020
     Python Version: 3.7
 
     The configuration file handler. Adds functions that do not
     exist yet in configparser
 '''
 
+import core.common as common
 import datetime
 import os
 import re
+import socket
+import sys
 import xml.etree.ElementTree as ET
 from argparse import ArgumentParser, RawTextHelpFormatter
 from configparser import ConfigParser, NoSectionError, MissingSectionHeaderError
@@ -20,6 +23,8 @@ CORE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 class ConfigHandler(ConfigParser):
+    has_imported_config = False
+
     def __init__(self, subsection=None, *args, **kwargs):
         self.subsection = subsection
         self.configurables = None
@@ -84,8 +89,12 @@ class ConfigHandler(ConfigParser):
         return self["DEVICE" + str(devid)][element]
 
     def load_config(self):
+        # TODO Is there a more elegant way to handle this arg sooner, before any
+        # call to the config files?
         self.configurables = ET.parse(os.path.join(
             CORE_DIR, 'configurables.xml')).getroot()
+        if "--init-from" in sys.argv and not ConfigHandler.has_imported_config:
+            self.import_config_from_server()
         try:
             ds = self.read(os.path.join(CORE_DIR, '../home.ini'))
         except MissingSectionHeaderError as ex:
@@ -94,7 +103,42 @@ class ConfigHandler(ConfigParser):
             self.configure_prompt()
             return
 
-    def get_arguments(self):
+    def import_config_from_server(self):
+        has_faulty_config = False
+        args = self.get_arguments(_ignore_devices=True)
+
+        print("Fetching configuration file from server daemon.")
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((args.init_from.split(":")[0], int(
+                       args.init_from.split(":")[1])))
+            common.send_msg(s, "getconfig".encode('utf-8'))
+            config_data = common.recv_msg(s)
+            if config_data:
+                if os.path.isfile(CORE_DIR + "/../home.old"):
+                    os.remove(CORE_DIR + "/../home.old")
+                if os.path.isfile(CORE_DIR + "/../home.ini"):
+                    os.rename(CORE_DIR + "/../home.ini",
+                              CORE_DIR + "/../home.old")
+                with open(CORE_DIR + '/../home.ini', 'w') as _f:
+                    config_data.write(_f)
+                    print("Configuration file updated from server")
+        except socket.timeout:
+            print("Server failed to answer request. Quitting.")
+            has_faulty_config = True
+        except ConnectionRefusedError:
+            print("Server is unavailable. Quitting.")
+            has_faulty_config = True
+        except Exception as ex:
+            print("Unhandled exception: {}".format(ex))
+            has_faulty_config = True
+        finally:
+            s.close()
+            ConfigHandler.has_imported_config = True
+            if has_faulty_config:
+                sys.exit()
+
+    def get_arguments(self, _ignore_devices=False):
         parser = ArgumentParser(description='Home server manager script',
                                 formatter_class=RawTextHelpFormatter)
 
@@ -126,10 +170,11 @@ class ConfigHandler(ConfigParser):
                                     nargs=arg.find("nargs").text,
                                     help=_help)
 
-        from core.common import getDevices
-        for _dev in getDevices(True):
-            parser.add_argument('--' + _dev, type=str, nargs="*",
-                                help='Change {} states only'.format(_dev))
+        if not _ignore_devices:
+            from core.common import getDevices
+            for _dev in getDevices(True):
+                parser.add_argument('--' + _dev, type=str, nargs="*",
+                                    help='Change {} states only'.format(_dev))
 
         return parser.parse_args()
 

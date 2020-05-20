@@ -502,7 +502,7 @@ class DeviceManager(object):
             for _cnt, dev in enumerate(self):
                 if devid is not None and devid != _cnt:
                     continue
-                if not is_async:
+                if not is_async or dev.state_getter_mode == "always":
                     if dev.state_getter_mode in ["always","normal"] or (dev.state_getter_mode == "init" and _initial_call):
                         if self.threaded and (sync_only_for_devid is None or _cnt == sync_only_for_devid):
                             states[_cnt] = self.state_threads[_cnt].result()
@@ -889,7 +889,7 @@ class StateRequestObject(object):
                         'reset_location_data', 'force_auto_mode', 'auto_mode',
                         'reset_mode', 'skip_time', 'set_mode_for_devid',
                         'history_origin']
-        ignored_keys = ['nowait', 'update']
+        ignored_keys = ['nowait', 'update', 'init_from']
         for _dev in getDevices(True):
             allowed_keys.append(_dev)
         for k, v in kwargs.items():
@@ -926,7 +926,8 @@ class StateRequestObject(object):
         values
         '''
         ignore_vars = ['devices', 'changed_vars', 'dm', 'hexvalues',
-                       'length', 'device_list', 'colors', 'preset']
+                       'length', 'device_list', 'colors', 'preset', 
+                       'init_from']
         for k, v in request.__dict__.items():
             if k not in ignore_vars and k not in getDevices(True):
                 self.set(**{k: v})
@@ -1059,7 +1060,7 @@ class RequestExecutor(object):
         # Computing end result state
 
         _colors = [DEVICE_SKIP] * len(dm)
-        if _colors == request.colors:  # Else colors are already set
+        if _colors == request.colors or request.colors is None:
             # Priority 4 (least) - handling hexvalues
             if request.hexvalues and len(request.hexvalues) > 0:
                 if len(request.hexvalues) == 1 and len(dm) > 1 and ":" not in request.hexvalues[0]:

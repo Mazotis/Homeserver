@@ -17,6 +17,22 @@
 			<action>store_true</action>
 			<default>False</default>
 		</argument>
+		<argument name="status">
+			<description>Get a JSON dump of the current Homeserver server status</description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+		<argument name="init-from">
+			<description>Get or update the configuration file from the server itself (used on client devices). Requires the server IP address:PORT.</description>
+			<type>str</type>
+			<metavar>192.168.xxx.yyy:PORT</metavar>
+			<nargs>?</nargs>
+			<action></action>
+			<default></default>
+		</argument>
 		<argument name="preset" disallow-editor="yes">
 			<description>Apply state change actions from specified preset name defined in home.ini</description>
 			<type>str</type>

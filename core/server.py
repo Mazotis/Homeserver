@@ -2,18 +2,18 @@
 '''
     File name: server.py
     Author: Maxime Bergeron
-    Date last modified: 03/02/2020
+    Date last modified: 20/05/2020
     Python Version: 3.7
 
     The homeserver request server
 '''
-import pickle
+import json
 import socket
 import sys
 import time
 import traceback
 from core.common import *
-from core.devicemanager import ExecutionState
+from core.devicemanager import StateRequestObject, ExecutionState
 from threading import Thread, Event
 
 
@@ -24,7 +24,8 @@ class HomeServer(Thread):
     def __init__(self, dm):
         Thread.__init__(self)
         self.dm = dm
-        self.config = getConfigHandler().set_section("SERVER")
+        self.base_config = getConfigHandler()
+        self.config = self.base_config.set_section("SERVER")
         self.host = self.config['HOST']
         self.port = self.config.get_value('PORT', int)
         self.conn_sockets = []
@@ -65,25 +66,23 @@ class HomeServer(Thread):
         """ Listens for new requests and handle them properly """
         try:
             while True:
-                msize = int(client.recv(4).decode('utf-8'))
-                data = client.recv(msize)
+                data = recv_msg(client)
                 if data:
-                    # TODO use the recv length to determine pickled vs non-pickled requests ?
-                    if msize != 4096:
+                    if not isinstance(data, StateRequestObject):
                         req = StateRequestObject()
                         req.initialize_dm(self.dm)
-                        if self.check_for_function_request(data.decode('utf-8'), req, client):
-                            break
+                        self.check_for_function_request(
+                            data.decode("utf-8"), req, client)
+                        break
                     try:
-                        req = pickle.loads(data)
-                        req.initialize_dm(self.dm)
-                    except:
+                        data.initialize_dm(self.dm)
+                    except Exception:
                         debug.write(
-                            "Error - improperly formatted pickle. Got: {}".format(data.decode('utf-8')), 2, "SERVER")
+                            "Error - improperly formatted StateRequestObject. Got: {}".format(data.decode('utf-8')), 2, "SERVER")
                         break
                     debug.write('Change of states requested with request: {}'.format(
-                        req), 0, "SERVER")
-                    req()
+                        data), 0, "SERVER")
+                    data()
                     break
 
         except socket.timeout:
@@ -107,8 +106,7 @@ class HomeServer(Thread):
                 if (data.decode("UTF-8") == "1"):
                     while ExecutionState.get():
                         time.sleep(0.5)
-                    client.sendall(pickle.dumps(
-                        self.dm.get_state(is_async=True)))
+                    send_msg(client, self.dm.get_state(is_async=True))
             except Exception as ex:
                 debug.write("Got exception: {}".format(ex), 1)
             debug.write('Closing connection.', 0, "SERVER")
@@ -121,7 +119,12 @@ class HomeServer(Thread):
 
         if data == "getstate":
             debug.write('Sending lightserver status', 0, "SERVER")
-            client.send(json.dumps(self.dm()).encode('UTF-8'))
+            send_msg(client, json.dumps(self.dm()))
+            return True
+
+        if data == "getconfig":
+            debug.write("Sending config file to client", 0, "SERVER")
+            send_msg(client, self.base_config)
             return True
 
         if data == "stream":
