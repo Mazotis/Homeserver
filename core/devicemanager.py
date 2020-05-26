@@ -2,7 +2,7 @@
 '''
     File name: devicemanager.py
     Author: Maxime Bergeron
-    Date last modified: 09/03/2020
+    Date last modified: 26/05/2020
     Python Version: 3.7
 
     The device and modules manager for the homeserver. Not a module per-se
@@ -24,7 +24,7 @@ try:
 except ImportError:
     pass
 from threading import Thread, Timer, Lock
-
+from scripts.suntimes import get_sun
 
 lock = Lock()
 state_lock = Lock()
@@ -430,10 +430,8 @@ class DeviceManager(object):
                 self.starttime = datetime.datetime.strptime(
                     self.config['SERVER']['EVENT_HOUR'], '%H:%M').time()
             else:
-                self.starttime = self._update_sunset_time(
-                    self.config['SERVER']['EVENT_LOCALIZATION'])
-                self.sunrise = self._update_sunrise_time(
-                    self.config['SERVER']['EVENT_LOCALIZATION'])
+                self.starttime = self._update_sunset_time(self.config['SERVER']['EVENT_LOCALIZATION'], self.config['SERVER']['EVENT_LOCALIZATION_PARSER'])
+                self.sunrise = self._update_sunrise_time(self.config['SERVER']['EVENT_LOCALIZATION'], self.config['SERVER']['EVENT_LOCALIZATION_PARSER'])
                 debug.write("State change event time set as sunset time: {}".format(
                     self.starttime), 0)
             self.endtime = datetime.datetime.strptime(
@@ -474,7 +472,7 @@ class DeviceManager(object):
         with state_lock:
             old_states = [None] * len(self)
             states = [None] * len(self)
-            if self.threaded and not is_async and sync_only_for_devid is None:
+            if self.threaded:
                 max_workers = len(self)
                 self.state_pool = ThreadPoolExecutor(max_workers=max_workers)
             for _cnt, dev in enumerate(self):
@@ -507,7 +505,7 @@ class DeviceManager(object):
                         if self.threaded and (sync_only_for_devid is None or _cnt == sync_only_for_devid):
                             states[_cnt] = self.state_threads[_cnt].result()
                         if old_states[_cnt] is not None and states[_cnt] is not None:
-                            if old_states[_cnt] != states[_cnt] and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _ignore_manuals and states[_cnt] != DEVICE_DISABLED:
+                            if old_states[_cnt] != states[_cnt] and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _ignore_manuals and DEVICE_DISABLED not in [old_states[_cnt], states[_cnt]]:
                                 debug.write("Device {} state changed ({} -> {}) without involvement of the Homeserver. Consider as a MANUAL change".format(dev.name, old_states[_cnt], states[_cnt]), 0)
                                 dev.auto_mode = False
 
@@ -522,6 +520,9 @@ class DeviceManager(object):
                 # Has to be called after device states all updated ? Only relevant on non-async requests ?
                 if self[_cnt].state_inference_group is not None:
                     states[_cnt] = self[_cnt].get_inferred_group_state(self)
+
+        if self.threaded:
+            self.state_pool.shutdown()
 
         if not is_async:
             debug.write("All devices state status updated in real-time", 0)
@@ -588,6 +589,11 @@ class DeviceManager(object):
         debug.write("Server unused. Disconnecting devices.", 0)
         for _dev in self:
             _dev.disconnect()
+
+    def disconnect_pseudodevices(self):
+        debug.write("Server shutting down. Disconnecting pseudodevices.", 0)
+        for _pdev in self.pseudodevices.values():
+            _pdev.disconnect()
 
     def _decode_colors(self, request):
         _has_delays = False
@@ -762,33 +768,45 @@ class DeviceManager(object):
         return new_request
 
     @staticmethod
-    def _update_sunset_time(localization):
-        p1 = subprocess.Popen('./scripts/sunset.sh %s' % str(localization), stdout=subprocess.PIPE,
-                              shell=True)
-        (output, _) = p1.communicate()
-        p1.wait()
-        try:
-            _time = datetime.datetime.strptime(
-                output.rstrip().decode('UTF-8'), '%H:%M').time()
-        except ValueError:
-            debug.write(
-                "Connection error to the sunset time server. Falling back to 18:00.", 1)
-            _time = datetime.datetime.strptime("18:00", '%H:%M').time()
+    def _update_sunset_time(localization, localization_parser):
+        if localization_parser == "bash":
+            p1 = subprocess.Popen('./scripts/sunset.sh %s' % str(localization), stdout=subprocess.PIPE,
+                                  shell=True)
+            (output, _) = p1.communicate()
+            p1.wait()
+            try:
+                _time = datetime.datetime.strptime(
+                    output.rstrip().decode('UTF-8'), '%H:%M').time()
+            except ValueError:
+                debug.write(
+                    "Connection error to the sunset time server. Falling back to 18:00.", 1)
+                _time = datetime.datetime.strptime("18:00", '%H:%M').time()
+        elif localization_parser == "python":
+            _time = get_sun(localization)["sunset"].time()
+            if _time is None:
+                debug.write("Failed to fetch sunset time for your city. Falling back to 18:00", 1)
+                _time = datetime.datetime.strptime("18:00", '%H:%M').time()
         return _time
 
     @staticmethod
-    def _update_sunrise_time(localization):
-        p1 = subprocess.Popen('./scripts/sunrise.sh %s' % str(localization), stdout=subprocess.PIPE,
-                              shell=True)
-        (output, _) = p1.communicate()
-        p1.wait()
-        try:
-            _time = datetime.datetime.strptime(
-                output.rstrip().decode('UTF-8'), '%H:%M').time()
-        except ValueError:
-            debug.write(
-                "Connection error to the sunset time server. Falling back to 06:00.", 1)
-            _time = datetime.datetime.strptime("06:00", '%H:%M').time()
+    def _update_sunrise_time(localization, localization_parser):
+        if localization_parser == "bash":
+            p1 = subprocess.Popen('./scripts/sunrise.sh %s' % str(localization), stdout=subprocess.PIPE,
+                                  shell=True)
+            (output, _) = p1.communicate()
+            p1.wait()
+            try:
+                _time = datetime.datetime.strptime(
+                    output.rstrip().decode('UTF-8'), '%H:%M').time()
+            except ValueError:
+                debug.write(
+                    "Connection error to the sunset time server. Falling back to 06:00.", 1)
+                _time = datetime.datetime.strptime("06:00", '%H:%M').time()
+        elif localization_parser == "python":
+            _time = get_sun(localization)["sunrise"].time()
+            if _time is None:
+                debug.write("Failed to fetch sunset time for your city. Falling back to 06:00", 1)
+                _time = datetime.datetime.strptime("06:00", '%H:%M').time()
         return _time
 
 

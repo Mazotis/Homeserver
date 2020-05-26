@@ -2,7 +2,7 @@
 '''
     File name: MerossSwitch.py
     Author: Maxime Bergeron
-    Date last modified: 20/05/2020
+    Date last modified: 26/05/2020
     Python Version: 3.7
 
     The MerossSwitch for Meross Switches handler class
@@ -33,7 +33,6 @@ class MerossSwitch(device):
 
     def run(self, color):
         """ Checks the request and trigger a light change if needed """
-        self.reconnect()
         if not self.meross.disabled and self.state != DEVICE_DISABLED:
             if color == DEVICE_OFF:
                 debug.write(
@@ -57,7 +56,6 @@ class MerossSwitch(device):
         return True
 
     def get_state(self):
-        self.reconnect()
         if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
             self.state = DEVICE_STANDBY
             return self.state
@@ -93,7 +91,11 @@ class MerossSwitch(device):
                     "Device '{}' is offline. Set as disabled.".format(self.name), 1, self.device_type)
                 self.state = DEVICE_DISABLED
                 return self.state
-
+            except ConnectionError:
+                debug.write(
+                    "Error connecting to Meross servers. Retrying", 1, self.device_type)
+                self.reconnect()
+                return self.get_state()
         else:
             self.state = DEVICE_DISABLED
         return self.state
@@ -105,18 +107,20 @@ class MerossSwitch(device):
         debug.write("Linking Meross '{}' to pseudodevice {}.".format(
             self.name, meross.email), 0, self.device_type)
         self.meross = meross
-        self.meross_dev = meross.get_meross_device(self.device)
+        self.meross_dev = self.meross.get_meross_device(self.device)
         if not self.meross_dev:
             self.state = DEVICE_DISABLED
 
     def disconnect(self):
-        self.meross.disconnect()
+        # Does not work properly - generates too many tokens
+        pass
+        #debug.write("Meross device {} disconnected.".format(
+        #    self.name), 0, self.device_type)
+        #self.meross.disconnect()
 
     def reconnect(self):
         # TODO - fix the TypeError on offline reconnect attempt.
-        if not self.meross.connected:
-            debug.write("Attempting reconnection of device '{}'.".format(
-                self.name), 0, self.device_type)
-            self.meross.connect()
-            self.meross_dev = self.meross.get_meross_device(self.device)
-            self.get_state()
+        debug.write("Attempting reconnection of device '{}'.".format(
+            self.name), 0, self.device_type)
+        self.meross.connect()
+        self.meross_dev = self.meross.get_meross_device(self.device)

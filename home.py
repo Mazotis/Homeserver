@@ -17,6 +17,8 @@ from core.common import *
 from core.devicemanager import DeviceManager, StateRequestObject, RequestExecutor
 from core.server import HomeServer
 from __main__ import *
+#from hanging_threads import start_monitoring
+#monitoring_thread = start_monitoring()
 
 
 """ Script executed directly """

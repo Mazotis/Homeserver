@@ -225,6 +225,7 @@ class HomeServer(Thread):
             self.dm.scheduled_disconnect.cancel()
         debug.write("Disconnecting devices", 0, "SERVER")
         self.dm.disconnect_devices()
+        self.dm.disconnect_pseudodevices()
         debug.write("Shutdown completed properly", 0, "SERVER")
         self.stopevent.set()
         socket.socket(socket.AF_INET,
