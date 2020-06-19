@@ -736,6 +736,13 @@
 				<regex>^(always|normal|init)$</regex>
 				<default>normal</default>
 			</config>
+			<config name="IGNORE_GLOBAL_GROUP"> 
+				<description>Optional. If set to True, device will ignore all requests built from or using the GLOBAL_GROUP. Useful for devices that should not respond to very general requests such as "turn off the home" or "turn off everything".</description>
+				<fullname>Ignore all requests involving the GLOBAL group</fullname>
+				<fulltype>Value</fulltype>
+				<regex>^([Tt]rue|[Ff]alse)$</regex>
+				<default>False</default>
+			</config>
 		</section>
 	</configentries>
 	<modules>
@@ -775,49 +782,49 @@
 			<description>A UNIX/linux based computer</description>
 			<requirements>Must know the device IP and MAC addresses. Device must be accessible via SSH (using a passwordless SSL key) to allow backups to it. Must have set local IP as static in your router settings.</requirements>
 			<configs>DEVICE,NAME,DESCRIPTION,GROUP,ICON,IP_ADDRESS,ADDRESS</configs>
-			<optionals>SSH_USER,SKIPTIME,FORCEOFF,IGNOREMODE,ACTION_DELAY,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE</optionals>
+			<optionals>SSH_USER,SKIPTIME,FORCEOFF,IGNOREMODE,ACTION_DELAY,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
 		</device>
 		<device name="DecoraSwitch">
 			<description>A Decora switch handler (Leviton)</description>
 			<requirements>Must have configured the device in the Leviton app, must know the name (as configured in the app) of the device, your account email and password.</requirements>
 			<configs>DEVICE,NAME,DESCRIPTION,GROUP,ICON,EMAIL,PASSWORD,DEFAULT_INTENSITY</configs>
-			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE</optionals>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
 		</device>
 		<device name="GenericOnOff">
 			<description>A generic ON/OFF device. Anything that can be turned on/off or restarted using the command-line or a script.</description>
 			<requirements>Must have a working script/one-liner command to turn the device ON and/or OFF.</requirements>
 			<configs>DEVICE,DESCRIPTION,GROUP,ICON,ON,OFF,RESTART,STATE,STATE_ON_EXPECT</configs>
-			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,ACTION_DELAY,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE</optionals>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,ACTION_DELAY,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
 		</device>
 		<device name="HDMITv">
 			<description>A HDMI-connected TV, directly to the Homeserver</description>
 			<requirements>TV and the selected TV HDMI port must support CEC. Your RPi/Homeserver microcomputer must support HDMI-CEC. You need to install the 'cec-client'.</requirements>
 			<configs>DEVICE,DESCRIPTION,GROUP,ICON</configs>
-			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,STATE_GETTER_MODE</optionals>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
 		</device>
 		<device name="MerossSwitch">
 			<description>A Meross Smart Switch/Plug device</description>
 			<requirements>You must configure your device in the meross app. You must provide the device MAC address (as found in the app), your account email and password.</requirements>
 			<configs>DEVICE,DESCRIPTION,GROUP,ICON,ADDRESS,EMAIL,PASSWORD</configs>
-			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE</optionals>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
 		</device>
 		<device name="Milight">
 			<description>A Milight BLE light bulb</description>
 			<requirements>You must identify the bulb IDs (see wiki for info on that). You must provide the device MAC address</requirements>
 			<configs>DESCRIPTION,GROUP,ICON,ADDRESS,ID1,ID2,DEFAULT_TEMP,DEFAULT_INTENSITY</configs>
-			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE</optionals>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
 		</device>
 		<device name="Playbulb">
 			<description>A Playbulb BLE light bulb</description>
 			<requirements>You must provide the device MAC address</requirements>
 			<configs>NAME,DESCRIPTION,GROUP,ICON,ADDRESS,DEFAULT_INTENSITY</configs>
-			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE</optionals>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
 		</device>
 		<device name="TPLinkSwitch">
 			<description>A TP-Link Kasa smart switch</description>
 			<requirements>You must provide the device IP address and device name as configured in the Kasa app. Must have set local IP as static in your router settings.</requirements>
 			<configs>NAME,DEVICE,DESCRIPTION,GROUP,ICON,IP_ADDRESS,DIMMABLE,DEFAULT_INTENSITY</configs>
-			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE</optionals>
+			<optionals>SKIPTIME,FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
 		</device>
 	</devices>
 </configurations>

@@ -92,7 +92,7 @@ class ConfigHandler(ConfigParser):
         # TODO Is there a more elegant way to handle this arg sooner, before any
         # call to the config files?
         self.configurables = ET.parse(os.path.join(
-            CORE_DIR, 'configurables.xml')).getroot()
+                CORE_DIR, 'configurables.xml')).getroot()
         if "--init-from" in sys.argv and not ConfigHandler.has_imported_config:
             self.import_config_from_server()
         try:

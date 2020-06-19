@@ -988,6 +988,11 @@ class StateRequestObject(object):
                 if self[i] != _color:
                     self[i] = _color
 
+    def set_color_for_devid(self, color, devid):
+        if self.check_for_initialization():
+            if self[devid] != color:
+                self[devid] = color
+
     def set_typed_colors(self, device_type, device_args, colors):
         """ Gets devices of a specific  type for the light change """
         if self.check_for_initialization():

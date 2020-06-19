@@ -2,14 +2,15 @@
 '''
     File name: TPLinkSwitch.py
     Author: Maxime Bergeron
-    Date last modified: 30/12/2019
+    Date last modified: 16/06/2020
     Python Version: 3.7
 
     The TPLink smartswitch device handler. Allows connections to HS200-210-220 devices.
 '''
 
-from pyHS100 import SmartPlug
-from pyHS100.smartdevice import SmartDeviceException
+import asyncio
+from kasa import SmartPlug
+from kasa.smartdevice import SmartDeviceException
 from core.common import *
 from core.device import device
 
@@ -37,15 +38,15 @@ class TPLinkSwitch(device):
         if not self.disabled:
             if color == DEVICE_ON:
                 if self.dimmable:
-                    self.plug.brightness = self.convert(self.intensity)
+                    asyncio.run(self.plug.set_brightness(self.convert(self.intensity)))
                 else:
-                    self.plug.turn_on()
+                    asyncio.run(self.plug.turn_on())
                 self.state = DEVICE_ON
             elif color == DEVICE_OFF:
-                self.plug.turn_off()
+                asyncio.run(self.plug.turn_off())
                 self.state = DEVICE_OFF
             elif self.dimmable:
-                self.plug.brightness = int(color)
+                asyncio.run(self.plug.set_brightness(int(color)))
                 self.state = color
             else:
                 debug.write("Unknown color code for device {}".format(
@@ -56,7 +57,8 @@ class TPLinkSwitch(device):
     def get_state(self):
         if not self.disabled:
             try:
-                if self.plug.state == "OFF":
+                asyncio.run(self.plug.update())
+                if not self.plug.is_on:
                     self.state = DEVICE_OFF
                 else:
                     if self.dimmable:
@@ -71,6 +73,10 @@ class TPLinkSwitch(device):
                 self.state = DEVICE_DISABLED
                 self.plug = None
                 pass
+            except KeyError:
+                debug.write("Device {} is not yet supported. Disabling...".format(self.name), 1, "TP-LinkSwitch")
+                self.disabled = True
+                self.state = DEVICE_DISABLED
         return self.state
 
     def connect(self):

@@ -42,6 +42,7 @@ class device(object):
         self.request_locked = False
         self.state_inference_group = None
         self.state_getter_mode = "normal"
+        self.ignore_global_group = False
         self.history_origin = "Unknown"
         self.history = deque(maxlen=10)
         self.init_from_config()
@@ -71,6 +72,8 @@ class device(object):
             self.state_inference_group = self.config["STATE_INFERENCE_GROUP"]
         if self.config.dev_has_option("STATE_GETTER_MODE"):
             self.state_getter_mode = self.config["STATE_GETTER_MODE"]
+        if self.config.dev_has_option("IGNORE_GLOBAL_GROUP"):
+            self.ignore_global_group = self.config["IGNORE_GLOBAL_GROUP"]
 
     def pre_run(self, color):
         try:

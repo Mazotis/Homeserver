@@ -2,7 +2,7 @@
 '''
     File name: ifttt.py
     Author: Maxime Bergeron
-    Date last modified: 09/03/2020
+    Date last modified: 16/06/2020
     Python Version: 3.7
 
     The IFTTT receiver module for the homeserver
@@ -109,6 +109,12 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 return
             debug.write("Running function '{}' on group(s) {}".format(
                 func, changed_groups), 0, "IFTTT")
+            if has_global_group:
+                for dev in self.dm:
+                    if dev.ignore_global_group:
+                        debug.write("Skipping device {} as it ignores global group requests".format(
+                            dev.name), 1, "IFTTT")
+                        req.set_color_for_devid(DEVICE_SKIP, dev.devid)
             if self.config.get_value('AUTOMATIC_MODE', bool):
                 req.set(auto_mode=True)
             elif not has_priority_group:
