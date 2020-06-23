@@ -2,7 +2,7 @@
 '''
     File name: server.py
     Author: Maxime Bergeron
-    Date last modified: 20/05/2020
+    Date last modified: 23/06/2020
     Python Version: 3.7
 
     The homeserver request server
@@ -228,7 +228,10 @@ class HomeServer(Thread):
         self.dm.disconnect_pseudodevices()
         debug.write("Shutdown completed properly", 0, "SERVER")
         self.stopevent.set()
-        socket.socket(socket.AF_INET,
-                      socket.SOCK_STREAM).connect((self.host, self.port))
-        self.sock.close()
+        try:
+            socket.socket(socket.AF_INET,
+                          socket.SOCK_STREAM).connect((self.host, self.port))
+            self.sock.close()
+        except ConnectionRefusedError:
+            pass
         return

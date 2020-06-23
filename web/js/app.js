@@ -124,20 +124,20 @@ function drawTimeBar() {
     document.getElementById("sun-time-ball").style.left = `${(sunBallPosition)}%`
     document.getElementById("sun-time-ball-line").style.left = `${(sunBallPosition)}%`
 
-    const startTimeinMins = parseInt(stateJSON.starttime.substring(0,2))*60 + parseInt(stateJSON.starttime.substring(3,5))
-    const sunsetPosition = Math.round(cF(startTimeinMins/maxTime*24)*100)
+    const sunsetTimeinMins = parseInt(stateJSON.sunset.substring(0,2))*60 + parseInt(stateJSON.sunset.substring(3,5))
+    const sunsetPosition = Math.round(cF(sunsetTimeinMins/maxTime*24)*100)
 
-    const sunriseTimeInMins = parseInt(stateJSON.daystarttime.substring(0,2))*60 + parseInt(stateJSON.daystarttime.substring(3,5))
+    const sunriseTimeInMins = parseInt(stateJSON.sunrise.substring(0,2))*60 + parseInt(stateJSON.sunrise.substring(3,5))
     const sunrisePosition = Math.round(cF(sunriseTimeInMins/maxTime*24)*100)
 
     document.getElementById("night-time-bar").style.backgroundImage = `linear-gradient(to right, #444 ${sunrisePosition-5}% , transparent ${sunrisePosition}%, transparent ${sunsetPosition-5}%, #444 ${sunsetPosition}%)`
-    $("#sun-time-ball").tooltip('hide').attr('data-original-title', `<p style="font-weight:bold;">Last updated at</p><h2>${actualTime.toLocaleTimeString().substring(0,5)}</h2><br>Sunrise time today: <span style="font-weight:bold;">${stateJSON.daystarttime.substring(0,5)}</span><br>Sunset time today: <span style="font-weight:bold;">${stateJSON.starttime.substring(0,5)}</span>`);
+    $("#sun-time-ball").tooltip('hide').attr('data-original-title', `<p style="font-weight:bold;">Last updated at</p><h2>${actualTime.toLocaleTimeString().substring(0,5)}</h2><br>Sunrise time today: <span style="font-weight:bold;">${stateJSON.sunrise.substring(0,5)}</span><br>Sunset time today: <span style="font-weight:bold;">${stateJSON.sunset.substring(0,5)}</span>`);
     $("#sun-time-ball").tooltip('show')
     setTimeout(() => {
         $("#sun-time-ball").tooltip('hide')
     }, 2000)
 
-    if (actualTimeinMins > startTimeinMins || actualTimeinMins < sunriseTimeInMins) {
+    if (actualTimeinMins > sunsetTimeinMins || actualTimeinMins < sunriseTimeInMins) {
         document.getElementById("sun-time-ball").style.backgroundColor = '#CDC9C3'
         document.getElementById("sun-time-ball").style.filter = 'blur(1px)'
     } else {
@@ -145,22 +145,24 @@ function drawTimeBar() {
         document.getElementById("sun-time-ball").style.filter = 'blur(4px)'        
     }
 
+    const startTimeinMins = parseInt(stateJSON.starttime.substring(0,2))*60 + parseInt(stateJSON.starttime.substring(3,5))
+    const startTimePosition = Math.round(cF(startTimeinMins/maxTime*24)*100)
     const endTimeInMins = parseInt(stateJSON.endtime.substring(0,2))*60 + parseInt(stateJSON.endtime.substring(3,5))
     const endTimePosition = Math.round(cF(endTimeInMins/maxTime*24)*100)
 
-    $("#on-time-bar").tooltip({title:`<p style="font-weight:bold;">Time check feature</p>No limitations between <span style="font-weight:bold;">${stateJSON.starttime.substring(0,5)}</span> and <span style="font-weight:bold;">${stateJSON.endtime.substring(0,5)}</span>`})
-    $("#off-time-bar").tooltip({title: `<p style="font-weight:bold;">Time check feature</p>No limitations between <span style="font-weight:bold;">${stateJSON.starttime.substring(0,5)}</span> and <span style="font-weight:bold;">${stateJSON.endtime.substring(0,5)}</span>`})
+    $("#on-time-bar").tooltip({title:`<p style="font-weight:bold;">Time check feature</p>No limitations between <span style="font-weight:bold;">${stateJSON.sunset.substring(0,5)}</span> and <span style="font-weight:bold;">${stateJSON.endtime.substring(0,5)}</span>`})
+    $("#off-time-bar").tooltip({title: `<p style="font-weight:bold;">Time check feature</p>No limitations between <span style="font-weight:bold;">${stateJSON.sunset.substring(0,5)}</span> and <span style="font-weight:bold;">${stateJSON.endtime.substring(0,5)}</span>`})
     if (startTimeinMins <= endTimeInMins) {
-        const barwidth = endTimePosition - sunsetPosition
+        const barwidth = endTimePosition - startTimeinMins
         document.getElementById("off-time-bar").style.width = `100%`
         document.getElementById("off-time-bar").style.display = `block`
         document.getElementById("off-time-bar").style.zIndex = `9003`
-        document.getElementById("on-time-bar").style.left = `${sunsetPosition}%`
+        document.getElementById("on-time-bar").style.left = `${startTimePosition}%`
         document.getElementById("on-time-bar").style.width = `${Math.round(barwidth)}%`
         document.getElementById("on-time-bar").style.display = `block`
         document.getElementById("on-time-bar").style.zIndex = `9004`
     } else {
-        const barwidth = sunsetPosition - endTimePosition
+        const barwidth = startTimeinMins - endTimePosition
         document.getElementById("on-time-bar").style.width = `100%`
         document.getElementById("on-time-bar").style.display = `block`
         document.getElementById("on-time-bar").style.zIndex = `9003`
@@ -170,15 +172,16 @@ function drawTimeBar() {
         document.getElementById("off-time-bar").style.zIndex = `9004`
     }
 
-    const detectorStartTimeInMins = parseInt(stateJSON.detectorstart.substring(0,2))*60 + parseInt(stateJSON.detectorstart.substring(3,5))
-    const detectorStartPosition = Math.round(cF(detectorStartTimeInMins/maxTime*24)*100)
+    /*
+    const detectorsunsetTimeinMins = parseInt(stateJSON.detectorstart.substring(0,2))*60 + parseInt(stateJSON.detectorstart.substring(3,5))
+    const detectorStartPosition = Math.round(cF(detectorsunsetTimeinMins/maxTime*24)*100)
 
     const detectorEndTimeInMins = parseInt(stateJSON.detectorend.substring(0,2))*60 + parseInt(stateJSON.detectorend.substring(3,5))
     const detectorEndPosition = Math.round(cF(detectorEndTimeInMins/maxTime*24)*100)
 
     $("#on-detector-bar").tooltip({title: `Device detector active between <span style="font-weight:bold;">${stateJSON.detectorstart}</span> and <span style="font-weight:bold;">${stateJSON.detectorend}</span>`})
     $("#off-detector-bar").tooltip({title: `Device detector active between <span style="font-weight:bold;">${stateJSON.detectorstart}</span> and <span style="font-weight:bold;">${stateJSON.detectorend}</span>`})
-    if (detectorStartTimeInMins <= detectorEndTimeInMins) {
+    if (detectorsunsetTimeinMins <= detectorEndTimeInMins) {
         const barwidth = detectorEndPosition - detectorStartPosition
         document.getElementById("off-detector-bar").style.width = `100%`
         document.getElementById("off-detector-bar").style.display = `block`
@@ -197,6 +200,7 @@ function drawTimeBar() {
         document.getElementById("off-detector-bar").style.display = `block`
         document.getElementById("off-detector-bar").style.zIndex = `9004`
     }
+    */
 }
 
 function abortPendingRequests() {
@@ -218,9 +222,14 @@ async function getResult() {
     await post_webserver(req_data, (data) => {
         stateJSON = data
         //console.log(stateJSON)
-        drawTimeBar();
+        if (stateJSON.sunrise != false && stateJSON.sunset != false) {
+            drawTimeBar();
+        } else {
+            $("#time-bar").hide()
+            $("#btn-bar").css("width", "100%")
+        }
         let cnt = 0
-        $('#suntime').html(stateJSON.starttime)
+        $('#suntime').html(stateJSON.sunset)
         $("#version-span").html(stateJSON.version)
 
         let ghtml = '<div class="card-columns gcard-columns">'
@@ -294,7 +303,9 @@ function getResultRefresh() {
             xhrAbortable = false
             oldstateJSON = stateJSON
             stateJSON = JSON.parse(decodeURIComponent(data))
-            drawTimeBar();
+            if (stateJSON.sunrise != false && stateJSON.sunset != false) {
+                drawTimeBar();
+            }
             lastupdate = new Date()
             var i;
             for (i = 0; i < modulesToRefresh.length; i++) { 
@@ -359,7 +370,7 @@ function getJSONForId(device_id, state_json) {
     if (state_json != null) {
         cardJSON = new Object;
         Object.entries(state_json).map(([key, value]) => {
-            const non_device_prop = ['roomgroups', 'starttime', 'version'];
+            const non_device_prop = ['roomgroups', 'sunset', 'sunrise', 'version'];
             if (!non_device_prop.includes(key)) {
                 cardJSON[key] = value[device_id]
             }

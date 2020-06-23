@@ -2,8 +2,8 @@
 '''
     File name: DecoraSwitch.py
     Author: Maxime Bergeron
-    Date last modified: 27/04/2020
-    Python Version: 3.5
+    Date last modified: 23/06/2020
+    Python Version: 3.7
 
     The DecoraSwitch for Leviton Decora Switches handler class
 '''
@@ -34,14 +34,14 @@ class DecoraSwitch(device):
             if color == DEVICE_OFF:
                 _att['power'] = 'OFF'
                 self.decora.request(self.device, _att)
-                self.state = "0"
+                self.state = DEVICE_DISABLED
                 self.success = True
                 return True
             elif color == DEVICE_ON:
                 _att['power'] = 'ON'
                 _att['brightness'] = int(self.intensity)
                 self.decora.request(self.device, _att)
-                self.state = self.convert(self.intensity)
+                self.state = self.intensity
                 self.success = True
                 return True
             else:
@@ -58,10 +58,10 @@ class DecoraSwitch(device):
 
     def get_state(self):
         if self.state != DEVICE_DISABLED:
-            pstate = self.decora.get_switch(self.device).power
+            switchState = self.decora.get_switch(self.device)
             self.state = DEVICE_OFF
-            if pstate == "ON":
-                self.state = DEVICE_ON
+            if switchState.power == "ON":
+                self.state = switchState.brightness
         return self.state
 
     def create_pseudodevice(self):

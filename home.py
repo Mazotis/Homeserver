@@ -2,7 +2,7 @@
 '''
     File name: home.py
     Author: Maxime Bergeron
-    Date last modified: 06/03/2020
+    Date last modified: 19/06/2020
     Python Version: 3.5
 
     A python home control server/client
@@ -80,7 +80,8 @@ if __name__ == "__main__":
         if HOMECONFIG['SERVER'].getboolean('ENABLE_WIFI_RTT'):
             from dnn.dnn import run_tensorflow
         if args.notime:
-            dm.set_serverwide_skiptime()
+            if dm.has_module("timesched"):
+                dm.get_module("timesched").set_serverwide_skiptime()
 
         hs = HomeServer(dm)
         hs.start()

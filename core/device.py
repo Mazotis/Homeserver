@@ -2,7 +2,7 @@
 '''
     File name: device.py
     Author: Maxime Bergeron
-    Date last modified: 03/02/2020
+    Date last modified: 19/06/2020
     Python Version: 3.7
 
     Main wrapper object for all Homeserver devices. Not a device per-se.
@@ -29,10 +29,8 @@ class device(object):
         self.reset_mode = False
         self.name = None
         self.color_type = None
-        self.start_event_time = None
         self.color_brightness = None
-        self.default_skip_time = False
-        self.skip_time = self.default_skip_time
+        self.skip_run_time = False
         self.forceoff = True
         self.ignoremode = False
         self.icon = None
@@ -56,8 +54,6 @@ class device(object):
             self.intensity = self.config["DEFAULT_INTENSITY"]
         if self.config.dev_has_option("COLOR_TYPE"):
             self.color_type = self.config["COLOR_TYPE"]
-        if self.config.dev_has_option("SKIPTIME"):
-            self.default_skip_time = self.config.get_value("SKIPTIME", bool)
         if self.config.dev_has_option("FORCEOFF"):
             self.forceoff = self.config.get_value("FORCEOFF", bool)
         if self.config.dev_has_option("IGNOREMODE"):
@@ -85,6 +81,7 @@ class device(object):
                                 .format(self.name), 0, self.device_type)
                 self.success = True
                 return True
+            #TODO Rework action_delay in the state getter
             if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
                 debug.write("Device '{}' is still executing previous request."
                             .format(self.name), 0, self.device_type)
@@ -93,7 +90,9 @@ class device(object):
             if color == DEVICE_SKIP:
                 self.success = True
                 return True
-            if color not in (self.convert(DEVICE_OFF), DEVICE_SKIP) and not self.get_time_check():
+            if color not in (self.convert(DEVICE_OFF), DEVICE_SKIP) and self.skip_run_time:
+                self.success = True
+                debug.write("Device '{}' skipped due to actual time.".format(self.name), 0, self.device_type)
                 return True
 
             if not self.ignoremode:
@@ -151,7 +150,7 @@ class device(object):
         """ Prepares the device for a future request """
         self.success = False
         self.reset_mode = False
-        self.skip_time = self.default_skip_time
+        self.skip_run_time = False
         return
 
     def get_state(self):
@@ -188,27 +187,12 @@ class device(object):
         debug.write("Manually set device ({}) {} state to {}".format(
             self.device_type, self.device, self.state), 0, self.device_type)
 
-    def get_time_check(self, now_time=None):
-        if now_time is None:
-            now_time = datetime.datetime.now().time()
-        if self.start_event_time is not None and not self.skip_time and datetime.time(6, 00) < now_time < self.start_event_time:
-            self.success = True
-            debug.write("Device '{}' skipped due to actual time."
-                        .format(self.name), 0, self.device_type)
-            return False
-        return True
-
     def lock_unlock_requests(self, is_locked):
         self.history.append("({}) [Device locked] (Origin: {})".format(
             self._get_time(), self.history_origin))
         debug.write("Device '{}' is set to locked = {}."
                     .format(self.name, bool(is_locked)), 0, self.device_type)
         self.request_locked = bool(is_locked)
-        return
-
-    def set_event_time(self, event_time, skip_time=None):
-        self.start_event_time = event_time
-        self.skip_time = skip_time if skip_time is not None else self.default_skip_time
         return
 
     def descriptions(self):

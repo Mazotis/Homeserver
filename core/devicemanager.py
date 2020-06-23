@@ -8,9 +8,7 @@
     The device and modules manager for the homeserver. Not a module per-se
 '''
 import ast
-import datetime
 import re
-import subprocess
 import time
 import unidecode
 try:
@@ -24,7 +22,6 @@ try:
 except ImportError:
     pass
 from threading import Thread, Timer, Lock
-from scripts.suntimes import get_sun
 
 lock = Lock()
 state_lock = Lock()
@@ -69,18 +66,16 @@ class DeviceManager(object):
         debug.write("", 0)
         self.get_devices_list()
         self.lastupdate = None
-        self.always_skip_time = False
-        self.update_event_time()
         self.queue = queue.Queue()
         self.scheduled_changes = []
         self.scheduled_disconnect = None
         self.threaded = threaded
         self.light_threads = [None] * len(self)
         self.light_pool = None
+        self.skip_time = False
         self.state_threads = [None] * len(self)
         self.state_pool = None
         self.states = self.get_state(_ignore_manuals=True, _initial_call=True)
-        self.skip_time = False
         self.all_groups = None
         debug.write("Got initial device states {}".format(self.states), 0)
 
@@ -110,12 +105,19 @@ class DeviceManager(object):
         dm_status["icon"] = self.icons
         dm_status["description"] = self.get_descriptions(
             True)
-        if str(self.config['SERVER']['EVENT_HOUR']) != "auto":
-            dm_status["daystarttime"] = "06:00"
+
+        if self.has_module("timesched"):
+            #TODO Are they the same time or should they be distinct ?
+            dm_status["sunrise"] = "{}".format(self.get_module("timesched").sunrise)
+            dm_status["sunset"] = "{}".format(self.get_module("timesched").sunset)
+            dm_status["starttime"] = "{}".format(self.get_module("timesched").default_event_hour)
+            dm_status["endtime"] = "{}".format(self.get_module("timesched").default_event_hour_stop)
         else:
-            dm_status["daystarttime"] = "{}".format(self.sunrise)
-        dm_status["starttime"] = "{}".format(self.starttime)
-        dm_status["endtime"] = "{}".format(self.endtime)
+            dm_status["sunrise"] = False
+            dm_status["sunset"] = False
+            dm_status["starttime"] = "18:00"
+            dm_status["endtime"] = "06:00"
+
         dm_status["detectorstart"] = "00:00"
         if self.config.has_option("DETECTOR", "START_HOUR"):
             dm_status["detectorstart"] = "{}".format(
@@ -313,7 +315,7 @@ class DeviceManager(object):
                 break
             i = i + 1
 
-    def get_modules_list(self):
+    def get_modules_list(self, load_single_module=None):
         _config = getConfigHandler()
         loaded_modules = _config['SERVER']['MODULES'].split(",")
 
@@ -324,23 +326,39 @@ class DeviceManager(object):
                         _mod.attrib["name"], _mod.find("conflicts").text), 2)
                     sys.exit()
 
-        self.modules = []
-        for _cnt, _mod in enumerate(loaded_modules):
-            if _mod in getModules():
-                _module = __import__("modules." + _mod)
+        if load_single_module is None:
+            self.modules = []
+            for _cnt, _mod in enumerate(loaded_modules):
+                if _mod in getModules():
+                    _module = __import__("modules." + _mod)
+                    # TODO Needed twice ? looks unpythonic
+                    _class = getattr(_module, _mod)
+                    _class = getattr(_class, _mod)
+                    self.modules.append(_class(self))
+                    self.modules[_cnt].start()
+                else:
+                    debug.write('Unsupported module {}'
+                                .format(_mod), 1)
+        else:
+            if load_single_module in getModules():
+                _module = __import__("modules." + load_single_module)
                 # TODO Needed twice ? looks unpythonic
-                _class = getattr(_module, _mod)
-                _class = getattr(_class, _mod)
+                _class = getattr(_module, load_single_module)
+                _class = getattr(_class, load_single_module)
                 self.modules.append(_class(self))
-                self.modules[_cnt].start()
-            else:
-                debug.write('Unsupported module {}'
-                            .format(_mod), 1)
+                self.modules[-1].start()
 
-    def set_serverwide_skiptime(self):
-        """ Enables skipping time check all the time"""
-        debug.write("Skipping time check for all requests", 0)
-        self.always_skip_time = True
+    def has_module(self, module_name):
+        for _index, _mod in enumerate(self.modules):
+            if _mod.__class__.__name__ == module_name and _mod.isAlive():
+                return _index
+        return False
+
+    def get_module(self, module_name):
+        for _mod in self.modules:
+            if _mod.__class__.__name__ == module_name and _mod.isAlive():
+                return _mod
+        return None
 
     def set_mode(self, request):
         for _device, _color in zip(self, request):
@@ -396,7 +414,11 @@ class DeviceManager(object):
         oplist = []
         for obj in self:
             if option == "skiptime":
-                oplist.append(obj.default_skip_time)
+                if self.has_module("timesched"):
+                    if int(obj.devid) in self.get_module("timesched").tracked_devices_times:
+                        oplist.append(True)
+                        continue
+                oplist.append(False)
             elif option == "forceoff":
                 oplist.append(obj.forceoff)
             elif option == "ignoremode":
@@ -415,47 +437,22 @@ class DeviceManager(object):
         self.shutdown_modules()
         self.get_modules_list()
 
-    def shutdown_modules(self):
-        for _cnt, _mod in enumerate(self.modules):
+    def shutdown_modules(self, remove_single_module=None):
+        if remove_single_module is None:
+            for _cnt, _mod in enumerate(self.modules):
+                try:
+                    _mod.stop()
+                except NameError:
+                    pass
+        else:
             try:
-                _mod.stop()
+                self.get_module(remove_single_module).stop()
             except NameError:
                 pass
-
-    def update_event_time(self):
-        if self.lastupdate != datetime.date.today():
-            self.lastupdate = datetime.date.today()
-            if str(self.config['SERVER']['EVENT_HOUR']) != "auto":
-                self.lastupdate = datetime.date.today()
-                self.starttime = datetime.datetime.strptime(
-                    self.config['SERVER']['EVENT_HOUR'], '%H:%M').time()
-            else:
-                self.starttime = self._update_sunset_time(self.config['SERVER']['EVENT_LOCALIZATION'], self.config['SERVER']['EVENT_LOCALIZATION_PARSER'])
-                self.sunrise = self._update_sunrise_time(self.config['SERVER']['EVENT_LOCALIZATION'], self.config['SERVER']['EVENT_LOCALIZATION_PARSER'])
-                debug.write("State change event time set as sunset time: {}".format(
-                    self.starttime), 0)
-            self.endtime = datetime.datetime.strptime(
-                self.config['SERVER']['EVENT_HOUR_STOP'], '%H:%M').time()
-        return self.starttime
-
-    def check_event_time(self, request, skip_time=False):
-        now_time = datetime.datetime.now().time()
-        self.update_event_time()
-        for _dev in self:
-            if self.always_skip_time or skip_time:
-                _dev.set_event_time(self.starttime, True)
-            else:
-                _dev.set_event_time(self.starttime)
-        if not skip_time and datetime.datetime.strptime(self.config['SERVER']['EVENT_HOUR_STOP'], '%H:%M').time() < now_time < self.starttime:
-            for _device, _color in zip(self, request.colors):
-                if _color == DEVICE_OFF or (_color != DEVICE_SKIP and _device.get_time_check(now_time)):
-                    debug.write("Not all devices will be changed. Device changes begins at {}"
-                                .format(self.starttime), 0)
-                    return True
-            debug.write("Too soon to change devices. Device changes begins at {}"
-                        .format(self.starttime), 0)
-            return False
-        return True
+            try:
+                self.modules.remove(self.get_module(remove_single_module))
+            except ValueError:
+                debug.write("{} not in list {}".format(self.get_module(remove_single_module), self.modules), 2)
 
     def get_state(self, devid=None, is_async=False,
                   sync_only_for_devid=None, webcolors=False,
@@ -662,8 +659,8 @@ class DeviceManager(object):
                 self.old_request = _req
                 colors = self._decode_colors(
                     _req)  # TODO Check performance
-                self.check_event_time(
-                    _req, _req.skip_time or self.always_skip_time)
+                if self.has_module("timesched"):
+                    self.get_module("timesched").check_event_time(_req, _req.skip_time)
                 if all(c == DEVICE_SKIP for c in colors):
                     debug.write("All device requests skipped", 0)
                     break
@@ -766,48 +763,6 @@ class DeviceManager(object):
                 if old_request.skip_time and not new_request.skip_time:
                     self[_cnt].skip_time = True
         return new_request
-
-    @staticmethod
-    def _update_sunset_time(localization, localization_parser):
-        if localization_parser == "bash":
-            p1 = subprocess.Popen('./scripts/sunset.sh %s' % str(localization), stdout=subprocess.PIPE,
-                                  shell=True)
-            (output, _) = p1.communicate()
-            p1.wait()
-            try:
-                _time = datetime.datetime.strptime(
-                    output.rstrip().decode('UTF-8'), '%H:%M').time()
-            except ValueError:
-                debug.write(
-                    "Connection error to the sunset time server. Falling back to 18:00.", 1)
-                _time = datetime.datetime.strptime("18:00", '%H:%M').time()
-        elif localization_parser == "python":
-            _time = get_sun(localization)["sunset"].time()
-            if _time is None:
-                debug.write("Failed to fetch sunset time for your city. Falling back to 18:00", 1)
-                _time = datetime.datetime.strptime("18:00", '%H:%M').time()
-        return _time
-
-    @staticmethod
-    def _update_sunrise_time(localization, localization_parser):
-        if localization_parser == "bash":
-            p1 = subprocess.Popen('./scripts/sunrise.sh %s' % str(localization), stdout=subprocess.PIPE,
-                                  shell=True)
-            (output, _) = p1.communicate()
-            p1.wait()
-            try:
-                _time = datetime.datetime.strptime(
-                    output.rstrip().decode('UTF-8'), '%H:%M').time()
-            except ValueError:
-                debug.write(
-                    "Connection error to the sunset time server. Falling back to 06:00.", 1)
-                _time = datetime.datetime.strptime("06:00", '%H:%M').time()
-        elif localization_parser == "python":
-            _time = get_sun(localization)["sunrise"].time()
-            if _time is None:
-                debug.write("Failed to fetch sunset time for your city. Falling back to 06:00", 1)
-                _time = datetime.datetime.strptime("06:00", '%H:%M').time()
-        return _time
 
 
 class StateRequestObject(object):
