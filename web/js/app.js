@@ -339,13 +339,14 @@ function getDeviceResult(devid) {
 function getAllResults() {
     const req_data = {
         reqtype: "getstate",
-        isasync: "False"
+        isasync: "True"
     }
 
     post_webserver(req_data, (data) => {
         pendingRequests--
         oldstateJSON = stateJSON
         stateJSON = data
+        //console.log(stateJSON)
         lastupdate = new Date()
         computeCards()
     })
@@ -903,6 +904,7 @@ function sendGroupPowerRequest(group, value, devid) {
     abortPendingRequests()
     pendingRequests++
     disableElement("#"+devid)
+    $("#rcard-" + group.toLowerCase()).find(".rcard-toggle").bootstrapToggle('disable')
     closeTooltips()
 
     const req_data = {
@@ -913,8 +915,10 @@ function sendGroupPowerRequest(group, value, devid) {
     };
 
     post_webserver(req_data, (data) => {
-        getAllResults();
-        enableElement("#"+devid)
+        getAllResults(() => {
+            $("#rcard-" + group.toLowerCase()).find(".rcard-toggle").bootstrapToggle('enable');
+            enableElement("#"+devid);
+        });
     });
 }
 
@@ -942,9 +946,10 @@ function sendAllModeAuto() {
     }
 
     post_webserver(req_data, (data) => {
-        getAllResults();
-        enableElement(".dcard")
-    })
+        getAllResults(() => {
+            enableElement(".dcard");
+        });
+    });
 }
 
 function setLockDevice(lock, devid) {

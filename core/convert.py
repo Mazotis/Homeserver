@@ -32,6 +32,10 @@ def convert_color(color, output_type=None):
 
     if str(color) == DEVICE_SKIP or output_type == "noop":
         return DEVICE_SKIP
+    elif color == DEVICE_DISABLED:
+        return DEVICE_DISABLED
+    elif color == DEVICE_STANDBY:
+        return DEVICE_STANDBY
 
     if type(color) is tuple:
         # Then it has to be a hue-brightness pair

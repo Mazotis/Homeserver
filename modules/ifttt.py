@@ -113,7 +113,7 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 for dev in self.dm:
                     if dev.ignore_global_group:
                         debug.write("Skipping device {} as it ignores global group requests".format(
-                            dev.name), 1, "IFTTT")
+                            dev.name), 0, "IFTTT")
                         req.set_color_for_devid(DEVICE_SKIP, dev.devid)
             if self.config.get_value('AUTOMATIC_MODE', bool):
                 req.set(auto_mode=True)

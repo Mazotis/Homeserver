@@ -488,9 +488,9 @@ class DeviceManager(object):
                     else:
                         if dev.state_getter_mode in ["always","normal"] or (dev.state_getter_mode == "init" and _initial_call):
                             if self.threaded:
-                                self.state_threads[_cnt] = self.state_pool.submit(dev.get_state)
+                                self.state_threads[_cnt] = self.state_pool.submit(dev.get_state_pre)
                             else:
-                                states[_cnt] = dev.get_state()
+                                states[_cnt] = dev.get_state_pre()
                         else:
                             states[_cnt] = dev.state
 
@@ -502,7 +502,7 @@ class DeviceManager(object):
                         if self.threaded and (sync_only_for_devid is None or _cnt == sync_only_for_devid):
                             states[_cnt] = self.state_threads[_cnt].result()
                         if old_states[_cnt] is not None and states[_cnt] is not None:
-                            if old_states[_cnt] != states[_cnt] and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _ignore_manuals and DEVICE_DISABLED not in [old_states[_cnt], states[_cnt]]:
+                            if dev.convert(old_states[_cnt]) != dev.convert(states[_cnt]) and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _ignore_manuals and DEVICE_DISABLED not in [old_states[_cnt], states[_cnt]]:
                                 debug.write("Device {} state changed ({} -> {}) without involvement of the Homeserver. Consider as a MANUAL change".format(dev.name, old_states[_cnt], states[_cnt]), 0)
                                 dev.auto_mode = False
 
@@ -673,7 +673,7 @@ class DeviceManager(object):
                         _color = self[i].convert(colors[i])
                         self.light_threads[i] = None
 
-                        if _color != DEVICE_SKIP:
+                        if _color not in [DEVICE_SKIP, DEVICE_STANDBY, DEVICE_DISABLED]:
                             self.states[i] = self.get_state(
                                 devid=i, _for_state_change=True)
                             if _color != self.states[i] or _color == DEVICE_OFF:
@@ -696,6 +696,9 @@ class DeviceManager(object):
                     if i == len(self):
                         debug.write("Awaiting state change results", 0)
                         if self.threaded:
+                            for _cnt, _dev in enumerate(self):
+                                if _dev.interrupt.locked():
+                                    _dev.interrupt.release()
                             for _cnt, _thread in enumerate(self.light_threads):
                                 if not self.queue.empty():
                                     break
@@ -704,12 +707,14 @@ class DeviceManager(object):
                                         _res = _thread.result(
                                             self.config["SERVER"].getint("REQUEST_TIMEOUT"))
                                         if not _res:
-                                            debug.write("Repeating failed request for device: {} ({})".format(
-                                                self[_cnt].name, self[_cnt].device_type), 1)
-                                            self.light_threads[_cnt].set_exception(
-                                                NewRequestException)
-                                            self.light_threads[_cnt].cancel()
-                                            self.light_threads[_cnt] = None
+                                            if tries != 4:
+                                                debug.write("Repeating failed request for device: {} ({})".format(
+                                                    self[_cnt].name, self[_cnt].device_type), 1)
+                                            self[_cnt].interrupt.acquire()
+                                            _thread.cancel()
+                                            while not _thread.cancelled() or not _thread.done():
+                                                time.sleep(0.5)
+                                            _thread = None
                                             i = 0
                                     except NewRequestException:
                                         debug.write(
@@ -718,10 +723,11 @@ class DeviceManager(object):
                                     except TimeoutError:
                                         debug.write(
                                             "Request timed-out for device: {}".format(self[_cnt].name), 1)
-                                        self.light_threads[_cnt].set_exception(
-                                            NewRequestException)
-                                        self.light_threads[_cnt].cancel()
-                                        self.light_threads[_cnt] = None
+                                        self[_cnt].interrupt.acquire()
+                                        _thread.cancel()
+                                        while not _thread.cancelled() or not _thread.done():
+                                            time.sleep(0.5)
+                                        _thread = None
                                         i = 0
                         else:
                             for _cnt, _dev in enumerate(self):
@@ -742,17 +748,26 @@ class DeviceManager(object):
             pass
 
         finally:
-            debug.write("Clearing up device change queues.", 0)
+            debug.write("Clearing up device change queues", 0)
             if colors:
                 self.queue.task_done()
             self.reinit()
-            lock.release()
-            ExecutionState().set(False)
+            self.scheduled_disconnect = Timer(60, self.disconnect_devices, ())
+            self.scheduled_disconnect.start()
             if self.threaded:
-                self.light_pool.shutdown()
+                debug.write("Shutting down device threads", 0)
+                for _cnt, _dev in enumerate(self):
+                    if _dev.interrupt.locked():
+                        _dev.interrupt.release()
+                self.light_pool.shutdown(True)
+                lock.release()
+                ExecutionState().set(False)
                 # Let the Webserver some time to fetch single device state changes results
                 time.sleep(0.5)
                 self.states = self.get_state()
+            else:
+                lock.release()
+                ExecutionState().set(False)
 
         debug.write("Change of device states completed.", 0)
 
@@ -948,6 +963,16 @@ class StateRequestObject(object):
             if self[devid] != color:
                 self[devid] = color
 
+    def set_color_for_groups(self, color, groups):
+        if self.check_for_initialization():
+            if type(groups) == str:
+                groups = [groups]
+            for _cnt, _gr in enumerate(groups):
+                groups[_cnt] = unidecode.unidecode(_gr.lower())
+            for _cnt, _device in enumerate(self.dm):
+                if set(groups).issubset([unidecode.unidecode(x) for x in _device.group]):
+                    self[_cnt] = color
+
     def set_typed_colors(self, device_type, device_args, colors):
         """ Gets devices of a specific  type for the light change """
         if self.check_for_initialization():
@@ -1101,10 +1126,7 @@ class RequestExecutor(object):
         if not lock.locked():
             _thr = Thread(target=dm._set_lights).start()
         elif dm.threaded:
-            for _thread in dm.light_threads:
+            for _cnt, _thread in enumerate(dm.light_threads):
                 if _thread is not None and not _thread.done():
-                    _thread.set_exception(NewRequestException)
-                    _thread.cancel()
-        dm.scheduled_disconnect = Timer(
-            60, dm.disconnect_devices, ())
-        dm.scheduled_disconnect.start()
+                    if not _thread.cancelled() or not _thread.done():
+                        dm[_cnt].interrupt.acquire()

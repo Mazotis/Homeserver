@@ -29,9 +29,6 @@ class Computer(device):
             self.device), 0, self.device_type)
 
     def get_state(self):
-        if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
-            self.state = DEVICE_STANDBY
-            return self.state
         if not self.success:
             try:
                 _stdout = subprocess.check_output("ping {} -c 1 -W 1".format(self.ip),

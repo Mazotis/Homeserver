@@ -26,6 +26,7 @@ class MerossSwitch(device):
         self.has_pseudodevice = 'Meross'
         self.device = self.config["ADDRESS"]
         self.device_type = "MerossSwitch"
+        self.expected_state = self.state # Fallback for devices that do not support live reading
         if self.color_type is None:
             self.color_type = "io"
         debug.write("Created device MerossSwitch with MAC {}.".format(
@@ -52,13 +53,11 @@ class MerossSwitch(device):
                         .format(color, self.name), 0, self.device_type)
             self.meross_dev.turn_off()
             self.state = DEVICE_OFF
+        self.expected_state = self.state
         self.success = True
         return True
 
     def get_state(self):
-        if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
-            self.state = DEVICE_STANDBY
-            return self.state
         if not self.meross.disabled:
             try:
                 if self.meross_dev.supports_electricity_reading():
@@ -67,6 +66,10 @@ class MerossSwitch(device):
                         self.state = DEVICE_ON
                     else:
                         self.state = DEVICE_OFF
+
+                # TODO - better way to get state for STANDBY-able device without electricity reading?
+                if self.state == DEVICE_STANDBY and self.last_action_timestamp + self.action_delay < int(time.time()):
+                    self.state = self.expected_state
             except OfflineDeviceException:
                 debug.write(
                     "Device '{}' is offline. Set as disabled.".format(self.name), 1, self.device_type)

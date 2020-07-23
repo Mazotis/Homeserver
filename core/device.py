@@ -10,9 +10,11 @@
 
 import time
 import datetime
+import sys
 from collections import deque
 from core.common import *
 from core.convert import convert_color
+from threading import Lock
 
 
 class device(object):
@@ -43,6 +45,7 @@ class device(object):
         self.ignore_global_group = False
         self.history_origin = "Unknown"
         self.history = deque(maxlen=10)
+        self.interrupt = Lock()
         self.init_from_config()
 
     def init_from_config(self):
@@ -81,7 +84,6 @@ class device(object):
                                 .format(self.name), 0, self.device_type)
                 self.success = True
                 return True
-            #TODO Rework action_delay in the state getter
             if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
                 debug.write("Device '{}' is still executing previous request."
                             .format(self.name), 0, self.device_type)
@@ -137,6 +139,7 @@ class device(object):
             self.history_origin = "Unknown"
             return self.run(color)
         except NewRequestException:
+            debug.write("Aborting device '{}' state change".format(self.name), 0, self.device_type)
             return False
 
     def convert(self, color):
@@ -152,6 +155,12 @@ class device(object):
         self.reset_mode = False
         self.skip_run_time = False
         return
+
+    def get_state_pre(self):
+        """ Pre-state getter functions """
+        if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
+            return DEVICE_STANDBY
+        return self.get_state()
 
     def get_state(self):
         """ Getter for the actual state """
@@ -216,6 +225,12 @@ class device(object):
     def get_pseudodevice(self, pseudodevice):
         """ Used to receive the shared pseudo-devices class from the devicemanager """
         pass
+
+    def check_for_interrupts(self):
+        if self.interrupt.locked():
+            debug.write("Device {} thread interrupted.".format(self.name), 3)
+            self.interrupt.release()
+            sys.exit()
 
     @staticmethod
     def _get_time():

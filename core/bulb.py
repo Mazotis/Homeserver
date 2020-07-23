@@ -2,7 +2,7 @@
 '''
     File name: Bulb.py
     Author: Maxime Bergeron
-    Date last modified: 6/02/2019
+    Date last modified: 21/07/2020
     Python Version: 3.7
 
     The Bulb common class to simplify bluepy-controlled BLE bulbs. Not a device per-se.
@@ -20,6 +20,7 @@ def connect_ble(_f):
     def _conn_wrap(self, *args):
         tries = 0
         while self._connection is None:
+            self.check_for_interrupts()
             try:
                 debug.write("CONnecting to device ({})...".format(
                     self.description), 0, self.device_type)
@@ -30,7 +31,7 @@ def connect_ble(_f):
                             .format(self.description, ex), 1, self.device_type)
                 self._connection = None
             tries = tries + 1
-            if tries == 6:
+            if tries == 5:
                 debug.write("Device ({}) connection failed."
                             .format(self.description), 1, self.device_type)
                 self._connection = None

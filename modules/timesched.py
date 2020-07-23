@@ -22,12 +22,12 @@ class timesched(Thread):
         Thread.__init__(self)
         self.stopevent = Event()
         self.dm = dm
-        self.last_update = "Never"
-        self.default_event_hour = "18:00"
-        self.default_event_hour_stop = "06:00"
+        self.last_update = None
+        self.default_event_hour = datetime.datetime.strptime("18:00", '%H:%M').time()
+        self.default_event_hour_stop = datetime.datetime.strptime("06:00", '%H:%M').time()
         # TODO Should they be ignored everywhere (ie webserver) if they're disabled (non-auto)?
-        self.sunset = "18:00"
-        self.sunrise = "06:00"
+        self.sunset = datetime.datetime.strptime("18:00", '%H:%M').time()
+        self.sunrise = datetime.datetime.strptime("06:00", '%H:%M').time()
         self.tracked_devices_times = {}
         self.tracked_modules_times = {}
         self.always_skip_time = False
@@ -156,7 +156,7 @@ class timesched(Thread):
         return True
 
     def update_event_time(self):
-        if self.last_update != datetime.date.today():
+        if self.last_update == None or self.last_update != datetime.date.today():
             self.last_update = datetime.date.today()
             if self.event_localization is not None:
                 self.sunset = self._update_sunset_time(

@@ -2,7 +2,7 @@
 '''
     File name: DecoraSwitch.py
     Author: Maxime Bergeron
-    Date last modified: 23/06/2020
+    Date last modified: 14/07/2020
     Python Version: 3.7
 
     The DecoraSwitch for Leviton Decora Switches handler class
@@ -75,3 +75,10 @@ class DecoraSwitch(device):
     def disconnect(self):
         if not (self.decora.disabled):
             self.decora.disconnect()
+
+    def reconnect(self):
+        debug.write("Attempting reconnection of device '{}'. Decora_disabled: {}.".format(
+            self.name, self.decora.disabled), 0, self.device_type)
+        self.decora.connect()
+        self.state = DEVICE_OFF
+        self.get_state()

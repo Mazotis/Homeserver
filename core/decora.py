@@ -2,13 +2,12 @@
 '''
     File name: Decora.py
     Author: Maxime Bergeron
-    Date last modified: 25/05/2020
+    Date last modified: 14/07/2020
     Python Version: 3.7
 
     The Decora device handler. Allows connections to MyLeviton. Not a device per-se.
 '''
 
-import time
 from core.common import *
 from decora_wifi import DecoraWiFiSession
 from decora_wifi.models.person import Person
@@ -54,7 +53,10 @@ class Decora(object):
 
     def connect(self):
         with Decora.decora_lock:
+            if self._connected:
+                self.disconnect()
             try:
+                debug.write("Connecting to Decora servers", 0)
                 timer = Timer(10, self.failure_handler)
                 timer.start()
                 self.session = DecoraWiFiSession()
@@ -67,7 +69,7 @@ class Decora(object):
             except Exception as ex:
                 # TODO catch all exceptions ?
                 debug.write(
-                    "Unhandled exception {}. Cannot login to decora account {}, disabling devices . Press Ctrl+C to ignore.".format(ex, self.email), 1)
+                    "Unhandled exception {}. Cannot login to decora account {}, disabling devices .".format(ex, self.email), 1)
                 return
             self._connected = True
 
@@ -84,6 +86,7 @@ class Decora(object):
     def failure_handler(self):
         debug.write(
             "Unhandled exception. Cannot login to decora account {}, disabling devices . Press Ctrl+C to ignore.".format(self.email), 1)
+        raise KeyboardInterrupt()
 
     def _initialize(self):
         perms = self.session.user.get_residential_permissions()
