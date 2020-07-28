@@ -33,20 +33,20 @@ class DecoraSwitch(device):
             _att = {}
             if color == DEVICE_OFF:
                 _att['power'] = 'OFF'
-                self.decora.request(self.device, _att)
+                self.interruptible(lambda: self.decora.request(self.device, _att))
                 self.state = DEVICE_DISABLED
                 self.success = True
                 return True
             elif color == DEVICE_ON:
                 _att['power'] = 'ON'
                 _att['brightness'] = int(self.intensity)
-                self.decora.request(self.device, _att)
+                self.interruptible(lambda: self.decora.request(self.device, _att))
                 self.state = self.intensity
                 self.success = True
                 return True
             else:
                 _att['brightness'] = int(color)
-                self.decora.request(self.device, _att)
+                self.interruptible(lambda: self.decora.request(self.device, _att))
                 self.state = color
                 self.success = True
                 return True

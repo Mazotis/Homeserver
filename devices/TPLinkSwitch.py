@@ -38,15 +38,15 @@ class TPLinkSwitch(device):
         if not self.disabled:
             if color == DEVICE_ON:
                 if self.dimmable:
-                    asyncio.run(self.plug.set_brightness(self.convert(self.intensity)))
+                    self.interruptible(lambda: asyncio.run(self.plug.set_brightness(self.convert(self.intensity))))
                 else:
-                    asyncio.run(self.plug.turn_on())
+                    self.interruptible(lambda: asyncio.run(self.plug.turn_on()))
                 self.state = DEVICE_ON
             elif color == DEVICE_OFF:
-                asyncio.run(self.plug.turn_off())
+                self.interruptible(lambda: asyncio.run(self.plug.turn_off()))
                 self.state = DEVICE_OFF
             elif self.dimmable:
-                asyncio.run(self.plug.set_brightness(int(color)))
+                self.interruptible(lambda: asyncio.run(self.plug.set_brightness(int(color))))
                 self.state = color
             else:
                 debug.write("Unknown color code for device {}".format(

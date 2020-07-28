@@ -119,10 +119,8 @@ class Milight(Bulb):
     def _write(self, command, color):
         try:
             if self._connection is not None:
-                self._connection.getCharacteristics(uuid="00001001-0000-1000-8000-00805f9b34fb")[0] \
-                    .write(bytearray.fromhex(command
-                                             .replace('\n', '')
-                                             .replace('\r', '')))
+                self.interruptible(lambda: self._connection.getCharacteristics(
+                    uuid="00001001-0000-1000-8000-00805f9b34fb")[0].write(bytearray.fromhex(command.replace('\n', '').replace('\r', ''))))
                 self.success = True
                 self.state = color
                 return True

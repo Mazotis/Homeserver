@@ -38,20 +38,20 @@ class MerossSwitch(device):
             if color == DEVICE_OFF:
                 debug.write(
                     "Turning device '{}' OFF.".format(self.name), 0, self.device_type)
-                self.meross_dev.turn_off()
+                self.interruptible(lambda: self.meross_dev.turn_off())
                 self.state = DEVICE_OFF
                 self.success = True
                 return True
             elif color == DEVICE_ON:
                 debug.write(
                     "Turning device '{}' ON.".format(self.name), 0, self.device_type)
-                self.meross_dev.turn_on()
+                self.interruptible(lambda: self.meross_dev.turn_on())
                 self.state = DEVICE_ON
                 self.success = True
                 return True
             debug.write("Unknown state {} for device '{}', falling back to OFF."
                         .format(color, self.name), 0, self.device_type)
-            self.meross_dev.turn_off()
+            self.interruptible(lambda: self.meross_dev.turn_off())
             self.state = DEVICE_OFF
         self.expected_state = self.state
         self.success = True

@@ -20,12 +20,14 @@ def connect_ble(_f):
     def _conn_wrap(self, *args):
         tries = 0
         while self._connection is None:
-            self.check_for_interrupts()
             try:
                 debug.write("CONnecting to device ({})...".format(
                     self.description), 0, self.device_type)
-                self._connection = ble.Peripheral(self.device)
+                self._connection = self.interruptible(lambda: ble.Peripheral(self.device))
                 break
+            except RequestAborted as ex:
+                debug.write("{}".format(ex), 1, self.device_type)
+                return None
             except Exception as ex:
                 debug.write("Device ({}) connection failed. Exception: {}"
                             .format(self.description, ex), 1, self.device_type)

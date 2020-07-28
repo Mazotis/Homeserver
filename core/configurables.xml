@@ -771,6 +771,13 @@
 				<regex>^([Tt]rue|[Ff]alse)$</regex>
 				<default>False</default>
 			</config>
+			<config name="RETRY_DELAY_ON_FAILURE"> 
+				<description>Optional (default: 0 - do not retry). Delay to wait (in seconds) before retrying a state change for a repeatedly failing device using a new request. Useful for desynchronized or poorly responding devices (such as some BLE devices) that requires a given timeout to disconnect or to resynchronize from their side (warning - setting this bigger than 0 will ALWAYS retry the request until it succeeds, and may result in a neverending loop)</description>
+				<fullname>Delay before retrying device state change after repeated failures</fullname>
+				<fulltype>Time (seconds)</fulltype>
+				<regex>^[0-9]+$</regex>
+				<default>0</default>
+			</config>
 		</section>
 	</configentries>
 	<modules>
@@ -814,49 +821,49 @@
 			<description>A UNIX/linux based computer</description>
 			<requirements>Must know the device IP and MAC addresses. Device must be accessible via SSH (using a passwordless SSL key) to allow backups to it. Must have set local IP as static in your router settings.</requirements>
 			<configs>DEVICE,NAME,DESCRIPTION,GROUP,ICON,IP_ADDRESS,ADDRESS</configs>
-			<optionals>SSH_USER,FORCEOFF,IGNOREMODE,ACTION_DELAY,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
+			<optionals>SSH_USER,FORCEOFF,IGNOREMODE,ACTION_DELAY,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP,RETRY_DELAY_ON_FAILURE</optionals>
 		</device>
 		<device name="DecoraSwitch">
 			<description>A Decora switch handler (Leviton)</description>
 			<requirements>Must have configured the device in the Leviton app, must know the name (as configured in the app) of the device, your account email and password.</requirements>
 			<configs>DEVICE,NAME,DESCRIPTION,GROUP,ICON,EMAIL,PASSWORD,DEFAULT_INTENSITY</configs>
-			<optionals>FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
+			<optionals>FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP,RETRY_DELAY_ON_FAILURE</optionals>
 		</device>
 		<device name="GenericOnOff">
 			<description>A generic ON/OFF device. Anything that can be turned on/off or restarted using the command-line or a script.</description>
 			<requirements>Must have a working script/one-liner command to turn the device ON and/or OFF.</requirements>
 			<configs>DEVICE,DESCRIPTION,GROUP,ICON,ON,OFF,RESTART,STATE,STATE_ON_EXPECT</configs>
-			<optionals>FORCEOFF,IGNOREMODE,ACTION_DELAY,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
+			<optionals>FORCEOFF,IGNOREMODE,ACTION_DELAY,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP,RETRY_DELAY_ON_FAILURE</optionals>
 		</device>
 		<device name="HDMITv">
 			<description>A HDMI-connected TV, directly to the Homeserver</description>
 			<requirements>TV and the selected TV HDMI port must support CEC. Your RPi/Homeserver microcomputer must support HDMI-CEC. You need to install the 'cec-client'.</requirements>
 			<configs>DEVICE,DESCRIPTION,GROUP,ICON</configs>
-			<optionals>FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
+			<optionals>FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP,RETRY_DELAY_ON_FAILURE</optionals>
 		</device>
 		<device name="MerossSwitch">
 			<description>A Meross Smart Switch/Plug device</description>
 			<requirements>You must configure your device in the meross app. You must provide the device MAC address (as found in the app), your account email and password.</requirements>
 			<configs>DEVICE,DESCRIPTION,GROUP,ICON,ADDRESS,EMAIL,PASSWORD</configs>
-			<optionals>FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
+			<optionals>FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP,RETRY_DELAY_ON_FAILURE</optionals>
 		</device>
 		<device name="Milight">
 			<description>A Milight BLE light bulb</description>
 			<requirements>You must identify the bulb IDs (see wiki for info on that). You must provide the device MAC address</requirements>
 			<configs>DESCRIPTION,GROUP,ICON,ADDRESS,ID1,ID2,DEFAULT_TEMP,DEFAULT_INTENSITY</configs>
-			<optionals>FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
+			<optionals>FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP,RETRY_DELAY_ON_FAILURE</optionals>
 		</device>
 		<device name="Playbulb">
 			<description>A Playbulb BLE light bulb</description>
 			<requirements>You must provide the device MAC address</requirements>
 			<configs>NAME,DESCRIPTION,GROUP,ICON,ADDRESS,DEFAULT_INTENSITY</configs>
-			<optionals>FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
+			<optionals>FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP,RETRY_DELAY_ON_FAILURE</optionals>
 		</device>
 		<device name="TPLinkSwitch">
 			<description>A TP-Link Kasa smart switch</description>
 			<requirements>You must provide the device IP address and device name as configured in the Kasa app. Must have set local IP as static in your router settings.</requirements>
 			<configs>NAME,DEVICE,DESCRIPTION,GROUP,ICON,IP_ADDRESS,DIMMABLE,DEFAULT_INTENSITY</configs>
-			<optionals>FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP</optionals>
+			<optionals>FORCEOFF,IGNOREMODE,STATE_INFERENCE_GROUP,COLOR_TYPE,STATE_GETTER_MODE,IGNORE_GLOBAL_GROUP,RETRY_DELAY_ON_FAILURE</optionals>
 		</device>
 	</devices>
 </configurations>

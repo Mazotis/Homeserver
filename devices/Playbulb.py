@@ -12,11 +12,6 @@ from core.common import *
 from core.bulb import Bulb, connect_ble
 
 
-class LostConnection(Exception):
-    # Does nothing for now
-    pass
-
-
 class Playbulb(Bulb):
     """ Methods for driving a rainbow BLE lightbulb """
     _COLOR_UUID = "0000fffc-0000-1000-8000-00805f9b34fb"
@@ -75,18 +70,11 @@ class Playbulb(Bulb):
                 #                           self._connection.getCharacteristics(uuid=Playbulb._COLOR_UUID)[0].write(bytearray.fromhex(deltacolor))
                 #                           time.sleep(0.5)
 
-            self.check_for_interrupts()
-            _res = self._connection.getCharacteristics(uuid=Playbulb._COLOR_UUID)[0] \
-                .write(bytearray.fromhex(color))
+            self.interruptible(lambda: self._connection.getCharacteristics(uuid=Playbulb._COLOR_UUID)[0].write(bytearray.fromhex(color)))
 
             # Prebuilt animations: blink=00, pulse=01, hard rainbow=02, smooth rainbow=03, candle=04
             # self._connection.getCharacteristics(uuid=_COLOR_UUID)[0].write(bytearray.fromhex(color+"02ffffff"))
             self.success = True
-            if self._connection is None:
-                # For some reason, threaded requests may reach this point and not crash on getCharacteristics, even
-                # if conn is None
-                raise LostConnection(
-                    "Playbulb connection lost whilst changing device state, falling back to old state.")
             self.state = color
             debug.write("({}) color changed to {}".format(
                 self.description, color), 0, self.device_type)

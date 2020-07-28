@@ -626,16 +626,7 @@ class DeviceManager(object):
                                 colors[_acnt] = DEVICE_SKIP
                             dev_delays[_acnt] = 0
 
-                    delayed_req = StateRequestObject()
-                    delayed_req.initialize_dm(self)
-                    delayed_req.set(history_origin="Scheduler")
-                    delayed_req.from_request(request)
-                    delayed_req.set_colors(_delay_colors)
-                    debug.write("Scheduling device state change ({}) after {} seconds".format(
-                        _delay_colors, _delay), 0)
-                    _sched = Timer(int(_delay), delayed_req.run, ())
-                    _sched.start()
-                    self.scheduled_changes.append(_sched)
+                    self._delayed_request(request, _delay_colors, _delay)
         return colors
 
     def _set_lights(self):
@@ -696,9 +687,6 @@ class DeviceManager(object):
                     if i == len(self):
                         debug.write("Awaiting state change results", 0)
                         if self.threaded:
-                            for _cnt, _dev in enumerate(self):
-                                if _dev.interrupt.locked():
-                                    _dev.interrupt.release()
                             for _cnt, _thread in enumerate(self.light_threads):
                                 if not self.queue.empty():
                                     break
@@ -711,9 +699,9 @@ class DeviceManager(object):
                                                 debug.write("Repeating failed request for device: {} ({})".format(
                                                     self[_cnt].name, self[_cnt].device_type), 1)
                                             self[_cnt].interrupt.acquire()
-                                            _thread.cancel()
-                                            while not _thread.cancelled() or not _thread.done():
+                                            while not _thread.done():
                                                 time.sleep(0.5)
+                                            self[_cnt].interrupt.release()
                                             _thread = None
                                             i = 0
                                     except NewRequestException:
@@ -724,9 +712,9 @@ class DeviceManager(object):
                                         debug.write(
                                             "Request timed-out for device: {}".format(self[_cnt].name), 1)
                                         self[_cnt].interrupt.acquire()
-                                        _thread.cancel()
-                                        while not _thread.cancelled() or not _thread.done():
+                                        while not _thread.done():
                                             time.sleep(0.5)
+                                        self[_cnt].interrupt.release()
                                         _thread = None
                                         i = 0
                         else:
@@ -741,6 +729,12 @@ class DeviceManager(object):
                         if tries == 5:
                             debug.write(
                                 "Failed to change all states. Aborting", 1)
+                            for _cnt, _dev in enumerate(self):
+                                if not _dev.success and _dev.retry_delay_on_failure > 0 and colors[_cnt] not in [DEVICE_SKIP, DEVICE_DISABLED, DEVICE_STANDBY]:
+                                    debug.write("Retrying state change for device {} in {} seconds".format(_dev.name, _dev.retry_delay_on_failure), 1)
+                                    _colors = [DEVICE_SKIP] * len(self)
+                                    _colors[_cnt] = self[_cnt].convert(colors[_cnt])
+                                    self._delayed_request(_req, _colors, _dev.retry_delay_on_failure)
                             break
 
         except queue.Empty:
@@ -755,10 +749,6 @@ class DeviceManager(object):
             self.scheduled_disconnect = Timer(60, self.disconnect_devices, ())
             self.scheduled_disconnect.start()
             if self.threaded:
-                debug.write("Shutting down device threads", 0)
-                for _cnt, _dev in enumerate(self):
-                    if _dev.interrupt.locked():
-                        _dev.interrupt.release()
                 self.light_pool.shutdown(True)
                 lock.release()
                 ExecutionState().set(False)
@@ -778,6 +768,17 @@ class DeviceManager(object):
                 if old_request.skip_time and not new_request.skip_time:
                     self[_cnt].skip_time = True
         return new_request
+
+    def _delayed_request(self, old_request, colors, delay):
+        delayed_req = StateRequestObject()
+        delayed_req.initialize_dm(self)
+        delayed_req.set(history_origin="Scheduler")
+        delayed_req.from_request(old_request)
+        delayed_req.set_colors(colors)
+        debug.write("Scheduling device state change ({}) after {} seconds".format(colors, delay), 0)
+        _sched = Timer(int(delay), delayed_req.run, ())
+        _sched.start()
+        self.scheduled_changes.append(_sched)
 
 
 class StateRequestObject(object):
@@ -1128,5 +1129,7 @@ class RequestExecutor(object):
         elif dm.threaded:
             for _cnt, _thread in enumerate(dm.light_threads):
                 if _thread is not None and not _thread.done():
-                    if not _thread.cancelled() or not _thread.done():
-                        dm[_cnt].interrupt.acquire()
+                    dm[_cnt].interrupt.acquire()
+                    while not _thread.cancelled() or not _thread.done():
+                        time.sleep(0.5)
+                    dm[_cnt].interrupt.release()

@@ -517,7 +517,7 @@ function generateCardForId(device_id) {
             $(cardhtml).find(".ignoremode").show()
         }
 
-        if (cardJSON.op_skiptime === false) {
+        if (cardJSON.op_skiptime === true) {
             $(cardhtml).find(".skiptime").show()
         }
 

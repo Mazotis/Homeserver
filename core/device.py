@@ -10,7 +10,6 @@
 
 import time
 import datetime
-import sys
 from collections import deque
 from core.common import *
 from core.convert import convert_color
@@ -43,6 +42,7 @@ class device(object):
         self.state_inference_group = None
         self.state_getter_mode = "normal"
         self.ignore_global_group = False
+        self.retry_delay_on_failure = 0
         self.history_origin = "Unknown"
         self.history = deque(maxlen=10)
         self.interrupt = Lock()
@@ -73,6 +73,8 @@ class device(object):
             self.state_getter_mode = self.config["STATE_GETTER_MODE"]
         if self.config.dev_has_option("IGNORE_GLOBAL_GROUP"):
             self.ignore_global_group = self.config["IGNORE_GLOBAL_GROUP"]
+        if self.config.dev_has_option("RETRY_DELAY_ON_FAILURE"):
+            self.retry_delay_on_failure = self.config.get_value("RETRY_DELAY_ON_FAILURE", int)
 
     def pre_run(self, color):
         try:
@@ -226,11 +228,12 @@ class device(object):
         """ Used to receive the shared pseudo-devices class from the devicemanager """
         pass
 
-    def check_for_interrupts(self):
+    def interruptible(self, _f):
+        # Function wrapper for interruptible device functions, used with 'lambda: f(args)'
+        # The caller function must check for a None return to intercept interrupts
         if self.interrupt.locked():
-            debug.write("Device {} thread interrupted.".format(self.name), 3)
-            self.interrupt.release()
-            sys.exit()
+            raise RequestAborted("'{}' request aborted, falling back to old state.".format(self.name))
+        return _f()
 
     @staticmethod
     def _get_time():

@@ -37,6 +37,11 @@ with open(CORE_DIR + "/../VERSION") as f:
 ###
 
 
+class RequestAborted(Exception):
+    # Does nothing for now
+    pass
+
+
 def send_msg(sock, msg):
     # TODO - secure hashing
     msg = pickle.dumps(msg)
