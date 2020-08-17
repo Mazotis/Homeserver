@@ -772,7 +772,7 @@
 				<default>False</default>
 			</config>
 			<config name="RETRY_DELAY_ON_FAILURE"> 
-				<description>Optional (default: 0 - do not retry). Delay to wait (in seconds) before retrying a state change for a repeatedly failing device using a new request. Useful for desynchronized or poorly responding devices (such as some BLE devices) that requires a given timeout to disconnect or to resynchronize from their side (warning - setting this bigger than 0 will ALWAYS retry the request until it succeeds, and may result in a neverending loop)</description>
+				<description>Optional (default: 0 - do not retry). Delay to wait (in seconds) before retrying a state change for a repeatedly failing device using a new request. Useful for desynchronized or poorly responding devices (such as some BLE devices) that requires a given timeout to disconnect or to resynchronize from their side</description>
 				<fullname>Delay before retrying device state change after repeated failures</fullname>
 				<fulltype>Time (seconds)</fulltype>
 				<regex>^[0-9]+$</regex>

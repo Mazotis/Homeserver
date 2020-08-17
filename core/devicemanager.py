@@ -289,7 +289,7 @@ class DeviceManager(object):
     def history(self):
         historylist = []
         for obj in self:
-            historylist.append(list(obj.history))
+            historylist.append(obj.get_history())
         return historylist
 
     def get_devices_list(self):
@@ -730,11 +730,13 @@ class DeviceManager(object):
                             debug.write(
                                 "Failed to change all states. Aborting", 1)
                             for _cnt, _dev in enumerate(self):
-                                if not _dev.success and _dev.retry_delay_on_failure > 0 and colors[_cnt] not in [DEVICE_SKIP, DEVICE_DISABLED, DEVICE_STANDBY]:
-                                    debug.write("Retrying state change for device {} in {} seconds".format(_dev.name, _dev.retry_delay_on_failure), 1)
-                                    _colors = [DEVICE_SKIP] * len(self)
-                                    _colors[_cnt] = self[_cnt].convert(colors[_cnt])
-                                    self._delayed_request(_req, _colors, _dev.retry_delay_on_failure)
+                                if not _dev.success and colors[_cnt] not in [DEVICE_SKIP, DEVICE_DISABLED, DEVICE_STANDBY]:
+                                    if _dev.retry_delay_on_failure > 0 and not _dev.check_for_repeating_failures():
+                                        debug.write("Retrying state change for device {} in {} seconds".format(_dev.name, _dev.retry_delay_on_failure), 1)
+                                        _colors = [DEVICE_SKIP] * len(self)
+                                        _colors[_cnt] = self[_cnt].convert(colors[_cnt])
+                                        self._delayed_request(_req, _colors, _dev.retry_delay_on_failure)
+                                    _dev.set_failed_history()
                             break
 
         except queue.Empty:
@@ -1125,11 +1127,11 @@ class RequestExecutor(object):
         debug.write("Locked status: {}".format(lock.locked()), 0)
         dm.queue.put(request)
         if not lock.locked():
-            _thr = Thread(target=dm._set_lights).start()
+            Thread(target=dm._set_lights).start()
         elif dm.threaded:
             for _cnt, _thread in enumerate(dm.light_threads):
                 if _thread is not None and not _thread.done():
                     dm[_cnt].interrupt.acquire()
-                    while not _thread.cancelled() or not _thread.done():
+                    while not _thread.done():
                         time.sleep(0.5)
                     dm[_cnt].interrupt.release()

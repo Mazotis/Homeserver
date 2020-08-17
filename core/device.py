@@ -74,7 +74,8 @@ class device(object):
         if self.config.dev_has_option("IGNORE_GLOBAL_GROUP"):
             self.ignore_global_group = self.config["IGNORE_GLOBAL_GROUP"]
         if self.config.dev_has_option("RETRY_DELAY_ON_FAILURE"):
-            self.retry_delay_on_failure = self.config.get_value("RETRY_DELAY_ON_FAILURE", int)
+            self.retry_delay_on_failure = self.config.get_value(
+                "RETRY_DELAY_ON_FAILURE", int)
 
     def pre_run(self, color):
         try:
@@ -96,7 +97,8 @@ class device(object):
                 return True
             if color not in (self.convert(DEVICE_OFF), DEVICE_SKIP) and self.skip_run_time:
                 self.success = True
-                debug.write("Device '{}' skipped due to actual time.".format(self.name), 0, self.device_type)
+                debug.write("Device '{}' skipped due to actual time.".format(
+                    self.name), 0, self.device_type)
                 return True
 
             if not self.ignoremode:
@@ -110,14 +112,14 @@ class device(object):
                     debug.write("Device '{}' set to MANUAL mode."
                                 .format(self.name), 0, self.device_type)
                     self.auto_mode = False
-                    self.history.append("({}) [Mode change] Auto => Manual (Origin: {})".format(
-                        self._get_time(), self.history_origin))
+                    self.history.append(
+                        history("Mode", "Auto => Manual", self.history_origin))
                 if self.reset_mode:
                     if not self.auto_mode:
                         debug.write("Device '{}' set back to AUTO mode."
                                     .format(self.name), 0, self.device_type)
-                        self.history.append("({}) [Mode change] Manual => Auto (Origin: {})".format(
-                            self._get_time(), self.history_origin))
+                        self.history.append(
+                            history("Mode", "Manual => Auto", self.history_origin))
                     self.auto_mode = True
             else:
                 debug.write("Skipping mode evaluation for device '{}'."
@@ -136,12 +138,13 @@ class device(object):
 
             if self.action_delay != 0:
                 self.last_action_timestamp = time.time()
-            self.history.append("({}) [State change] {} => {} (Origin: {})".format(
-                self._get_time(), self.state, color, self.history_origin))
-            self.history_origin = "Unknown"
+            if not self.check_last_history_item("State", "{} => {}".format(self.state, self.convert(color))):
+                self.history.append(history("State", "{} => {}".format(
+                    self.state, self.convert(color)), self.history_origin))
             return self.run(color)
         except NewRequestException:
-            debug.write("Aborting device '{}' state change".format(self.name), 0, self.device_type)
+            debug.write("Aborting device '{}' state change".format(
+                self.name), 0, self.device_type)
             return False
 
     def convert(self, color):
@@ -156,6 +159,7 @@ class device(object):
         self.success = False
         self.reset_mode = False
         self.skip_run_time = False
+        self.history_origin = "Unknown"
         return
 
     def get_state_pre(self):
@@ -187,8 +191,8 @@ class device(object):
 
     def set_state(self, state):
         """ Setter for the actual state """
-        self.history.append("({}) [State change] {} => {} (Origin: {})".format(
-            self._get_time(), self.state, state, "Manual"))
+        self.history.append(
+            history("State", "{} => {}".format(self.state, state), "Manual"))
         if state in ["0", 0]:
             self.state = DEVICE_OFF
         elif state in ["1", 1]:
@@ -199,8 +203,8 @@ class device(object):
             self.device_type, self.device, self.state), 0, self.device_type)
 
     def lock_unlock_requests(self, is_locked):
-        self.history.append("({}) [Device locked] (Origin: {})".format(
-            self._get_time(), self.history_origin))
+        self.history.append(
+            history("Locked", bool(is_locked), self.history_origin))
         debug.write("Device '{}' is set to locked = {}."
                     .format(self.name, bool(is_locked)), 0, self.device_type)
         self.request_locked = bool(is_locked)
@@ -232,9 +236,47 @@ class device(object):
         # Function wrapper for interruptible device functions, used with 'lambda: f(args)'
         # The caller function must check for a None return to intercept interrupts
         if self.interrupt.locked():
-            raise RequestAborted("'{}' request aborted, falling back to old state.".format(self.name))
+            raise RequestAborted(
+                "'{}' request aborted, falling back to old state.".format(self.name))
         return _f()
+
+    def get_history(self):
+        return [str(h) for h in self.history]
+
+    def check_last_history_item(self, element, change):
+        try:
+            if self.history[-1].element == element and self.history[-1].change == change:
+                return True
+        except IndexError:
+            pass
+        return False
+
+    def set_failed_history(self):
+        self.history.append(history("Failure", "", self.history_origin))
+
+    def check_for_repeating_failures(self):
+        try:
+            if self.history[-1].element == "Failure" or self.history[-2].element == "Failure":
+                debug.write("Device {} has failed already. Aborting state change attempt.".format(self.name), 1)
+                return True
+        except IndexError:
+            pass
+        return False
 
     @staticmethod
     def _get_time():
         return datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+
+
+class history(object):
+    def __init__(self, element, change, origin):
+        self.element = element
+        self.change = change
+        self.origin = origin
+        self.history_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+        if self.element not in ["Failure", "State", "Mode", "Locked"]:
+            debug.write(
+                "Got unexpected element for history tracking: {}".format(self.element), 3)
+
+    def __str__(self):
+        return "({}) [{}] {} (Origin: {})".format(self.history_time, self.element, self.change, self.origin)

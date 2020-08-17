@@ -453,7 +453,7 @@ function generateCardForId(device_id) {
             </center>
         </div>
         <div class="card-body " style="padding-top:0; padding:0.25rem;">
-            <h5 class="card-title " style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;">${cardJSON.name}</h5>
+            <h5 class="card-title " style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"><span class="failure-error" style="color:#F06060;"><i class="fas fa-exclamation-triangle"></i>&nbsp;</span>${cardJSON.name}</h5>
             <small class="text-muted ">${cardJSON.type}</small>
             <p class="card-text c-desc">${cardJSON.description}</p>
             <div class="controls-div">
@@ -702,7 +702,11 @@ function computeCards() {
                 }
             });
 
+            $(this).find(".failure-error").hide();
             if (stateJSON.history[cid] != "") {
+                if (stateJSON.history[cid][stateJSON.history[cid].length-1].includes("[Failure]")) {
+                    $(this).find(".failure-error").show();
+                }
                 history = stateJSON.history[cid].join("<br>")
                 $(this).find(".historytooltip").attr("data-title", stateJSON.history[cid].join("<br>"))
             }

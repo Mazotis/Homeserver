@@ -8,6 +8,7 @@
     The Playbulb BLE bulbs handler class
 '''
 
+import bluepy as ble
 from core.common import *
 from core.bulb import Bulb, connect_ble
 
@@ -40,9 +41,12 @@ class Playbulb(Bulb):
 
     @connect_ble
     def get_state(self):
-        if self._connection is not None:
-            self.state = self._connection.getCharacteristics(
-                uuid=Playbulb._COLOR_UUID)[0].read().hex()
+        try:
+            if self._connection is not None:
+                self.state = self._connection.getCharacteristics(
+                    uuid=Playbulb._COLOR_UUID)[0].read().hex()
+        except ble.btle.BTLEDisconnectError:
+            pass
         return self.state
 
     @connect_ble
