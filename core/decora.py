@@ -42,8 +42,7 @@ class Decora(object):
                             return switch
         except ValueError:
             debug.write("Error connecting to Decora servers. Retrying", 1)
-            self.connect()
-            return self.get_switch(name)
+            return self.connect()
         return False
 
     def request(self, name, attribs):
@@ -51,7 +50,7 @@ class Decora(object):
             self.connect()
         self.get_switch(name).update_attributes(attribs)
 
-    def connect(self):
+    def connect(self, name=None):
         with Decora.decora_lock:
             if self._connected:
                 self.disconnect()
@@ -60,9 +59,10 @@ class Decora(object):
                 timer = Timer(10, self.failure_handler)
                 timer.start()
                 self.session = DecoraWiFiSession()
-                self.get_switch()
+                self.get_switch(name=name)
                 self.disabled = False
                 timer.cancel()
+                debug.write("Connected to Decora", 0)
             except KeyboardInterrupt:
                 self.disabled = True
                 return

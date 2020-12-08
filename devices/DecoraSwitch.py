@@ -2,7 +2,7 @@
 '''
     File name: DecoraSwitch.py
     Author: Maxime Bergeron
-    Date last modified: 14/07/2020
+    Date last modified: 08/12/2020
     Python Version: 3.7
 
     The DecoraSwitch for Leviton Decora Switches handler class
@@ -34,22 +34,19 @@ class DecoraSwitch(device):
             if color == DEVICE_OFF:
                 _att['power'] = 'OFF'
                 self.interruptible(lambda: self.decora.request(self.device, _att))
-                self.state = DEVICE_DISABLED
-                self.success = True
-                return True
+                self.state = DEVICE_OFF
             elif color == DEVICE_ON:
                 _att['power'] = 'ON'
                 _att['brightness'] = int(self.intensity)
                 self.interruptible(lambda: self.decora.request(self.device, _att))
                 self.state = self.intensity
-                self.success = True
-                return True
             else:
                 _att['brightness'] = int(color)
                 self.interruptible(lambda: self.decora.request(self.device, _att))
                 self.state = color
-                self.success = True
-                return True
+            debug.write("Device {} color changed to {}.".format(self.device, self.state), 0, self.device_type)
+            self.success = True
+            return True
         else:
             debug.write(
                 "Skipping device {} - handler connection failed.".format(self.device), 0, self.device_type)
