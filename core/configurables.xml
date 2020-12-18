@@ -390,37 +390,37 @@
 			</config>
 			<config name="ON_EVENT_HOUR_EVENT" silent="True">
 				<description>Event to run when EVENT_TIME (as defined in SERVER) is reached and/or has already passed and at least one device is detected.</description>
-				<fullname></fullname>
+				<fullname>Event name</fullname>
 				<fulltype></fulltype>
 				<default></default>
 			</config>
 			<config name="ON_ALL_DISCONNECT_EVENT" silent="True">
 				<description>Event that runs when all devices are disconnected during active DETECTOR hours. Useful for turning everything off.</description>
-				<fullname></fullname>
+				<fullname>Event name</fullname>
 				<fulltype></fulltype>
 				<default></default>
 			</config>
 			<config name="ON_DEVICE_CONNECT_EVENT" silent="True">
 				<description>Event to run when a device is connected, even before EVENT_HOUR.</description>
-				<fullname></fullname>
+				<fullname>Event name</fullname>
 				<fulltype></fulltype>
 				<default></default>
 			</config>
 			<config name="ON_DEVICE_DISCONNECT_EVENT" silent="True">
 				<description>Event to run when a device is disconnected, even before EVENT_HOUR.</description>
-				<fullname></fullname>
+				<fullname>Event name</fullname>
 				<fulltype></fulltype>
 				<default></default>
 			</config>
 			<config name="ON_EVENT_HOUR_DEVICE_CONNECT_EVENT" silent="True">
 				<description>Event to run when a device is connected after EVENT_HOUR. Will run with ON_DEVICE_CONNECT_EVENT if both are set.</description>
-				<fullname></fullname>
+				<fullname>Event name</fullname>
 				<fulltype></fulltype>
 				<default></default>
 			</config>
 			<config name="ON_EVENT_HOUR_DEVICE_DISCONNECT_EVENT" silent="True">
 				<description>Event to run when a device is disconnected after EVENT_HOUR.</description>
-				<fullname></fullname>
+				<fullname>Event name</fullname>
 				<fulltype></fulltype>
 				<default></default>
 			</config>

@@ -1,11 +1,11 @@
 # English translations for Homeserver project.
-# Copyright (C) 2019
+# Copyright (C) 2020
 # This file is distributed under the same license as the Homeserver package.
-# Mazotis <mazout360@hotmail.com>, 2019.
+# Mazotis <mazout360@hotmail.com>, 2020.
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: alpha-0.1\n"
+"Project-Id-Version: alpha-0.0022\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2019-11-01 14:31-0400\n"
 "PO-Revision-Date: 2019-11-28 15:30-0400\n"
@@ -355,3 +355,15 @@ msgstr "Aucun groupe configuré!"
 #: web/texts.py:95
 msgid "Add/remove room groups"
 msgstr "Ajouter/retirer des groupes-pièces"
+
+#: web/texts.py:96
+msgid "Controls"
+msgstr "Contrôles"
+
+#: web/texts.py:97
+msgid "History"
+msgstr "Historique"
+
+#: web/texts.py:98
+msgid "No recent changes"
+msgstr "Pas de changements récents"

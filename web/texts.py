@@ -92,7 +92,10 @@ def getTextHTML(textid):
         "Available groups": _("Available groups"),
         'Please select the groups that will be considered as "rooms" or "prioritary" groups': _('Please select the groups that will be considered as "rooms" or "prioritary" groups'),
         "No groups configured!": _("No groups configured!"),
-        "Add/remove room groups": _("Add/remove room groups")
+        "Add/remove room groups": _("Add/remove room groups"),
+        "Controls": _("Controls"),
+        "History": _("History"),
+        "No recent changes": _("No recent changes")
     }
 
     try:

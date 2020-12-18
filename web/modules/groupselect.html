@@ -18,12 +18,12 @@ function getGroupsList() {
 
           for (_cnt in groups["groups"]) {
             $("#no-group-msg").remove()
-            html = '<div class="form-group row"><label for="' + groups["groups"][_cnt] + '-field" class="col-8 col-form-label">' + groups["groups"][_cnt] + ' </label><div class="col-2"><input type="checkbox" id="' + groups["groups"][_cnt] + '-field" data-onstyle="success" data-offstyle="danger" data-on="_(Yes)" data-off="_(No)"></div></div>'
+            html = '<div class="form-group row"><label for="g' + _cnt + '-field" class="col-8 col-form-label">' + groups["groups"][_cnt] + ' </label><div class="col-2"><input type="checkbox" id="g' + _cnt + '-field" gname="' + groups["groups"][_cnt] + '" data-onstyle="success" data-offstyle="danger" data-on="_(Yes)" data-off="_(No)"></div></div>'
             $("#groups-list").append(html)
             if (groups["rooms"].includes(groups["groups"][_cnt])) {
-              $("#" + groups["groups"][_cnt] + "-field").bootstrapToggle('on', false)
+              $("#g" + _cnt + "-field").bootstrapToggle('on', false)
             } else {
-              $("#" + groups["groups"][_cnt] + "-field").bootstrapToggle('off', false)
+              $("#g" + _cnt + "-field").bootstrapToggle('off', false)
             }
           } 
       },
@@ -34,7 +34,7 @@ function getGroupsList() {
 }
 
 function generateRoomGroups() {
-  var selected = function() { return this.id.replace("-field", ""); };
+  var selected = function() { return this.getAttribute('gname'); };
   var roomgroups = $("#groups-list").find(":checkbox:checked").map(selected).get();
   $("#record-rooms").prop("disabled", true)
   $.ajax({

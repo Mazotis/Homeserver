@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2019-11-29 11:07-0500\n"
+"POT-Creation-Date: 2020-12-17 17:27-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -346,4 +346,16 @@ msgstr ""
 
 #: web/texts.py:95
 msgid "Add/remove room groups"
+msgstr ""
+
+#: web/texts.py:96
+msgid "Controls"
+msgstr ""
+
+#: web/texts.py:97
+msgid "History"
+msgstr ""
+
+#: web/texts.py:98
+msgid "No recent changes"
 msgstr ""

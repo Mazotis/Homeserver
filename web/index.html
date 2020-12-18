@@ -5,14 +5,13 @@
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
     <meta content="utf-8" http-equiv="encoding">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/all.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/roundSlider/1.3.3/roundslider.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-giJF6kkoqNQ00vy+HMDP7azOuL0xtbfIcaT9wjKHr8RbDVddVHyTfAAsrekwKmP1" crossorigin="anonymous">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.1/css/all.min.css" rel="stylesheet">
     <link href="style/app.css" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
-    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/roundSlider/1.3.3/roundslider.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW" crossorigin="anonymous"></script>
+    <link href="https://cdn.jsdelivr.net/npm/round-slider@1.6.1/dist/roundslider.min.css" rel="stylesheet" />                           
+    <script src="https://cdn.jsdelivr.net/npm/round-slider@1.6.1/dist/roundslider.min.js"></script>
     <script src="js/app.js"></script>
     <link href="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/css/bootstrap4-toggle.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
@@ -27,21 +26,57 @@
                     <h4 style="margin-top:15px; margin-bottom: 0; font-weight:bold;">Homeserver</h4>
                     <p>Version <span id="version-span"></span></p>
                     <hr>
-                    <br>
-                    <h4 style="font-weight:bold; text-decoration: underline;"><i class="fas fa-tools"></i> <tl>Tools</tl></h4>
-                    <a onclick="getPresetEditor()"><tl>Presets editor</tl></a><br>
-                    <a id="reload-config-side-btn" onclick="reloadConfig()"><tl>Reload config file</tl></a>
+                    <div>
+                        <div class="card text-white bg-dark mb-2">
+                            <h4 class="card-header"><tl>Tools</tl></h4>
+                            <div class="card-body noselect-nooverflow">
+                                <ul style="font-weight: bold;">
+                                    <li><a onclick="getPresetEditor()"><tl>Presets editor</tl></a></li>
+                                    <li><a id="reload-config-side-btn" onclick="reloadConfig()"><tl>Reload config file</tl></a></li>
+                                </ul>              
+                            </div>
+                        </div>
+                        <div class="card text-white bg-dark mb-2s">
+                            <h4 class="card-header"><tl>Options</tl></h4>
+                            <div class="card-body noselect-nooverflow">
+                                <p class="card-text"><tl>Time check feature. Today's start time:</tl> <span id="suntime"><tl>N/A</tl></span></p>
+                                <p class="card-text">
+                                    <div class="btn-group" role="group">
+                                        <input type="radio" class="btn-check" id="skiptime-tog-1" name="skiptime" autocomplete="off" checked>
+                                        <label class="btn btn-outline-secondary" for="skiptime-tog-1">Check time of day before executing changes</label>
+                                        <input type="radio" class="btn-check" id="skiptime-tog-2" name="skiptime" autocomplete="off">
+                                        <label class="btn btn-outline-secondary" for="skiptime-tog-2">Execute changes anytime</label>
+                                    </div>
+                                </p>
+                                <p class="card-text"><tl>Automatic mode</tl></p>
+                                <p class="card-text">
+                                    <div class="btn-group" data-toggle="buttons">
+                                        <button type="button" onclick="sendAllModeAuto()" class="btn btn-secondary"><tl>Set all devices to automatic mode</tl></button>
+                                    </div>
+                                </p>
+                                <p class="card-text"><tl>Mode selection toggles</tl></p>
+                                <p class="card-text">
+                                    <div class="btn-group hidemode-toggles" role="group">
+                                        <input type="radio" autocomplete="off" class="btn-check" name="hidemode" id="hidemode-tog-1" value="0" checked>
+                                        <label class="btn btn-outline-secondary" for="hidemode-tog-1">Hide mode selection toggles</label>
+                                        <input type="radio" autocomplete="off" class="btn-check" name="hidemode" id="hidemode-tog-2" value="1">
+                                        <label class="btn btn-outline-secondary" for="hidemode-tog-2">Show mode selection toggles</label>
+                                    </div>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
                 </center>
             </div>
             <div id="time-bar">
                 <div id="sky-time-bar"></div>
                 <div id="night-time-bar"></div>
-                <div id="sun-time-ball" data-toggle="tooltip" data-html="true"></div>
+                <div id="sun-time-ball" data-bs-toggle="tooltip" data-bs-html="true"></div>
                 <div id="sun-time-ball-line"></div>
-                <div id="on-time-bar" data-toggle="tooltip" data-html="true"></div>
-                <div id="off-time-bar" data-toggle="tooltip" data-html="true"></div>
-                <div id="on-detector-bar" data-toggle="tooltip" data-html="true"></div>
-                <div id="off-detector-bar" data-toggle="tooltip" data-html="true"></div>
+                <div id="on-time-bar" data-bs-toggle="tooltip" data-bs-html="true"></div>
+                <div id="off-time-bar" data-bs-toggle="tooltip" data-bs-html="true"></div>
+                <div id="on-detector-bar" data-bs-toggle="tooltip" data-bs-html="true"></div>
+                <div id="off-detector-bar" data-bs-toggle="tooltip" data-bs-html="true"></div>
                 <div class="bg-info" id="top-bar"></div>
                 <div id="bar-end"></div>
             </div>
@@ -55,11 +90,11 @@
             <div class="col-md-12" style="background-color:#eee !important; padding-top:50px;">
                 <br>
                 <span id="detector-module-location"></span>
-                <div id="rooms-section" style="display:none;">
+                <div id="rooms-section" class="mb-4" style="display:none;">
                     <h4><tl>Rooms</tl></h4>
-                    <div id="open-rcard">
+                    <div id="open-rcard" class="mb-2">
                     </div>
-                    <div class="card-columns rcolumns">
+                    <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 card-columns rcolumns g-2">
                     </div>
                 </div>
                 <h4><tl>Devices</tl></h4>
@@ -75,58 +110,23 @@
                             </div>
                         </div>
                         <div id="modulesid"></div>
-                        <div class="card text-white bg-dark mb-3">
-                            <h4 class="card-header"><tl>Options</tl></h4>
-                            <div class="card-body noselect-nooverflow">
-                                <p class="card-text"><tl>Time check feature. Today's start time:</tl> <span id="suntime"><tl>N/A</tl></span></p>
-                                <p class="card-text">
-                                    <div class="btn-group btn-group-toggle" data-toggle="buttons">
-                                        <label class="btn btn-secondary active">
-                                            <input type="radio" name="skiptime1" autocomplete="off" checked> <tl>Check time of day before executing changes</tl>
-                                        </label>
-                                        <label class="btn btn-secondary">
-                                            <input type="radio" name="skiptime2" autocomplete="off"> <tl>Execute changes anytime</tl>
-                                        </label>
-                                    </div>
-                                </p>
-                                <p class="card-text"><tl>Automatic mode</tl></p>
-                                <p class="card-text">
-                                    <div class="btn-group" data-toggle="buttons">
-                                        <button type="button" onclick="sendAllModeAuto()" class="btn btn-secondary"><tl>Set all devices to automatic mode</tl></button>
-                                    </div>
-                                </p>
-                                <p class="card-text"><tl>Mode selection toggles</tl></p>
-                                <p class="card-text">
-                                    <div class="btn-group btn-group-toggle hidemode-toggles" data-toggle="buttons">
-                                        <label class="btn btn-secondary active">
-                                            <input type="radio" autocomplete="off" value="0" checked> <tl>Hide mode selection toggles</tl>
-                                        </label>
-                                        <label class="btn btn-secondary">
-                                            <input type="radio" autocomplete="off" value="1"> <tl>Show mode selection toggles</tl>
-                                        </label>
-                                    </div>
-                                </p>
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    <div class="modal fade" id="settingsmodal" tabindex="-1" role="dialog">
-      <div class="modal-dialog modal-lg" role="document">
+    <div class="modal fade" id="settingsmodal" tabindex="-1" aria-labelledby="Settings" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-scrollable modal-lg" role="document">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title"></h5>
-            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-              <span aria-hidden="true">&times;</span>
-            </button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
           </div>
           <div class="modal-footer">
             <button type="button" id="savemodal" class="btn btn-primary"><tl>Save</tl></button>
-            <button type="button" class="btn btn-secondary" data-dismiss="modal"><tl>Close</tl></button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><tl>Close</tl></button>
           </div>
         </div>
       </div>

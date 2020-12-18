@@ -5,6 +5,7 @@ var modulesToRefresh = new Array()
 var dmconfig
 var oldstateJSON, stateJSON
 var pendingRequests = 0
+var hasToggledMode = false
 var shownMenu = false
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -20,8 +21,10 @@ document.addEventListener('DOMContentLoaded', function() {
     $(".hidemode-toggles input:radio").on('change', function() {
         if ($(this).val() == "0") {
             $(".radiomode").css("display", "none")
+            hasToggledMode = false
         } else {
             $(".radiomode").css("display", "inline-flex")
+            hasToggledMode = true
         }
     })
 
@@ -54,14 +57,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         }
     })
+
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+      return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
 });
 
-async function post_webserver(data, callback) {
+async function post_webserver(data, callback, custom_options = {}, response_type = "json") {
     let initial_data = {
         request: 'True'
     };
     initial_data = Object.assign(data, initial_data)
-    const options = {
+
+    let options = {
         method: 'POST',
         headers: {
             'Content-Type': 'text'
@@ -69,14 +78,33 @@ async function post_webserver(data, callback) {
         body: Object.entries(initial_data).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&")
     };
 
-    const response = await fetch('.', options
-    ).then(data => data.json()
-    ).then(response => {
-        callback(response);
-    }).catch(error => {
-        console.log(error);
-        enableElement(".dcard")
-    });
+    for (opt in custom_options) {
+        if (custom_options[opt] == "") {
+            delete options[opt]
+        } else {
+            options[opt] = custom_options[opt]
+        }
+    }
+
+    if (response_type == "json") {
+        const response = await fetch('.', options
+        ).then(data => data.json()
+        ).then(response => {
+            callback(response);
+        }).catch(error => {
+            console.log(error);
+            enableElement(".dcard")
+        });
+    } else {
+        const response = await fetch('.', options
+        ).then(data => data.text()
+        ).then(response => {
+            callback(response);
+        }).catch(error => {
+            console.log(error);
+            enableElement(".dcard")
+        });
+    }
 }
 
 function showLoading() {
@@ -131,8 +159,7 @@ function drawTimeBar() {
     const sunrisePosition = Math.round(cF(sunriseTimeInMins/maxTime*24)*100)
 
     document.getElementById("night-time-bar").style.backgroundImage = `linear-gradient(to right, #444 ${sunrisePosition-5}% , transparent ${sunrisePosition}%, transparent ${sunsetPosition-5}%, #444 ${sunsetPosition}%)`
-    $("#sun-time-ball").tooltip('hide').attr('data-original-title', `<p style="font-weight:bold;">Last updated at</p><h2>${actualTime.toLocaleTimeString().substring(0,5)}</h2><br>Sunrise time today: <span style="font-weight:bold;">${stateJSON.sunrise.substring(0,5)}</span><br>Sunset time today: <span style="font-weight:bold;">${stateJSON.sunset.substring(0,5)}</span>`);
-    $("#sun-time-ball").tooltip('show')
+    $("#sun-time-ball").attr('data-bs-original-title', `<p style="font-weight:bold;">Last updated at</p><h2>${actualTime.toLocaleTimeString().substring(0,5)}</h2><br>Sunrise time today: <span style="font-weight:bold;">${stateJSON.sunrise.substring(0,5)}</span><br>Sunset time today: <span style="font-weight:bold;">${stateJSON.sunset.substring(0,5)}</span>`);
     setTimeout(() => {
         $("#sun-time-ball").tooltip('hide')
     }, 2000)
@@ -150,10 +177,10 @@ function drawTimeBar() {
     const endTimeInMins = parseInt(stateJSON.endtime.substring(0,2))*60 + parseInt(stateJSON.endtime.substring(3,5))
     const endTimePosition = Math.round(cF(endTimeInMins/maxTime*24)*100)
 
-    $("#on-time-bar").tooltip({title:`<p style="font-weight:bold;">Time check feature</p>No limitations between <span style="font-weight:bold;">${stateJSON.sunset.substring(0,5)}</span> and <span style="font-weight:bold;">${stateJSON.endtime.substring(0,5)}</span>`})
-    $("#off-time-bar").tooltip({title: `<p style="font-weight:bold;">Time check feature</p>No limitations between <span style="font-weight:bold;">${stateJSON.sunset.substring(0,5)}</span> and <span style="font-weight:bold;">${stateJSON.endtime.substring(0,5)}</span>`})
+    $("#on-time-bar").attr('data-bs-original-title', `<p style="font-weight:bold;">Time check feature</p>No limitations between <span style="font-weight:bold;">${stateJSON.sunset.substring(0,5)}</span> and <span style="font-weight:bold;">${stateJSON.endtime.substring(0,5)}</span>`)
+    $("#off-time-bar").attr('data-bs-original-title', `<p style="font-weight:bold;">Time check feature</p>No limitations between <span style="font-weight:bold;">${stateJSON.sunset.substring(0,5)}</span> and <span style="font-weight:bold;">${stateJSON.endtime.substring(0,5)}</span>`)
     if (startTimeinMins <= endTimeInMins) {
-        const barwidth = endTimePosition - startTimeinMins
+        const barwidth = endTimePosition - startTimePosition
         document.getElementById("off-time-bar").style.width = `100%`
         document.getElementById("off-time-bar").style.display = `block`
         document.getElementById("off-time-bar").style.zIndex = `9003`
@@ -162,7 +189,7 @@ function drawTimeBar() {
         document.getElementById("on-time-bar").style.display = `block`
         document.getElementById("on-time-bar").style.zIndex = `9004`
     } else {
-        const barwidth = startTimeinMins - endTimePosition
+        const barwidth = startTimePosition - endTimePosition
         document.getElementById("on-time-bar").style.width = `100%`
         document.getElementById("on-time-bar").style.display = `block`
         document.getElementById("on-time-bar").style.zIndex = `9003`
@@ -232,7 +259,7 @@ async function getResult() {
         $('#suntime').html(stateJSON.sunset)
         $("#version-span").html(stateJSON.version)
 
-        let ghtml = '<div class="card-columns gcard-columns">'
+        let ghtml = '<div class="row row-cols-2 row-cols-sm-3 row-cols-lg-6 gcard-columns">'
         for (group in stateJSON.groups) {
             ghtml += generateCardForGroup(group, cnt)
             cnt = cnt + 1
@@ -241,9 +268,9 @@ async function getResult() {
         $("#groups").html(ghtml)
 
         cnt = 0
-        var html = '<div class="card-columns dcard-columns">'
+        var html = '<div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3">'
         for (_ in stateJSON.state) {
-            html += '<div id="dcard' + cnt + '"></div>'
+            html += '<div id="dcard' + cnt + '" class="col g-3"></div>'
             cnt = cnt + 1
         }
 
@@ -262,7 +289,7 @@ async function getResult() {
             $(".rcolumns").html(rhtml)
         }
 
-        html += '</div></div><hr>'
+        html += '</div></div></div><hr>'
 
         for (_mod in stateJSON.moduleweb) {
             if (stateJSON.moduleweb[_mod] != "none") {
@@ -353,17 +380,23 @@ function getAllResults() {
 }
 
 function closeTooltips() {
-    $("div[data-toggle='tooltip']").each(function() {
+    $("div[data-bs-toggle='tooltip']").each(function() {
         $(this).tooltip('hide');
     });
 }
 
-function enableHistoryTooltips() {
-    $("span[class='historytooltip']").each(function() {
-        $(this).tooltip({
-            container: 'body',
-            template: '<div class="tooltip" role="tooltip"><div class="arrow"></div><div class="tooltip-inner" style="max-width:500px !important"></div></div>'
-        });
+function enableHistoryBody() {
+    $(".history-nav").on("click", function() {
+        $(this).addClass("active")
+        $(this).parents(".dcard").find(".control-nav").removeClass("active")
+        $(this).parents(".dcard").find(".control-body").hide()
+        $(this).parents(".dcard").find(".history-body").show()
+    });
+    $(".control-nav").on("click", function() {
+        $(this).addClass("active")
+        $(this).parents(".dcard").find(".history-nav").removeClass("active")
+        $(this).parents(".dcard").find(".history-body").hide()
+        $(this).parents(".dcard").find(".control-body").show()
     });
 }
 
@@ -406,13 +439,14 @@ function generateCardForGroup(group, position) {
     if (skip_group == false) {
         let title = stateJSON.groups[group].charAt(0).toUpperCase() + stateJSON.groups[group].substr(1).toLowerCase()
         html = `
-<div class="gcard noselect-nooverflow" id="gcard${position}">
+<div class="gcard noselect-nooverflow g-2" id="gcard${position}">
     <div id="groupcardmodel">
-        <div class="card text-center bg-light mb-3">
+        <div class="card h-100 text-center bg-light">
             <h5 class="card-header " style="font-weight:bold;">${title}</h5>
-            <div style="padding:5px;">
+            <div class="card-footer">
                 <center>
-                    <input type="checkbox" class="gcard-toggle" data-onstyle="success" data-offstyle="danger">
+                    <button class="btn btn-success gcard-toggle-on">On</button>
+                    <button class="btn btn-danger gcard-toggle-off">Off</button>
                 </center>
             </div>
         </div>
@@ -426,15 +460,20 @@ function generateCardForGroup(group, position) {
 function generateRoomForGroup(room) {
     let title = room.charAt(0).toUpperCase() + room.substr(1).toLowerCase()
     return `
-    <div class="card rcard mb-3 noselect-nooverflow" id="rcard-${room.replace(/\s/g, '')}">
-        <h4 class="card-header title-header bg-danger text-white" style="font-weight:bold;">${title}</h4>
-        <div class="card-body d-body card-columns" style="display:none;">
-        </div>
-        <h5 class="card-header bg-danger d-count text-white title-footer">
-            <div style="float:right">
-                <input type="checkbox" class="rcard-toggle" data-onstyle="success" data-offstyle="danger" data-size="sm">
+    <div class="col">
+        <div class="card h-100 rcard noselect-nooverflow" id="rcard-${room.replace(/\s/g, '')}">
+            <h4 class="card-header title-header bg-danger text-white" style="font-weight:bold;">${title}</h4>
+            <div class="card-body" style="display:none;">
+                <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 rcards g-2">
+                </div>
             </div>
-        </h5>
+            <h5 class="card-header bg-danger d-count text-white title-footer">
+                <div style="float:right">
+                    <button class="btn btn-success btn-sm rcard-toggle-on">On</button>
+                    <button class="btn btn-danger btn-sm rcard-toggle-off">Off</button>
+                </div>
+            </h5>
+        </div>
     </div>
     `
 }
@@ -443,34 +482,43 @@ function generateCardForId(device_id) {
     let cardJSON = getJSONForId(device_id, stateJSON)
 
     let cardhtml = $(`
-<div id="cardmodel" style="display:none;">
-    <div class="dcard card text-center mb-3" cid="${device_id}">
+<div class="col" style="display:none;">
+    <div class="dcard card text-center" cid="${device_id}">
         <div class="card-loader" style="display:none;"></div>
-        <div class="card-header text-white" style="padding:5px;min-height: 30px;">
-            <span class="historytooltip" style="float:right" data-placement="right" data-toggle="tooltip" data-html="true" data-title="N/A"><i class="fas fa-history"></i>&nbsp;</span>
-            <center>
-                <i class="iconi"></i>
-            </center>
+        <div class="card-header text-white">
+            <ul class="nav nav-tabs card-header-tabs" style="white-space:nowrap;flex-wrap:nowrap;">
+              <li class="nav-item">
+                <a class="nav-link active control-nav" aria-current="true" style="color:white;">_(Controls)</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link history-nav" style="color:white;">_(History)</a>
+              </li>
+              <div class="d-none d-sm-block" style="flex-grow:100;font-weight:bold;line-height:38px;font-size:20px;padding-left:5px;"><div style="overflow:hidden;text-overflow:ellipsis;max-width:160px;float:left;">${cardJSON.name}</div><i class="iconi" style="float:right;line-height:34px;"></i></div>
+            </ul>
         </div>
-        <div class="card-body " style="padding-top:0; padding:0.25rem;">
-            <h5 class="card-title " style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"><span class="failure-error" style="color:#F06060;"><i class="fas fa-exclamation-triangle"></i>&nbsp;</span>${cardJSON.name}</h5>
-            <small class="text-muted ">${cardJSON.type}</small>
-            <p class="card-text c-desc">${cardJSON.description}</p>
-            <div class="controls-div">
-                <div>
-                    <center>
-                        <div class="colorpick">
-                            <input type="color" cid="" style="width:200%; height:200%; transform: translate(-25%, -25%);">
-                        </div>
-                        <span class="sliderpick">
-                            <div class="slider"></div>
-                        </span>
-                    </center>
+        <div class="card-body " style="min-height:140px;">
+            <div class="control-body">
+                <h5 class="card-title " style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"><span class="failure-error" style="color:#F06060;"><i class="fas fa-exclamation-triangle"></i>&nbsp;</span><span class="d-block d-sm-none">${cardJSON.name}</span></h5>
+                <p class="card-text mb-0">${cardJSON.description}</p>
+                <small class="text-muted ">${cardJSON.type}</small>
+                <div class="controls-div">
+                    <div class="mb-1">
+                        <center>
+                            <div class="colorpick">
+                                <input type="color" cid="" style="width:200%; height:200%; transform: translate(-25%, -25%);">
+                            </div>
+                            <span class="sliderpick">
+                                <div class="slider"></div>
+                            </span>
+                        </center>
+                    </div>
+                    <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons" style="display:none">
+                        <label class="btn btn-outline-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> <tl>Auto</tl></label>
+                        <label class="btn btn-outline-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> <tl>Manual</tl></label>
+                    </div>
                 </div>
-                <div class="btn-group btn-group-sm btn-group-toggle radiomode" data-toggle="buttons" style="display:none;margin-top:5px;">
-                    <label class="btn btn-secondary autobtn" ><input type="radio" name="auto" value="true" autocomplete="off"> <tl>Auto</tl></label>
-                    <label class="btn btn-secondary manbtn"><input type="radio" name="man" value="false" autocomplete="off"> <tl>Manual</tl></label>
-                </div>
+            </div>
+            <div class="history-body" style="display:none">
             </div>
         </div>
         <div class="card-footer ">
@@ -478,7 +526,7 @@ function generateCardForId(device_id) {
                 <i class="fas fa-clock skiptime" title="_(Device follows the time-check feature)" style="margin-right:5px; display:none"></i>
                 <i class="fas fa-power-off forceoff" title="_(If the device status is OFF, will ignore all turn-off requests)" style="margin-right:5px; display:none"></i>
                 <i class="fas fa-exclamation ignoremode" title="_(Device ignores its mode)" style="display:none"></i>
-                <span class="badge badge-secondary actiondelay" title="_(Device has a delay between state changes)" style="display:none"><span></span>&nbsp;<i class="fas fa-hourglass-half"></i></span>
+                <span class="badge bg-secondary actiondelay" title="_(Device has a delay between state changes)" style="display:none"><span></span>&nbsp;<i class="fas fa-hourglass-half"></i></span>
                 <i class="fas fa-stop-circle noop" title="_(Device is read-only)" style="display:none;"></i>
             &nbsp;</center>
         </div>
@@ -540,7 +588,7 @@ function generateCardForId(device_id) {
         }
 
         if (!hascontrols) {   
-            $(cardhtml).find(".controls-div").prepend('<input type="checkbox" class="dcard-toggle" data-onstyle="success" data-offstyle="danger" data-size="lg">')
+            $(cardhtml).find(".controls-div").prepend('<input type="checkbox" class="dcard-toggle" data-onstyle="success" data-offstyle="danger" data-size="lg" data-style="mb-1">')
         } else {
             $(cardhtml).find(".controls-div").append('<input type="checkbox" class="dcard-toggle" data-onstyle="success" data-offstyle="danger" data-size="sm">')
         }
@@ -567,7 +615,7 @@ function generateCardForId(device_id) {
     if (cardJSON.state === "X") {
         $(cardhtml).find(".dcard-toggle").bootstrapToggle('disable')
         $(cardhtml).find(".card-header").removeClass("text-white")
-        $(cardhtml).find(".card-header").append(`<i class="fas fa-wrench wrench-btn" onclick="reconnectDevice(${device_id})" title="_(Attempt device reconnection)"></i>`)
+        $(cardhtml).find(".card-footer").append(`<i class="fas fa-wrench wrench-btn" onclick="reconnectDevice(${device_id})" title="_(Attempt device reconnection)"></i>`)
     }
 
     if (cardJSON.state === "*0" || cardJSON.state === "*1") {
@@ -579,7 +627,6 @@ function generateCardForId(device_id) {
 
     if (cardJSON.icon != "none") {
         $(cardhtml).find(".iconi").attr("class", "iconi " + cardJSON.icon)
-        $(cardhtml).find(".iconi").css("margin-left", "16px")
     }
 
     return $(cardhtml).html()
@@ -587,7 +634,7 @@ function generateCardForId(device_id) {
 
 function generateBlankCard() {
     return `
-<div id="cardmodel">
+<div class="col g-3">
     <div class="card text-center mb-3 bg-secondary new-dev-card">
         <div class="card-body text-white" style="padding-top:0; padding:0.25rem;">
             <h5 class="card-title" style="margin-top:0.75rem;"><i class='fas fa-plus-circle'></i> Add device (WIP)</h5>
@@ -599,10 +646,12 @@ function generateBlankCard() {
 
 function generateBlankRoom() {
     return `
-<div class="card mb-3 noselect-nooverflow" onclick="getGroupSelect()">
-    <h5 class="card-header title-header bg-secondary text-white new-dev-card">
-        <i class="fas fa-plus-circle"></i> _(Add/remove room groups)
-    </h5>
+<div class="col g-3">
+    <div class="card mb-3 noselect-nooverflow" onclick="getGroupSelect()">
+        <h5 class="card-header title-header bg-secondary text-white new-dev-card">
+            <i class="fas fa-plus-circle"></i> _(Add/remove room groups)
+        </h5>
+    </div>
 </div>`
 }
 
@@ -627,9 +676,10 @@ function computeCards() {
             if (stateJSON.deviceroom[cid] != "") {
                 rgroups = stateJSON.deviceroom[cid].split(",")
                 for (_cnt in rgroups) {
-                    let clone = $(this).clone(true)
+                    let clone = $(this).parent().clone(true)
                     let position = 9999
-                    clone.attr("cloned", "1")
+                    clone.find('.dcard').attr("cloned", "1")
+                    clone.removeClass("g-3")
                     $("#rcard-" + rgroups[_cnt].replace(/\s/g, '')).find(".dcard").each(function() {
                         let thisCid = parseInt($(this).attr("cid")) 
                         if (position > thisCid && thisCid > cid) {
@@ -638,12 +688,12 @@ function computeCards() {
                     })
 
                     if (position != 9999) {
-                        clone.insertBefore($("#rcard-" + rgroups[_cnt].replace(/\s/g, '') + " .dcard[cid='" + position + "']"))
+                        clone.insertBefore($("#rcard-" + rgroups[_cnt].replace(/\s/g, '') + " #dcard" + position))
                     } else {
-                        clone.appendTo($("#rcard-" + rgroups[_cnt].replace(/\s/g, '') + " > .card-body"))
+                        clone.appendTo($("#rcard-" + rgroups[_cnt].replace(/\s/g, '') + " > .card-body > .rcards"))
                     }
                 }
-                $(this).remove()
+                $(this).parent().remove()
             }
         }
     });
@@ -661,9 +711,15 @@ function computeCards() {
             let slider = $(this).find(".slider")
             slider.roundSlider({
                 sliderType: "min-range",
-                handleShape: "round",
-                width: 30,
+                handleShape: "dot",
+                handleSize: "+16",
+                width: 10,
                 radius: 70,
+                svgMode: true,
+                borderWidth: 1,
+                borderColor: "#fff",
+                pathColor: "#000",
+                rangeColor: "#f9d71c",
                 value: parseInt(stateJSON.intensity[cid]),
                 editableTooltip: false,
                 change: function(event) {
@@ -701,6 +757,7 @@ function computeCards() {
                     }
                 }
             });
+            slider.roundSlider("refreshTooltip")
 
             $(this).find(".failure-error").hide();
             if (stateJSON.history[cid] != "") {
@@ -708,7 +765,9 @@ function computeCards() {
                     $(this).find(".failure-error").show();
                 }
                 history = stateJSON.history[cid].join("<br>")
-                $(this).find(".historytooltip").attr("data-title", stateJSON.history[cid].join("<br>"))
+                $(this).find(".history-body").html(stateJSON.history[cid].join("<br>"))
+            } else {
+                $(this).find(".history-body").html("_(No recent changes)")
             }
 
             var sliderVal = $(this).find(".slider").roundSlider("getValue")
@@ -718,9 +777,14 @@ function computeCards() {
                 $(this).find(".rs-handle").css("border", "5px solid #28a745")
             }
 
+
             $(this).find(".radiomode :input").on('change', function() {
                 sendModeRequest(cid, $(this).val())
             })
+
+            if (hasToggledMode) {
+                $(this).find(".radiomode").css("display", "inherit")
+            }
 
             $(this).find(".dcard-toggle").bootstrapToggle()
             if (stateJSON.state[cid] === "0" || (!isNaN(stateJSON.state[cid]) && parseInt(stateJSON.state[cid]) === 0) || stateJSON.state[cid] === "*0") {
@@ -752,9 +816,11 @@ function computeCards() {
         cgstate = stateJSON['groupstates'][cindex]
 
         if (cinit != "1") {
-            $(this).find(".gcard-toggle").bootstrapToggle({width:"100px"})
-            $(this).find(".gcard-toggle").change(function() {
-                sendGroupPowerRequest(group, this.checked ? 1 : 0, cid)
+            $(this).find(".gcard-toggle-on").on('click', function() {
+                sendGroupPowerRequest(group, 1, cid)
+            })
+            $(this).find(".gcard-toggle-off").on('click', function() {
+                sendGroupPowerRequest(group, 0, cid)
             })
         }
 
@@ -762,10 +828,8 @@ function computeCards() {
         $(this).find(".card-header").removeClass("bg-warning")
         $(this).find(".card-header").removeClass("bg-danger")
         $(this).find(".card-header").removeClass("text-white")
-        $(this).find(".gcard-toggle").bootstrapToggle('off', true)
         if (cgstate == "2") {
             $(this).find(".card-header").addClass("bg-success")
-            $(this).find(".gcard-toggle").bootstrapToggle('on', true)
         } else if  (cgstate == "1") {
             $(this).find(".card-header").addClass("bg-warning")
         } else if (cgstate == "0") {
@@ -777,7 +841,7 @@ function computeCards() {
     })
 
     computeRCards()
-    enableHistoryTooltips()
+    enableHistoryBody()
 }
 
 var hasOpenRcard = false
@@ -799,7 +863,7 @@ function computeRCards() {
                         $("#open-rcard").find(".card-body").fadeOut("fast")
                     }
                     $("#open-rcard").children().prependTo(".rcolumns")
-                    $(this).parent().prependTo("#open-rcard")
+                    $(this).parent().parent().prependTo("#open-rcard")
                     $("#open-rcard").find(".title-header").addClass("open-rcard-header")
                     $("#open-rcard").find(".title-footer").addClass("open-rcard-header")
                     $("#open-rcard").find(".rcard").addClass("open-rcard-card")
@@ -814,7 +878,7 @@ function computeRCards() {
                     }, 400);
                 } else {
                     $(this).parent().find(".card-body").fadeOut("fast", () => {
-                        $(this).parent().prependTo(".rcolumns")
+                        $(this).parent().parent().prependTo(".rcolumns")
                     })
                     hasOpenRcard = false
                 }
@@ -834,11 +898,11 @@ function computeRCards() {
                 $(this).find(".d-count").prepend(devlen + " _(devices)")
             }
 
-            $(this).find(".rcard-toggle").bootstrapToggle({
-                width: "60px"
+            $(this).find(".rcard-toggle-on").on('click', function() {
+                sendGroupPowerRequest(cgroup, 1, "rcard-" + cgroup.toLowerCase())
             })
-            $(this).find(".rcard-toggle").change(function() {
-                sendGroupPowerRequest(cgroup, this.checked ? 1 : 0, "rcard-" + cgroup.toLowerCase())
+            $(this).find(".rcard-toggle-off").on('click', function() {
+                sendGroupPowerRequest(cgroup, 0, "rcard-" + cgroup.toLowerCase())
             })
         }
 
@@ -853,32 +917,21 @@ function computeRCards() {
         $(this).find(".d-count").removeClass("bg-danger")
         $(this).find(".d-count").removeClass("bg-warning")
         $(this).find(".d-count").removeClass("bg-success")
-        $(this).find(".rcard-toggle").bootstrapToggle('enable')
         if (cgstate == "2") {
             $(this).addClass("border-success")
             $(this).find(".title-header").addClass("bg-success")
             $(this).find(".d-count").addClass("bg-success")
-            if (!$(this).find(".rcard-toggle").prop('checked')) {
-                $(this).find(".rcard-toggle").bootstrapToggle('on', true)
-            }
         } else if (cgstate == "0") {
             $(this).addClass("border-danger")
             $(this).find(".title-header").addClass("bg-danger")
             $(this).find(".d-count").addClass("bg-danger")
-            if ($(this).find(".rcard-toggle").prop('checked')) {
-                $(this).find(".rcard-toggle").bootstrapToggle('off', true)
-            }
         } else if (cgstate == "1") {
             $(this).addClass("border-warning")
             $(this).find(".title-header").addClass("bg-warning")
             $(this).find(".d-count").addClass("bg-warning")
-            if ($(this).find(".rcard-toggle").prop('checked')) {
-                $(this).find(".rcard-toggle").bootstrapToggle('off', true)
-            }
         } else {
             $(this).find(".title-header").removeClass("text-white")
             $(this).find(".title-footer").removeClass("text-white")
-            $(this).find(".rcard-toggle").bootstrapToggle('disable')
         }
 
         $(this).attr("cinit", "1")
@@ -904,24 +957,22 @@ function sendPowerRequest(devid, value, is_intensity=0) {
     });
 }
 
-function sendGroupPowerRequest(group, value, devid) {
+function sendGroupPowerRequest(group, value, groupid) {
     abortPendingRequests()
     pendingRequests++
-    disableElement("#"+devid)
-    $("#rcard-" + group.toLowerCase()).find(".rcard-toggle").bootstrapToggle('disable')
+    disableElement("#"+groupid)
     closeTooltips()
 
     const req_data = {
         reqtype: "setgroup",
         group: encodeURIComponent(group.replace(" ", "_")),
         value: value,
-        skiptime: $('input[name=skiptime2]').parent().hasClass("active")
+        skiptime: $('input[id=skiptime-tog-2]').parent().hasClass("active")
     };
 
     post_webserver(req_data, (data) => {
         getAllResults(() => {
-            $("#rcard-" + group.toLowerCase()).find(".rcard-toggle").bootstrapToggle('enable');
-            enableElement("#"+devid);
+            enableElement("#"+groupid);
         });
     });
 }
@@ -1006,25 +1057,69 @@ function getConfig() {
 function getConfigDevice(devid) {
     $("#settingsmodal").find(".modal-title").text("_(Settings for device ID) " + devid)
     $("#settingsmodal").find("#savemodal").attr("onclick", "saveConfig('DEVICE" + devid + "')")
-    html = '<p class="small">_(_text1)</p><form id="configform" role="form"><fieldset>'
-    for (var entry in dmconfig["DEVICE" + devid]) {
-        html += '<div class="form-group row"><label for="' + entry + '" class="col-sm-3 col-form-label" style="word-break:break-all;">' + entry + '</label><div class="col-sm-9"><input type="text" class="form-control" name="' + entry + '" value="' + dmconfig["DEVICE" + devid][entry] + '"></div></div>'
+    html = '<p class="small">_(_text1)</p><hr><form id="configform" role="form"><fieldset>'
+
+    const req_data = {
+        reqtype: "getconfigxml"
     }
-    html += "</fieldset></form>"
-    $("#settingsmodal").find(".modal-body").html(html)
-    $("#settingsmodal").modal('show')
+
+    const options = {
+        headers: {
+            'Content-Type': 'text/xml'
+        }
+    };
+
+    post_webserver(req_data, (data) => {
+        for (var entry in dmconfig["DEVICE" + devid]) {
+            let entry_params = $(data).find("section[name='DEVICE']").find("config[name='" + entry.toUpperCase() + "']")
+            html += `
+<div class="mb-3">
+    <p>${entry_params.find("description").html()}&nbsp;<small class="text-muted">${entry}</small></p>
+    <div class="form-floating">
+        <input type="text" class="form-control" name="${entry}" id="DEVICE${devid}-${entry}" value="${dmconfig["DEVICE" + devid][entry]}">
+        <label for="DEVICE${devid}-${entry}">${truncate(entry_params.find("fullname").html(), 50)}</label>
+    </div>
+</div>`
+        }
+
+        html += "</fieldset></form>"
+        $("#settingsmodal").find(".modal-body").html(html)
+        $("#settingsmodal").modal('show')
+    }, options, "xml")
 }
 
 function getConfigModule(amodule) {
     $("#settingsmodal").find(".modal-title").text("_(Settings for module): " + amodule)
     $("#settingsmodal").find("#savemodal").attr("onclick", "saveConfig('" + amodule + "')")
-    html = '<p class="small">_(_text1)</p><form id="configform" role="form"><fieldset>'
-    for (var entry in dmconfig[amodule.toUpperCase()]) {
-        html += '<div class="form-group row"><label for="' + entry + '" class="col-sm-3 col-form-label" style="word-break:break-all;">' + entry + '</label><div class="col-sm-9"><input type="text" class="form-control" name="' + entry + '" value="' + dmconfig[amodule.toUpperCase()][entry] + '"></div></div>'
+    html = '<p class="small">_(_text1)</p><hr><form id="configform" role="form"><fieldset>'
+
+    const req_data = {
+        reqtype: "getconfigxml"
     }
-    html += "</fieldset></form>"
-    $("#settingsmodal").find(".modal-body").html(html)
-    $("#settingsmodal").modal('show')
+
+    const options = {
+        headers: {
+            'Content-Type': 'text/xml'
+        }
+    };
+
+    post_webserver(req_data, (data) => {
+        for (var entry in dmconfig[amodule.toUpperCase()]) {
+            let entry_params = $(data).find("section[name='" + amodule.toUpperCase() + "']").find("config[name='" + entry.toUpperCase() + "']")
+            html += `
+<div class="mb-3">
+    <p>${entry_params.find("description").html()}&nbsp;<small class="text-muted">${entry}</small></p>
+    <div class="form-floating">
+        <input type="text" class="form-control" name="${entry}" id="${amodule}-${entry}" value="${dmconfig[amodule.toUpperCase()][entry]}">
+        <label for="${amodule}-${entry}">${truncate(entry_params.find("fullname").html(), 50)}</label>
+    </div>
+</div>`
+        }
+
+        html += "</fieldset></form>"
+        $("#settingsmodal").find(".modal-body").html(html)
+        $("#settingsmodal").modal('show')
+    }, options, "xml")
 }
 
 function saveConfig(section) {
@@ -1130,5 +1225,13 @@ function getGroupSelect(){
         }
     })    
 }
+
+function truncate(str, n){
+    if (str != undefined) {
+        return (str.length > n) ? str.substr(0, n-1) + '&hellip;' : str;
+    } else {
+        return "Custom option"
+    }
+};
 
 // Javascript ends here. Comment added to prevent EOF bytes loss due to &; characters parsing. TODO - prevent this some other way
