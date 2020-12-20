@@ -46,6 +46,7 @@ class device(object):
         self.history_origin = "Unknown"
         self.history = deque(maxlen=10)
         self.interrupt = Lock()
+        self.mandatory_voice_group = None
         self.init_from_config()
 
     def init_from_config(self):
@@ -76,6 +77,8 @@ class device(object):
         if self.config.dev_has_option("RETRY_DELAY_ON_FAILURE"):
             self.retry_delay_on_failure = self.config.get_value(
                 "RETRY_DELAY_ON_FAILURE", int)
+        if self.config.dev_has_option("MANDATORY_VOICE_GROUP"):
+            self.mandatory_voice_group = self.config["MANDATORY_VOICE_GROUP"]
 
     def pre_run(self, color):
         try:

@@ -378,24 +378,6 @@ class DeviceManager(object):
         for _dev in self:
             _dev.history_origin = origin
 
-    def get_group(self, request):
-        """ Gets devices from a specific group for the light change """
-        if type(request.group) == str:
-            request.group = [request.group]
-        for _cnt, _gr in enumerate(request.group):
-            request.group[_cnt] = unidecode.unidecode(_gr.lower())
-        _has_devices = False
-        for _cnt, _device in enumerate(self):
-            if request.group is not None and set(request.group).issubset([unidecode.unidecode(x) for x in _device.group]):
-                if request[_cnt] == DEVICE_SKIP:
-                    request[_cnt] = DEVICE_ON
-                if not _has_devices:
-                    debug.write("Got the following devices from the {} group(s):".format(request.group), 0)
-                    _has_devices = True
-                debug.write("Device '{}'".format(_device.name, request.group), 0, _device.device_type, prefix="\t")
-                continue
-            request[_cnt] = DEVICE_SKIP
-
     def get_descriptions(self, as_list=False):
         """ Getter for configured devices descriptions """
         desclist = []
@@ -788,6 +770,7 @@ class StateRequestObject(object):
 
     def __init__(self, **kwargs):
         self.hexvalues = []
+        self.group = None
         self.off = False
         self.on = False
         self.restart = False
@@ -815,7 +798,6 @@ class StateRequestObject(object):
         """ Vars for the completed request, used by the devicemanager directly """
         self.colors = None
         self.skip_time = False
-        self.group = None
         self.device_type = None
         self.device_type_args = None
         self.auto_mode = False
@@ -897,6 +879,8 @@ class StateRequestObject(object):
                 v = False
             elif v == "":
                 v = None
+            if k == "group":
+                self.get_group(v)
             if k not in ['client', 'history_origin']:
                 if k in getDevices(True) and v is not None:
                     self.changed_vars[k] = v
@@ -1016,6 +1000,23 @@ class StateRequestObject(object):
             return False
         return True
 
+    def get_group(self, group):
+        """ Sets devices from a specific group for state change """
+        if self.check_for_initialization():
+            if type(group) == str:
+                group = [group]
+            for _cnt, _gr in enumerate(group):
+                group[_cnt] = unidecode.unidecode(_gr.lower())
+            _has_devices = False
+            for _cnt, _device in enumerate(self.dm):
+                if not set(group).issubset([unidecode.unidecode(x) for x in _device.group]):
+                    self[_cnt] = DEVICE_SKIP
+                else:
+                    if not _has_devices:
+                        debug.write("Got the following devices from the {} group(s):".format(group), 0)
+                        _has_devices = True
+                    debug.write("Device '{}'".format(_device.name, group), 0, _device.device_type, prefix="\t")
+
 
 class RequestExecutor(object):
     """ This will connect all threads with the DM on the main thread """
@@ -1067,7 +1068,7 @@ class RequestExecutor(object):
 
         _colors = [DEVICE_SKIP] * len(dm)
         if _colors == request.colors or request.colors is None:
-            # Priority 4 (least) - handling hexvalues
+            # Priority 3 (least) - handling hexvalues
             if request.hexvalues and len(request.hexvalues) > 0:
                 if len(request.hexvalues) == 1 and len(dm) > 1 and ":" not in request.hexvalues[0]:
                     _colors = request.hexvalues * len(dm)
@@ -1083,7 +1084,7 @@ class RequestExecutor(object):
                 debug.write(
                     "Got state changes from hexvalues: {}".format(_colors), 0)
 
-            # Priority 3 - handling device changes
+            # Priority 2 - handling device changes
             for _dev in getDevices(True):
                 if getattr(request, _dev, None) is not None:
                     debug.write("Received {} change request".format(_dev.capitalize()), 0)
@@ -1092,7 +1093,7 @@ class RequestExecutor(object):
                     if not _colors:
                         return False
 
-            # Priority 2 - handling ON/OFF/TOGGLES changes
+            # Priority 1 - handling ON/OFF/TOGGLES changes
             # TODO Allow matching these to non-groups changes ?
             if request.off:
                 debug.write("Received OFF change request", 0)
@@ -1109,11 +1110,6 @@ class RequestExecutor(object):
 
             request.set_colors(_colors)
         dm.set_mode(request)
-
-        # Priority 1 (most) - get specific groups only
-        if request.group is not None:
-            dm.get_group(request)
-        ###
 
         if request.delay is not 0:
             delay = request.delay

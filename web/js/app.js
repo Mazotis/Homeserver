@@ -445,8 +445,8 @@ function generateCardForGroup(group, position) {
             <h5 class="card-header " style="font-weight:bold;">${title}</h5>
             <div class="card-footer">
                 <center>
-                    <button class="btn btn-success gcard-toggle-on">On</button>
-                    <button class="btn btn-danger gcard-toggle-off">Off</button>
+                    <button class="btn btn-success gcard-toggle-on card-toggle"">On</button>
+                    <button class="btn btn-danger gcard-toggle-off card-toggle"">Off</button>
                 </center>
             </div>
         </div>
@@ -469,8 +469,8 @@ function generateRoomForGroup(room) {
             </div>
             <h5 class="card-header bg-danger d-count text-white title-footer">
                 <div style="float:right">
-                    <button class="btn btn-success btn-sm rcard-toggle-on">On</button>
-                    <button class="btn btn-danger btn-sm rcard-toggle-off">Off</button>
+                    <button class="btn btn-success btn-sm rcard-toggle-on card-toggle">On</button>
+                    <button class="btn btn-danger btn-sm rcard-toggle-off card-toggle"">Off</button>
                 </div>
             </h5>
         </div>
@@ -817,9 +817,11 @@ function computeCards() {
 
         if (cinit != "1") {
             $(this).find(".gcard-toggle-on").on('click', function() {
+                $(this).prop('disabled', true)
                 sendGroupPowerRequest(group, 1, cid)
             })
             $(this).find(".gcard-toggle-off").on('click', function() {
+                $(this).prop('disabled', true)
                 sendGroupPowerRequest(group, 0, cid)
             })
         }
@@ -841,6 +843,11 @@ function computeCards() {
     })
 
     computeRCards()
+
+    $(".card-toggle").each(function() {
+        $(this).prop('disabled', false)
+    })
+
     enableHistoryBody()
 }
 
@@ -899,9 +906,11 @@ function computeRCards() {
             }
 
             $(this).find(".rcard-toggle-on").on('click', function() {
+                $(this).prop('disabled', true)
                 sendGroupPowerRequest(cgroup, 1, "rcard-" + cgroup.toLowerCase())
             })
             $(this).find(".rcard-toggle-off").on('click', function() {
+                $(this).prop('disabled', true)
                 sendGroupPowerRequest(cgroup, 0, "rcard-" + cgroup.toLowerCase())
             })
         }

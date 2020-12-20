@@ -2,17 +2,17 @@
 '''
     File name: ifttt.py
     Author: Maxime Bergeron
-    Date last modified: 16/06/2020
+    Date last modified: 20/12/2020
     Python Version: 3.7
 
     The IFTTT receiver module for the homeserver
 '''
 
 import hashlib
-import requests
 import ssl
-import unidecode
 import urllib.parse
+import requests
+import unidecode
 from core.common import *
 from core.devicemanager import StateRequestObject
 from functools import partial
@@ -82,45 +82,66 @@ class IFTTTServer(BaseHTTPRequestHandler):
                 req.set(skip_time=True)
                 req.set_colors([DEVICE_OFF] * len(self.dm))
 
-            group = unidecode.unidecode(postvars['group'][0])
-            groups = [unidecode.unidecode(x) for x in self.dm.all_groups]
+            requested_group = unidecode.unidecode(postvars['group'][0])
+            all_groups = [unidecode.unidecode(x) for x in self.dm.all_groups]
+            groups = []
+
+
+            # TODO add a proper pluralization ?
+            for group in all_groups:
+                groups.append(group.lower())
+                if group[-1:] == "s" and group[-1:] not in all_groups:
+                    groups.append(group[:-1].lower())
+                elif group + "s" not in all_groups:
+                    groups.append(group.lower() + "s")
+            if self.global_group is not None:
+                if self.global_group.lower() not in all_groups:
+                    groups.append(self.global_group.lower())
+                if self.global_group[-1:] == "s" and self.global_group[-1:].lower() not in all_groups:
+                    groups.append(self.global_group[:-1].lower())
+                elif self.global_group.lower() + "s" not in all_groups:
+                    groups.append(self.global_group.lower() + "s")
+
             changed_groups = []
             has_priority_group = False
             has_global_group = False
+
             for _group in groups:
-                if _group.lower() in group:
-                    if _group.lower() in self.priority_groups:
+                if _group in requested_group.split(" "):
+                    if _group in self.priority_groups or _group + "s" in self.priority_groups or (_group[-1:] == "s" and _group[:-1] in self.priority_groups):
                         has_priority_group = True
+                    if _group == self.global_group or _group + "s" in self.global_group or (_group[-1:] == "s" and _group[:-1] in self.global_group):
+                        has_global_group = True
+                        debug.write("Got global group. Running request on all devices.", 0, "IFTTT")
                     changed_groups.append(_group)
-            # TODO add a proper pluralization ?
-            for _group in group.split():
-                if _group == self.global_group:
-                    has_global_group = True
-                    changed_groups.append(self.global_group)
-                    debug.write(
-                        "Got global group. Running request on all devices.", 0, "IFTTT")
-                if _group.lower() + "s" in groups:
-                    changed_groups.append(_group + "s")
-            if len(changed_groups) != 0 and not has_global_group:
+
+            if len(changed_groups) != 0:
                 req.set(group=changed_groups)
-            elif not has_global_group:
-                debug.write("No devices belong to group {}. Request aborted.".format(
-                    group), 1, "IFTTT")
+            else:
+                debug.write("No devices found for request {}. Request aborted.".format(
+                    requested_group), 1, "IFTTT")
                 return
             debug.write("Running function '{}' on group(s) {}".format(
                 func, changed_groups), 0, "IFTTT")
             if has_global_group:
-                for dev in self.dm:
-                    if dev.ignore_global_group:
+                for _dev in self.dm:
+                    if _dev.ignore_global_group:
                         debug.write("Skipping device {} as it ignores global group requests".format(
-                            dev.name), 0, "IFTTT")
-                        req.set_color_for_devid(DEVICE_SKIP, dev.devid)
+                            _dev.name), 0, "IFTTT")
+                        req.set_color_for_devid(DEVICE_SKIP, _dev.devid)
+            else:
+                for _cnt, _dev in enumerate(self.dm):
+                    if _dev.mandatory_voice_group is not None and _dev.mandatory_voice_group not in changed_groups and req[_cnt] != DEVICE_SKIP:
+                        debug.write("Skipping device {} as it requires the mandatory group {}".format(
+                            _dev.name, _dev.mandatory_voice_group), 0, "IFTTT")
+                        req.set_color_for_devid(DEVICE_SKIP, _dev.devid)
             if self.config.get_value('AUTOMATIC_MODE', bool):
                 req.set(auto_mode=True)
             elif not has_priority_group:
                 debug.write(
                     "No priority groups called. Setting back to AUTO mode.", 0, "IFTTT")
                 req.set(reset_mode=True)
+
             req()
 
             if 'delay' in postvars and int(postvars['delay'][0]) != 0:

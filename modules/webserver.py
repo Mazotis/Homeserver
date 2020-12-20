@@ -225,11 +225,9 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     req.initialize_dm(self.dm)
                     debug.write('Running a group change of state',
                                 0, "WEBSERVER")
-                    _col = ["0"] * len(self.dm)
+                    _col = [str(value)] * len(self.dm)
                     if skiptime:
                         req.set(skip_time=True)
-                    if value == 1:
-                        _col = [DEVICE_ON]
                     req.set_colors(_col)
                     req.set(group=[group.replace("0", "").lower()], history_origin="Webserver")
                     req()
@@ -253,12 +251,12 @@ class WebServerHandler(SimpleHTTPRequestHandler):
 
                 if reqtype == "getmodule":
                     module = str(postvars[b'module'][0].decode('utf-8'))
-                    content = None
+                    content = None  
                     for _mod in self.dm.modules:
                         if _mod.__class__.__name__ == module:
                             content = _mod.get_web()
                     if content is None:
-                        debug.write('Cannot find module', 1, "WEBSERVER")
+                        debug.write('Cannot find module {}'.format(module), 1, "WEBSERVER")
                         response.write("0".encode("UTF-8"))
                     else:
                         response.write(json.dumps(content).encode('utf-8'))
@@ -315,7 +313,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         if _mod.__class__.__name__ == "weblog":
                             content = _mod.get_web(debuglevel)
                     if content is None:
-                        debug.write('Cannot find module', 1, "WEBSERVER")
+                        debug.write('Cannot find module weblog', 1, "WEBSERVER")
                         response.write("0".encode("UTF-8"))
                     else:
                         response.write(content.encode("UTF-8"))
