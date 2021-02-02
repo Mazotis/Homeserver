@@ -5,6 +5,7 @@ home.bak
 home.old
 home.ini
 /web/images/*
+web-node/public/images/*.jpg
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -120,3 +121,36 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Diagnostic reports (https://nodejs.org/api/report.html)
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# node-waf configuration
+web-node/.lock-wscript
+
+# Compiled binary addons (https://nodejs.org/api/addons.html)
+web-node/build/Release
+
+# Dependency directories
+web-node/node_modules/
+web-node/jspm_packages/
+
+# TypeScript cache
+web-node/*.tsbuildinfo
+
+# Optional npm cache directory
+web-node/.npm

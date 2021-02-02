@@ -29,7 +29,7 @@ class backup(Thread):
         self.last_backup = 0
         self.running = True
         self.rsync = None
-        self.web = "backup.html"
+        self.web = "backup.ejs"
         self.backup_queue = queue.Queue()
 
     def run(self):
@@ -225,6 +225,8 @@ class backup(Thread):
         has_devices = False
         while True:
             try:
+                if not self.config.has_option("BACKUP", "CLIENT" + str(i)):
+                    break
                 client = self.dm.devices[self.config.get_value(
                     "CLIENT" + str(i), int)]
                 web += '<tr><th scope="row">{}</th>'.format(i + 1)

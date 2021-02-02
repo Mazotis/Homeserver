@@ -95,7 +95,14 @@ def getTextHTML(textid):
         "Add/remove room groups": _("Add/remove room groups"),
         "Controls": _("Controls"),
         "History": _("History"),
-        "No recent changes": _("No recent changes")
+        "No recent changes": _("No recent changes"),
+        "Presets": _("Presets"),
+        "Execute": _("Execute"),
+        "Show/hide presets": _("Show/hide presets"),
+        "Preset selection": _("Preset selection"),
+        "Displayed presets": _("Displayed presets"),
+        'Please select the presets that will be visible on the web interface': _("Please select the presets that will be visible on the web interface"),
+        "No presets configured!": _("No presets configured!")
     }
 
     try:

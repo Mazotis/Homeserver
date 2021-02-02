@@ -18,7 +18,7 @@ class weblog(Thread):
         self.init_from_config()
         self.running = True
         self.rsync = None
-        self.web = "weblog.html"
+        self.web = "weblog.ejs"
 
     def run(self):
         debug.write("Starting web debug log access module", 0, "WEBLOG")

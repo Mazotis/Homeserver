@@ -1,0 +1,64 @@
+<script>
+$(document).ready(function() {
+  getPresetList()
+})
+
+function getPresetList() {
+  for (_cnt in presets.items) {
+    $("#no-preset-msg").remove()
+    html = '<div class="form-group row"><label for="p' + _cnt + '-field" class="col-8 col-form-label">' + presets.items[_cnt] + ' </label><div class="col-2"><input type="checkbox" id="p' + _cnt + '-field" pname="' + presets.items[_cnt] + '" data-onstyle="success" data-offstyle="danger" data-on="_(Yes)" data-off="_(No)"></div></div>'
+    $("#presets-list").append(html)
+
+    if (presets.hidden[_cnt] == "1") {
+      $("#p" + _cnt + "-field").bootstrapToggle('off', false)
+    } else {
+      $("#p" + _cnt + "-field").bootstrapToggle('on', false)
+    }
+  } 
+}
+
+function generatePresetList() {
+  var selected = function() { return this.getAttribute('pname'); };
+  var plist = $("#presets-list").find(":checkbox:not(:checked)").map(selected).get();
+  $("#record-presets").prop("disabled", true)
+  $("#record-presets").html("...")
+  $.ajax({
+      type: "POST",
+      url: ".",
+      dataType: "text",
+      data: {
+          request: "True",
+          reqtype: "setpresetview",
+          presetlist: JSON.stringify(encodeURIComponent(plist))  
+      },
+      success: function(data){
+        setTimeout(function() {
+          window.location.reload()
+        }, 4000)
+      },
+      error: function(data){
+        console.log(data)
+      }
+  })
+}
+
+</script>
+<div class="modal fade" id="presetselect" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><%=gt.gettext("Preset selection")%></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <h3><%=gt.gettext("Displayed presets")%></h3>
+        <small class="form-text text-muted" style="margin-bottom:10px;"><%=gt.gettext("Please select the presets that will be visible on the web interface")%></small>
+        <div id="presets-list"><span id="no-preset-msg"><%=gt.gettext("No presets configured!")%></span></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="record-presets" onclick="generatePresetList()" class="btn btn-primary"><%=gt.gettext("Save")%></button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%=gt.gettext("Close")%></button>
+      </div>
+    </div>
+  </div>
+</div>

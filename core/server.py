@@ -55,8 +55,6 @@ class HomeServer(Thread):
             client, address = self.sock.accept()
             if self.stopevent.is_set():
                 break
-            debug.write("Connected with {}:{}".format(
-                address[0], address[1]), 0, "SERVER")
             client.settimeout(10)
             self.conn_sockets.append(Thread(
                 target=self.listen_client, args=(client, address)).start())
@@ -64,6 +62,7 @@ class HomeServer(Thread):
 
     def listen_client(self, client, address):
         """ Listens for new requests and handle them properly """
+        ignore_confirm = False
         try:
             while True:
                 data = recv_msg(client)
@@ -71,14 +70,15 @@ class HomeServer(Thread):
                     if not isinstance(data, StateRequestObject):
                         req = StateRequestObject()
                         req.initialize_dm(self.dm)
-                        self.check_for_function_request(
-                            data.decode("utf-8"), req, client)
+                        if self.check_for_function_request(data.decode("utf-8"), req, client):
+                            ignore_confirm = True
                         break
                     try:
                         data.initialize_dm(self.dm)
-                    except Exception:
+                    except Exception as ex:
                         debug.write(
-                            "Error - improperly formatted StateRequestObject. Got: {}".format(data.decode('utf-8')), 2, "SERVER")
+                            "Error - improperly formatted StateRequestObject. Got: {}".format(data), 2, "SERVER")
+                        debug.write("Exception: {}".format(ex), 2, "SERVER")
                         break
                     debug.write('Change of states requested with request: {}'.format(
                         data), 0, "SERVER")
@@ -101,15 +101,15 @@ class HomeServer(Thread):
                                 ), 2, "SERVER")
 
         finally:
-            try:
-                data = client.recv(1)
-                if (data.decode("UTF-8") == "1"):
-                    while ExecutionState.get():
-                        time.sleep(0.5)
-                    send_msg(client, self.dm.get_state(is_async=True))
-            except Exception as ex:
-                debug.write("Got exception: {}".format(ex), 1)
-            debug.write('Closing connection.', 0, "SERVER")
+            if not ignore_confirm:
+                try:
+                    data = client.recv(1)
+                    if (data.decode("UTF-8") == "1"):
+                        while ExecutionState.get():
+                            time.sleep(0.5)
+                        send_msg(client, self.dm.get_state(is_async=True))
+                except Exception as ex:
+                    debug.write("Got exception: {}".format(ex), 1)
             client.close()
 
     def check_for_function_request(self, data, req, client):

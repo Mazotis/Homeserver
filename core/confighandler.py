@@ -2,8 +2,8 @@
 '''
     File name: confighandler.py
     Author: Maxime Bergeron
-    Date last modified: 20/05/2020
-    Python Version: 3.7
+    Date last modified: 29/01/2021
+    Python Version: 3.8
 
     The configuration file handler. Adds functions that do not
     exist yet in configparser
@@ -17,7 +17,7 @@ import socket
 import sys
 import xml.etree.ElementTree as ET
 from argparse import ArgumentParser, RawTextHelpFormatter
-from configparser import ConfigParser, NoSectionError, MissingSectionHeaderError
+from configparser import ConfigParser, NoSectionError, MissingSectionHeaderError, NoOptionError
 
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -80,6 +80,8 @@ class ConfigHandler(ConfigParser):
             elif a_type == "hours":
                 return datetime.datetime.strptime(self.get(section=self.subsection, option=element), '%H:%M').time()
         except NoSectionError as ex:
+            return self.get_configure_prompt(exception=ex)
+        except NoOptionError as ex:
             return self.get_configure_prompt(exception=ex)
 
     def dev_has_option(self, element):
@@ -189,28 +191,38 @@ class ConfigHandler(ConfigParser):
 
     def configure_prompt(self):
         _for_devices = False
+        common.DEBUG_LOCK = True
         print("************************")
         print("Homeserver configuration")
         print("************************")
+        print("")
+        print("Press ctrl+C to abort configuration")
+        # TODO gracefully close threads
+        print("If you are running with threads, you may need to press ctrl+C several times. This will eventually get fixed.")
+        print("")
         # HOME.INI CREATION
         # TODO Work on navigation around config options
-        if os.path.exists(CORE_DIR + '/../home.ini'):
-            if input("home.ini already exists. Do you wish to overwrite it? <N/y> ") == "y":
+        try:
+            if os.path.exists(CORE_DIR + '/../home.ini'):
+                if input("home.ini already exists. Do you wish to overwrite it? <N/y> ") == "y":
+                    with open(CORE_DIR + '/../home.ini', 'w+'):
+                        pass
+                    print("* Created blank home.ini file.")
+                else:
+                    self.read(os.path.join(CORE_DIR, '/../home.ini'))
+                    if input("Do you wish to skip to device configuration? <N/y>") == "y":
+                        _for_devices = True
+
+            else:
                 with open(CORE_DIR + '/../home.ini', 'w+'):
                     pass
-                print("* Created blank home.ini file.")
-            else:
-                self.read(os.path.join(CORE_DIR, '/../home.ini'))
-                if input("Do you wish to skip to device configuration? <N/y>") == "y":
-                    _for_devices = True
+                try:
+                    self.read(os.path.join(CORE_DIR, '/../home.ini'))
+                except MissingSectionHeaderError:
+                    return self.get_configure_prompt()
 
-        else:
-            with open(CORE_DIR + '/../home.ini', 'w+'):
-                pass
-            try:
-                self.read(os.path.join(CORE_DIR, '/../home.ini'))
-            except MissingSectionHeaderError:
-                return self.get_configure_prompt()
+        except KeyboardInterrupt:
+            sys.exit()
 
         module_list = []
         if not _for_devices:

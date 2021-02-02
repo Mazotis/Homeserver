@@ -2,7 +2,7 @@
 '''
     File name: webserver.py
     Author: Maxime Bergeron
-    Date last modified: 22/12/2019
+    Date last modified: 29/12/2020
     Python Version: 3.7
 
     The web server interface module for the homeserver
@@ -12,6 +12,7 @@ import json
 import os
 import re
 import requests
+import ssl
 import time
 import traceback
 import urllib.parse
@@ -58,6 +59,9 @@ class WebServerHandler(SimpleHTTPRequestHandler):
         self.dm_host = self.config['SERVER']['HOST']
         self.dm_port = self.config.get_value('PORT', int, parent="SERVER")
         self.allowed_ips = []
+        self.hidden_presets = ""
+        if self.config.has_option("WEBSERVER", "HIDDEN_PRESETS"):
+            self.hidden_presets = self.config["WEBSERVER"]["HIDDEN_PRESETS"].split(",")
         super().__init__(*args, **kwargs)
 
     def translate_path(self, path):
@@ -256,6 +260,7 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         if _mod.__class__.__name__ == module:
                             content = _mod.get_web()
                     if content is None:
+                        # TODO Fix module loss on timed shutdown
                         debug.write('Cannot find module {}'.format(module), 1, "WEBSERVER")
                         response.write("0".encode("UTF-8"))
                     else:
@@ -347,13 +352,21 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     presets["descriptions"] = []
                     presets["devices"] = getDevices(True)
                     presets["preset"] = []
+                    presets["results"] = []
+                    presets["hidden"] = []
                     for _preset in self.config["PRESETS"].items():
                         req = StateRequestObject()
                         req.initialize_dm(self.dm)
                         if _preset[0] != "automatic_mode" and req.from_string(_preset[1]):
                             presets["items"].append(_preset[0])
-                            presets["preset"].append(_preset[1])
+                            presets["preset"].append(_preset[1].replace("True", "true").replace("False", "false"))
                             presets["descriptions"].append(str(req))
+                            presets["results"].append(req.colors)
+                            if _preset[0] in self.hidden_presets:
+                                presets["hidden"].append("1")
+                            else:
+                                presets["hidden"].append("0")
+
                     response.write(json.dumps(presets).encode("UTF-8"))
 
                 if reqtype == "setpreset":
@@ -377,6 +390,18 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                     else:
                         response.write("0".encode("UTF-8"))
 
+                if reqtype == "runpreset":
+                    preset = str(postvars[b'preset'][0].decode('utf-8'))
+                    req = StateRequestObject()
+                    req.initialize_dm(self.dm)
+                    debug.write('Running a preset change of state',
+                                0, "WEBSERVER")
+                    req.set(preset=preset, history_origin="Webserver")
+                    req()
+                    while ExecutionState().get():
+                        time.sleep(0.5)
+                    response.write("1".encode("UTF-8"))
+
                 if reqtype == "getroomgroups":
                     groups = {}
                     groups["groups"] = self.dm.all_groups
@@ -391,6 +416,18 @@ class WebServerHandler(SimpleHTTPRequestHandler):
                         rooms), 0, "WEBSERVER")
                     response.write("1".encode("UTF-8"))
                     self.config.set("WEBSERVER", "ROOM_GROUPS", rooms)
+                    with open('home.ini', 'w') as configfile:
+                        copyfile('home.ini', 'home.old')
+                        self.config.write(configfile)
+                    self.dm.reload_configs()
+
+                if reqtype == "setpresetview":
+                    presetlist = urllib.parse.unquote(json.loads(
+                        str(postvars[b'presetlist'][0].decode("UTF-8"))))
+                    debug.write("Changing preset visibility to {}".format(
+                        presetlist), 0, "WEBSERVER")
+                    response.write("1".encode("UTF-8"))
+                    self.config.set("WEBSERVER", "HIDDEN_PRESETS", presetlist)
                     with open('home.ini', 'w') as configfile:
                         copyfile('home.ini', 'home.old')
                         self.config.write(configfile)
@@ -412,6 +449,17 @@ class webserver(Thread):
         Thread.__init__(self)
         self.init_from_config()
         self.dm = dm
+        debug.write("", 0)
+        debug.write("****************************************************************", 0)
+        debug.write("*** This legacy webserver module is deprecated and will not  ***", 0)
+        debug.write("*** be maintained! Please install node.js 15.0 using the     ***", 0)
+        debug.write("*** instructions for debian/ubuntu at:                       ***", 0)
+        debug.write("*** https://github.com/nodesource                            ***", 0)
+        debug.write("*** then go to the Homeserver/web-node folder and run:       ***", 0)
+        debug.write("*** 'npm i'                                                  ***", 0)
+        debug.write("*** Afterwards, use the 'webservernode' module in home.ini   ***", 0)
+        debug.write("****************************************************************", 0)
+        debug.write("", 0)
 
     def run(self):
         self.running = True
@@ -421,7 +469,10 @@ class webserver(Thread):
         _handler = partial(WebServerHandler, self.config, self.dm)
         # httpd = socketserver.TCPServer(("", self.port), _handler)
         httpd = ThreadingSimpleServer(("", self.port), _handler)
-
+        if self.protocol == "https":
+            httpd.socket = ssl.wrap_socket(httpd.socket,
+                                           keyfile=self.key,
+                                           certfile=self.cert, server_side=True)
         try:
             while self.running:
                 httpd.handle_request()
@@ -434,6 +485,10 @@ class webserver(Thread):
         self.config = getConfigHandler()
         self.port = self.config.get_value(
             'WEBSERVER_PORT', int, parent="SERVER")
+        self.protocol = self.config['WEBSERVER']['PROTOCOL']
+        if self.protocol == "https":
+            self.key = self.config['WEBSERVER']['WEBSERVER_HTTPS_CERTS_KEY']
+            self.cert = self.config['WEBSERVER']['WEBSERVER_HTTPS_CERTS_CERT']
 
     def stop(self):
         debug.write("Stopping.", 0, "WEBSERVER")

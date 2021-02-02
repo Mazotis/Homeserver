@@ -29,6 +29,7 @@ DEVICE_ON = "1"
 DEVICE_DISABLED = "X"
 DEVICE_INFERRED_OFF = "*0"
 DEVICE_INFERRED_ON = "*1"
+DEVICE_TOGGLE = "T"
 
 CORE_DIR = os.path.dirname(os.path.abspath(__file__))
 with open(CORE_DIR + "/../VERSION") as f:
@@ -82,6 +83,7 @@ def getConfigHandler(renew=False):
 
 
 HOMECONFIG = getConfigHandler()
+DEBUG_LOCK = False
 
 
 class NewRequestException(Exception):
@@ -97,8 +99,8 @@ class DebugLog(object):
     def __init__(self):
         """ Handles debug logging """
         self.config = HOMECONFIG.set_section("SERVER")
-        self.LEVELS = {0: "DEBUG", 1: "ERROR", 2: "FATAL", 3: "WARNING"}
-        self.COLOR_LEVELS = {0: "\033[93m", 1: "\033[91m", 2: "\033[41m", 3:"\033[43m"}
+        self.LEVELS = {-1: "UNKNOWN", 0: "DEBUG", 1: "ERROR", 2: "FATAL", 3: "WARNING"}
+        self.COLOR_LEVELS = {-1: "", 0: "\033[93m", 1: "\033[91m", 2: "\033[41m", 3:"\033[43m"}
         self.device_colors = {}
         self.debug_enabled = self.config.get_value("ENABLE_DEBUG", bool)
         self.journaling_enabled = self.config.get_value('JOURNALING', bool)
@@ -130,7 +132,7 @@ class DebugLog(object):
                 print("Server is already running. Shutting down.")
                 sys.exit()
 
-    def write(self, msg, level, devicetype=None, prefix=""):
+    def write(self, msg, level=-1, devicetype=None, prefix=""):
         if self.debug_enabled:
             if devicetype is not None:
                 if devicetype in self.device_colors.keys():
@@ -149,7 +151,8 @@ class DebugLog(object):
                                                                  self.COLOR_LEVELS[level], self.LEVELS[level], prefix, msg)
                 _debugtext = "({}) - [{}] {}{}".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M"),
                                                        self.LEVELS[level], prefix, msg)
-            print(_cdebugtext)
+            if not DEBUG_LOCK:
+                print(_cdebugtext)
             if self.journaling_enabled:
                 try:
                     with open(self.config['JOURNAL_DIR'] + "/home.0.log", "a+") as jfile:

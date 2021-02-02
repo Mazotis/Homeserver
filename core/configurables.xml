@@ -115,22 +115,6 @@
 			<action>store_true</action>
 			<default>False</default>
 		</argument>
-		<argument name="stream-dev" disallow-editor="yes">
-			<description>Stream colors directly to device ID#</description>
-			<type>int</type>
-			<metavar>DEVICE#_TO_STREAM_TO</metavar>
-			<nargs>?</nargs>
-			<action></action>
-			<default></default>
-		</argument>
-		<argument name="stream-group" disallow-editor="yes">
-			<description>Stream colors directly to device group</description>
-			<type>str</type>
-			<metavar>GROUP_TO_STREAM_TO</metavar>
-			<nargs>?</nargs>
-			<action></action>
-			<default></default>
-		</argument>
 		<argument name="reset-mode">
 			<description><tl>Force device state change (whatever the actual mode) and set back devices to AUTO mode</tl></description>
 			<type>bool</type>
@@ -173,6 +157,14 @@
 		</argument>
 		<argument name="reset-location-data">
 			<description><tl>Purge all RTT, locations and location training data</tl></description>
+			<type>bool</type>
+			<metavar></metavar>
+			<nargs></nargs>
+			<action>store_true</action>
+			<default>False</default>
+		</argument>
+		<argument name="dry-run">
+			<description>Disable device connection, pseudodevices initialization and state changes. For debugging purposes</description>
 			<type>bool</type>
 			<metavar></metavar>
 			<nargs></nargs>
@@ -295,6 +287,35 @@
 				<fullname>Rooms list</fullname>
 				<fulltype>Rooms list, comma-separated</fulltype>
 				<default></default>
+			</config>
+			<config name="HIDDEN_PRESETS" manual="True">
+				<description>Optional. Hide named presets from the webinterface, comma-separated.</description>
+				<fullname>Presets to hide from webinterface</fullname>
+				<fulltype>Presets list, comma-separated</fulltype>
+				<default></default>
+			</config>
+			<config name="PROTOCOL">
+				<description>Protocol used to connect to/from WEBSERVER module. If you do not have a SSL key, use http.</description>
+				<fullname>HTTP protocol</fullname>
+				<fulltype>HTTP protocol (http or https)</fulltype>
+				<regex>^(http|https)$</regex>
+				<default>http</default>
+			</config>
+			<config name="WEBSERVER_HTTPS_CERTS_KEY">
+				<description>Link to SSL key file, if using https.</description>
+				<fullname>Path to .key file</fullname>
+				<fulltype>Full path to .key file</fulltype>
+				<regex>^(.+)/([^/]+)$</regex>
+				<default>/home/pi/webserver.key</default>
+				<depends on="PROTOCOL" being="https" />
+			</config>
+			<config name="WEBSERVER_HTTPS_CERTS_CERT">
+				<description>Link to SSL cert file, if using https.</description>
+				<fullname>Path to .cer file</fullname>
+				<fulltype>Full path to .cer file</fulltype>
+				<regex>^(.+)/([^/]+)$</regex>
+				<default>/home/pi/webserver.cer</default>
+				<depends on="PROTOCOL" being="https" />
 			</config>
 		</section>
 		<section name="TIMESCHED">

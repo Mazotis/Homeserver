@@ -1,0 +1,22 @@
+{
+  "name": "web-node",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "child_process": "^1.0.2",
+    "ejs": "^3.1.5",
+    "express": "^4.17.1",
+    "fast-xml-parser": "^3.17.6",
+    "gettext-parser": "^4.0.4",
+    "helmet": "^4.4.1",
+    "node-gettext": "^3.0.0",
+    "socket.io": "^3.1.0"
+  }
+}

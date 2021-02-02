@@ -7,6 +7,61 @@ var oldstateJSON, stateJSON, presets
 var pendingRequests = 0
 var hasToggledMode = false
 var shownMenu = false
+var socket = io();
+var module_checksums = {}
+
+// TOOLS
+String.prototype.hashCode = function() {
+    var hash = 0;
+    if (this.length == 0) {
+        return hash;
+    }
+    for (var i = 0; i < this.length; i++) {
+        var char = this.charCodeAt(i);
+        hash = ((hash<<5)-hash)+char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return hash;
+}
+
+function findElement(arr, propName, propValue) {
+    for (var i=0; i < arr.length; i++)
+        if (arr[i][propName] == propValue)
+            return arr[i];
+}
+
+function findAllElements(arr, propName, propValue) {
+    var all_arr = [];
+    for (var i=0; i < arr.length; i++)
+        if (arr[i][propName] == propValue)
+            all_arr.push(arr[i]);
+    return all_arr
+}
+
+// WEBSERVER - CLIENTSIDE
+socket.on('push_state', function(msg) {
+    console.log("Got new PUSH update from homeserver")
+    oldstateJSON = stateJSON
+    stateJSON = msg
+    if (stateJSON.sunrise != false && stateJSON.sunset != false) {
+        drawTimeBar();
+    }
+    lastupdate = new Date()
+    var i;
+    for (i = 0; i < modulesToRefresh.length; i++) { 
+        getContent(modulesToRefresh[i]);
+    }
+    computeCards()
+});
+
+socket.on('disconnect', () => {
+  $("#connection-error-location").html('<div class="alert alert-danger alert-link" role="alert">The server is disconnected or is not responding...</div>')
+});
+
+socket.on('connect', () => {
+  $("#connection-error-location").html("")
+  getResultRefresh();
+});
 
 document.addEventListener('DOMContentLoaded', function() {
     getResult();
@@ -64,39 +119,26 @@ document.addEventListener('DOMContentLoaded', function() {
     })
 });
 
-async function post_webserver(data, callback, custom_options = {}, response_type = "json") {
+async function post_webserver(data, callback, post_location='./query') {
     let initial_data = {
-        request: 'True'
+        request: 'True',
+        return_type: 'application/json'
     };
-    initial_data = Object.assign(data, initial_data)
+    initial_data = Object.assign(initial_data, data)
 
     let options = {
         method: 'POST',
         headers: {
-            'Content-Type': 'text'
+            'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: Object.entries(initial_data).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&")
     };
 
-    for (opt in custom_options) {
-        if (custom_options[opt] == "") {
-            delete options[opt]
-        } else {
-            options[opt] = custom_options[opt]
-        }
-    }
+    const urlParams = new URLSearchParams(options.body);
+    const responseType = urlParams.get("return_type")
 
-    if (response_type == "json") {
-        const response = await fetch('.', options
-        ).then(data => data.json()
-        ).then(response => {
-            callback(response);
-        }).catch(error => {
-            console.log(error);
-            enableElement(".dcard")
-        });
-    } else {
-        const response = await fetch('.', options
+    if (responseType == "text/html") {
+        const response = await fetch(post_location, options
         ).then(data => data.text()
         ).then(response => {
             callback(response);
@@ -104,6 +146,15 @@ async function post_webserver(data, callback, custom_options = {}, response_type
             console.log(error);
             enableElement(".dcard")
         });
+    } else {
+        const response = await fetch(post_location, options
+        ).then(data => data.json()
+        ).then(response => {
+            callback(response);
+        }).catch(error => {
+            console.log(error);
+            enableElement(".dcard")
+        });        
     }
 }
 
@@ -241,14 +292,13 @@ async function getResult() {
     getConfig()
     showLoading()
 
-    const req_data = {
+    let req_data = {
         reqtype: "getstate",
         isasync: "True"
     };
 
     await post_webserver(req_data, (data) => {
-        stateJSON = data
-        //console.log(stateJSON)
+        stateJSON = JSON.parse(decodeURIComponent(data))
         if (stateJSON.sunrise != false && stateJSON.sunset != false) {
             drawTimeBar();
         } else {
@@ -293,14 +343,30 @@ async function getResult() {
 
         for (_mod in stateJSON.moduleweb) {
             if (stateJSON.moduleweb[_mod] != "none") {
-                if (stateJSON.moduleweb[_mod] == "detector.html") {
+                req_data = {
+                    request: "True",
+                    module_page: stateJSON.moduleweb[_mod],
+                    return_type: "text/html"
+                };
+
+                if (stateJSON.moduleweb[_mod] == "detector.ejs") {
+                    post_webserver(req_data, (data) => {
+                        $("#detector-module-location").append(data)
+                    }, './getmodule');
+                    /*
                     $.get("/modules/" + stateJSON.moduleweb[_mod], function(htmlpage) {
                         $("#detector-module-location").append(htmlpage)
                     });
+                    */
                 } else {
+                    post_webserver(req_data, (data) => {
+                        $("#modulesid").append(data)
+                    }, './getmodule');
+                    /*                 
                     $.get("/modules/" + stateJSON.moduleweb[_mod], function(htmlpage) {
                         $("#modulesid").append(htmlpage)
                     });
+                    */
                 }
             }
         }
@@ -308,75 +374,62 @@ async function getResult() {
         $("#resultid").html(html)
         computeCards()
         hideLoading()
-        getResultRefresh()
+    })
 
-        $.ajax({
-            type: "POST",
-            url: ".",
-            dataType: "text",
-            data: {
-                request: "True",
-                reqtype: "getpresets",            
-            },
-            success: function(data){
-                presets = JSON.parse(data)
-                console.log(presets)
-                console.log(presets.items.length)
-                if (presets.items.length > 0) {
-                    html = ""
-                    for (var j = 0; j < presets.items.length; j++) {
-                        if (presets.hidden[j] != "1") {
-                            html += generateCardForPreset(presets, j)
-                        }
-                    }
-                    html += generateBlankPreset()
+    req_data = {
+        request: "True",
+        reqtype: "getpresets"
+    };
 
-                    $(".pcolumns").html(html)
-                    $("#preset-section").show()
-                    $('#preset-section').find('a.page-link').on('click', function() {
-                        $(this).tooltip("show")
-                    })
-                    $('#preset-section').find(".pcard-toggle").on('click', function() {
-                        sendPresetRequest($(this).attr('preset'), $(this))
-                    })
+    await post_webserver(req_data, (data) => {    
+        presets = JSON.parse(data)
+        if (presets.items.length > 0) {
+            html = ""
+            for (var j = 0; j < presets.items.length; j++) {
+                if (presets.hidden[j] != "1") {
+                    html += generateCardForPreset(presets, j)
                 }
-            },
-            error: function(data){
-                console.log(data)
             }
-        })
+            html += generateBlankPreset()
+
+            $(".pcolumns").html(html)
+            $("#preset-section").show()
+            $('#preset-section').find('a.page-link').on('click', function() {
+                $(this).tooltip("show")
+            })
+            $('#preset-section').find(".pcard-toggle").on('click', function() {
+                sendPresetRequest($(this).attr('preset'), $(this))
+            })
+        }
     })
 }
 
-function getResultRefresh() {
+async function getResultRefresh() {
     showLoading()
 
     xhrAbortable = true
-    //TODO Remove ajax but keep cancellable request
-    xhr = $.ajax({
-        type: "POST",
-        url: ".",
-        dataType: "text",
-        data: {
-                request: "True",
-                reqtype: "getstate",
-                isasync: "False"
-            },
-        success: function(data){
-            xhrAbortable = false
-            oldstateJSON = stateJSON
-            stateJSON = JSON.parse(decodeURIComponent(data))
-            if (stateJSON.sunrise != false && stateJSON.sunset != false) {
-                drawTimeBar();
-            }
-            lastupdate = new Date()
-            var i;
-            for (i = 0; i < modulesToRefresh.length; i++) { 
-                getContent(modulesToRefresh[i]);
-            }
-            computeCards()
-            hideLoading()
+
+    const req_data = {
+        request: "True",
+        reqtype: "getstate",
+        isasync: "False"
+    };
+
+    //TODO Check if this is abortable
+    xhr = await post_webserver(req_data, (data) => {
+        xhrAbortable = false
+        oldstateJSON = stateJSON
+        stateJSON = JSON.parse(decodeURIComponent(data))
+        if (stateJSON.sunrise != false && stateJSON.sunset != false) {
+            drawTimeBar();
         }
+        lastupdate = new Date()
+        var i;
+        for (i = 0; i < modulesToRefresh.length; i++) { 
+            getContent(modulesToRefresh[i]);
+        }
+        computeCards()
+        hideLoading()
     })  
 }
 
@@ -393,7 +446,7 @@ function getDeviceResult(devid) {
         });
         pendingRequests--
         oldstateJSON = stateJSON
-        stateJSON = data
+        stateJSON = JSON.parse(decodeURIComponent(data))
         lastupdate = new Date()
         computeCards()
     })
@@ -408,7 +461,7 @@ function getAllResults() {
     post_webserver(req_data, (data) => {
         pendingRequests--
         oldstateJSON = stateJSON
-        stateJSON = data
+        stateJSON = JSON.parse(decodeURIComponent(data))
         //console.log(stateJSON)
         lastupdate = new Date()
         computeCards()
@@ -558,7 +611,7 @@ function generateCardForId(device_id) {
                 <a class="nav-link history-nav" style="color:white;"><i class="fas fa-history fa-lg"></i></a>
               </li>
               <li class="nav-item">
-                <a class="nav-link settings-nav" style="color:white;" onclick="getConfigDevice(${device_id})" title="_(Device configuration)"><i class="fas fa-cog fa-lg"></i></a>
+                <a class="nav-link settings-nav" style="color:white;" onclick="getConfigDevice(${device_id})" title="<%=gt.gettext("Device configuration")%>"><i class="fas fa-cog fa-lg"></i></a>
               </li>
               <div class="d-none d-sm-block" style="flex-grow:100;font-weight:bold;line-height:38px;font-size:20px;padding-left:5px;"><div style="overflow:hidden;text-overflow:ellipsis;max-width:160px;float:left;">${cardJSON.name}</div><i class="iconi" style="float:right;line-height:34px;"></i></div>
             </ul>
@@ -590,11 +643,11 @@ function generateCardForId(device_id) {
         </div>
         <div class="card-footer ">
             <center>&nbsp;
-                <i class="fas fa-clock skiptime" title="_(Device follows the time-check feature)" style="margin-right:5px; display:none"></i>
-                <i class="fas fa-power-off forceoff" title="_(If the device status is OFF, will ignore all turn-off requests)" style="margin-right:5px; display:none"></i>
-                <i class="fas fa-exclamation ignoremode" title="_(Device ignores its mode)" style="display:none"></i>
-                <span class="badge bg-secondary actiondelay" title="_(Device has a delay between state changes)" style="display:none"><span></span>&nbsp;<i class="fas fa-hourglass-half"></i></span>
-                <i class="fas fa-stop-circle noop" title="_(Device is read-only)" style="display:none;"></i>
+                <i class="fas fa-clock skiptime" title="<%=gt.gettext("Device follows the time-check feature")%>" style="margin-right:5px; display:none"></i>
+                <i class="fas fa-power-off forceoff" title="<%=gt.gettext("If the device status is OFF, will ignore all turn-off requests")%>" style="margin-right:5px; display:none"></i>
+                <i class="fas fa-exclamation ignoremode" title="<%=gt.gettext("Device ignores its mode")%>" style="display:none"></i>
+                <span class="badge bg-secondary actiondelay" title="<%=gt.gettext("Device has a delay between state changes")%>" style="display:none"><span></span>&nbsp;<i class="fas fa-hourglass-half"></i></span>
+                <i class="fas fa-stop-circle noop" title="<%=gt.gettext("Device is read-only")%>" style="display:none;"></i>
             &nbsp;</center>
         </div>
     </div>
@@ -609,10 +662,10 @@ function generateCardForId(device_id) {
     } else {
         if (cardJSON.locked === "1") {
             $(cardhtml).find(".controls-div").hide()
-            $(cardhtml).find(".card-footer center").append(`<i class="fas fa-lock text-white lock-btn" onclick="setLockDevice(0,${device_id})" title="_(Unlock device)"></i>`)
+            $(cardhtml).find(".card-footer center").append(`<i class="fas fa-lock text-white lock-btn" onclick="setLockDevice(0,${device_id})" title="<%=gt.gettext("Unlock device")%>"></i>`)
         } else {
             $(cardhtml).find(".controls-div").show()
-            $(cardhtml).find(".card-footer center").append(`<i class="fas fa-unlock text-white lock-btn" onclick="setLockDevice(1,${device_id})" title="_(Lock device in this state)"></i>`)
+            $(cardhtml).find(".card-footer center").append(`<i class="fas fa-unlock text-white lock-btn" onclick="setLockDevice(1,${device_id})" title="<%=gt.gettext("Lock device in this state")%>"></i>`)
         }
 
         if (cardJSON.mode === false) {
@@ -681,12 +734,12 @@ function generateCardForId(device_id) {
     if (cardJSON.state === "X") {
         $(cardhtml).find(".dcard-toggle").bootstrapToggle('disable')
         $(cardhtml).find(".card-header").removeClass("text-white")
-        $(cardhtml).find(".card-footer").append(`<i class="fas fa-wrench wrench-btn" onclick="reconnectDevice(${device_id})" title="_(Attempt device reconnection)"></i>`)
+        $(cardhtml).find(".card-footer").append(`<i class="fas fa-wrench wrench-btn" onclick="reconnectDevice(${device_id})" title="<%=gt.gettext("Attempt device reconnection")%>"></i>`)
     }
 
     if (cardJSON.state === "*0" || cardJSON.state === "*1") {
         $(cardhtml).find(".card-header").addClass("progress-bar-striped")
-        $(cardhtml).find(".card-footer").append(`<i class="fas fa-check check-btn" onclick="confirmState(${device_id},'${cardJSON.state}')" title="_(Confirm device state)"></i>`)
+        $(cardhtml).find(".card-footer").append(`<i class="fas fa-check check-btn" onclick="confirmState(${device_id},'${cardJSON.state}')" title="<%=gt.gettext("Confirm device state")%>"></i>`)
     } else {
         $(cardhtml).find(".check-btn").remove()
     }
@@ -715,7 +768,7 @@ function generateBlankRoom() {
 <div class="col g-3">
     <div class="card mb-3 noselect-nooverflow" onclick="getGroupSelect()">
         <h5 class="card-header title-header bg-secondary text-white new-dev-card">
-            <i class="fas fa-plus-circle"></i> _(Add/remove room groups)
+            <i class="fas fa-plus-circle"></i> <%=gt.gettext("Add/remove room groups")%>
         </h5>
     </div>
 </div>`
@@ -726,7 +779,7 @@ function generateBlankPreset() {
 <div class="col g-3">
     <div class="card mb-3 noselect-nooverflow" onclick="getPresetSelect()">
         <h5 class="card-header title-header bg-secondary text-white new-dev-card">
-            <i class="fas fa-plus-circle"></i> _(Show/hide presets)
+            <i class="fas fa-plus-circle"></i> <%=gt.gettext("Show/hide presets")%>
         </h5>
     </div>
 </div>`    
@@ -844,7 +897,7 @@ function computeCards() {
                 history = stateJSON.history[cid].join("<br>")
                 $(this).find(".history-body").html(stateJSON.history[cid].join("<br>"))
             } else {
-                $(this).find(".history-body").html("_(No recent changes)")
+                $(this).find(".history-body").html("<%=gt.gettext("No recent changes")%>")
             }
 
             var sliderVal = $(this).find(".slider").roundSlider("getValue")
@@ -977,9 +1030,9 @@ function computeRCards() {
 
             var devlen = $(this).find(".card").length
             if (devlen in [0, 1]) {
-                $(this).find(".d-count").prepend(devlen + " _(device)")
+                $(this).find(".d-count").prepend(devlen + " <%=gt.gettext("device")%>")
             } else {
-                $(this).find(".d-count").prepend(devlen + " _(devices)")
+                $(this).find(".d-count").prepend(devlen + " <%=gt.gettext("devices")%>")
             }
 
             $(this).find(".rcard-toggle-on").on('click', function() {
@@ -1137,12 +1190,19 @@ function getContent(amodule, always_refresh = false) {
     }
 
     post_webserver(req_data, (data) => {
-        $("#" + amodule + "-content").html(data)
-        if (amodule.toUpperCase() in dmconfig) {
-            if (amodule == "detector") {
-                $("#" + amodule + "-content").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(&apos;detector&apos;)" title="_(Module configuration)"></i>')
+        _mod_data = JSON.parse(data)
+        if (_mod_data != "None") {
+            if (amodule in module_checksums && module_checksums[amodule] == _mod_data.hashCode()) {
             } else {
-                $("#" + amodule + "-content").parent().parent(".card").find(".card-header").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(&apos;' + amodule + '&apos;)" title="_(Module configuration)"></i>')
+                module_checksums[amodule] = _mod_data.hashCode()
+                $("#" + amodule + "-content").html(_mod_data)
+                if (amodule.toUpperCase() in dmconfig) {
+                    if (amodule == "detector") {
+                        $("#" + amodule + "-content").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(&apos;detector&apos;)" title="<%=gt.gettext("Module configuration")%>"></i>')
+                    } else {
+                        $("#" + amodule + "-content").parent().parent(".card").find(".card-header").append('<i class="fas fa-cog text-white cog-btn-top" onclick="getConfigModule(&apos;' + amodule + '&apos;)" title="<%=gt.gettext("Module configuration")%>"></i>')
+                    }
+                }
             }
         }
     })
@@ -1154,34 +1214,31 @@ function getConfig() {
     }
 
     post_webserver(req_data, (data) => {
-        dmconfig = data
+        dmconfig = JSON.parse(data)
     })
 }
 
 function getConfigDevice(devid) {
-    $("#settingsmodal").find(".modal-title").text("_(Settings for device ID) " + devid)
+    $("#settingsmodal").find(".modal-title").text("<%=gt.gettext("Settings for device ID")%>" + devid)
     $("#settingsmodal").find("#savemodal").attr("onclick", "saveConfig('DEVICE" + devid + "')")
-    html = '<p class="small">_(_text1)</p><hr><form id="configform" role="form"><fieldset>'
+    html = '<p class="small"><%=gt.gettext("_text1")%></p><hr><form id="configform" role="form"><fieldset>'
 
     const req_data = {
-        reqtype: "getconfigxml"
+        return_type: "text/xml"
     }
 
-    const options = {
-        headers: {
-            'Content-Type': 'text/xml'
-        }
-    };
-
     post_webserver(req_data, (data) => {
+
+        _dev_data = findElement(data.configurations.configentries.section, "attr_name", "DEVICE").config
+
         for (var entry in dmconfig["DEVICE" + devid]) {
-            let entry_params = $(data).find("section[name='DEVICE']").find("config[name='" + entry.toUpperCase() + "']")
+            let entry_params = findElement(_dev_data, "attr_name", entry.toUpperCase())
             html += `
 <div class="mb-3">
-    <p>${entry_params.find("description").html()}&nbsp;<small class="text-muted">${entry}</small></p>
+    <p>${entry_params.description}&nbsp;<small class="text-muted">${entry}</small></p>
     <div class="form-floating">
         <input type="text" class="form-control" name="${entry}" id="DEVICE${devid}-${entry}" value="${dmconfig["DEVICE" + devid][entry]}">
-        <label for="DEVICE${devid}-${entry}">${truncate(entry_params.find("fullname").html(), 50)}</label>
+        <label for="DEVICE${devid}-${entry}">${truncate(entry_params.fullname, 50)}</label>
     </div>
 </div>`
         }
@@ -1189,33 +1246,30 @@ function getConfigDevice(devid) {
         html += "</fieldset></form>"
         $("#settingsmodal").find(".modal-body").html(html)
         $("#settingsmodal").modal('show')
-    }, options, "xml")
+    }, './configxml')
 }
 
 function getConfigModule(amodule) {
-    $("#settingsmodal").find(".modal-title").text("_(Settings for module): " + amodule)
+    $("#settingsmodal").find(".modal-title").text("<%=gt.gettext("Settings for module")%>: " + amodule)
     $("#settingsmodal").find("#savemodal").attr("onclick", "saveConfig('" + amodule + "')")
-    html = '<p class="small">_(_text1)</p><hr><form id="configform" role="form"><fieldset>'
+    html = '<p class="small"><%=gt.gettext("_text1")%></p><hr><form id="configform" role="form"><fieldset>'
 
     const req_data = {
-        reqtype: "getconfigxml"
+        return_type: "text/xml"
     }
 
-    const options = {
-        headers: {
-            'Content-Type': 'text/xml'
-        }
-    };
-
     post_webserver(req_data, (data) => {
+
+        _mod_data = findElement(data.configurations.configentries.section, "attr_name", amodule.toUpperCase()).config
+
         for (var entry in dmconfig[amodule.toUpperCase()]) {
-            let entry_params = $(data).find("section[name='" + amodule.toUpperCase() + "']").find("config[name='" + entry.toUpperCase() + "']")
+            let entry_params = findElement(_mod_data, "attr_name", entry.toUpperCase())
             html += `
 <div class="mb-3">
-    <p>${entry_params.find("description").html()}&nbsp;<small class="text-muted">${entry}</small></p>
+    <p>${entry_params.description}&nbsp;<small class="text-muted">${entry}</small></p>
     <div class="form-floating">
         <input type="text" class="form-control" name="${entry}" id="${amodule}-${entry}" value="${dmconfig[amodule.toUpperCase()][entry]}">
-        <label for="${amodule}-${entry}">${truncate(entry_params.find("fullname").html(), 50)}</label>
+        <label for="${amodule}-${entry}">${truncate(entry_params.fullname, 50)}</label>
     </div>
 </div>`
         }
@@ -1223,7 +1277,7 @@ function getConfigModule(amodule) {
         html += "</fieldset></form>"
         $("#settingsmodal").find(".modal-body").html(html)
         $("#settingsmodal").modal('show')
-    }, options, "xml")
+    }, './configxml')
 }
 
 function saveConfig(section) {
@@ -1303,7 +1357,7 @@ function getPresetEditor(){
     $("#menu-btn").click()
     $.ajax({
         type: "GET",
-        url: "modules/preseteditor.html",
+        url: "/preseteditor",
         dataType: "html",
         success: function(data){
             $("#additional-content").html(data)
@@ -1318,7 +1372,7 @@ function getPresetEditor(){
 function getGroupSelect(){
     $.ajax({
         type: "GET",
-        url: "modules/groupselect.html",
+        url: "/groupselect",
         dataType: "html",
         success: function(data){
             $("#additional-content").html(data)
@@ -1333,7 +1387,7 @@ function getGroupSelect(){
 function getPresetSelect(){
     $.ajax({
         type: "GET",
-        url: "modules/presetselect.html",
+        url: "/presetselect",
         dataType: "html",
         success: function(data){
             $("#additional-content").html(data)

@@ -72,6 +72,9 @@ class Meross(object):
     def disconnect(self):
         # Still does not play well with disconnects. Use only on server shutdown
         with Meross.meross_lock:
-            self.manager.stop()
+            try:
+                self.manager.stop()
+            except AttributeError:
+                pass
             self.manager = False
             self.connected = False

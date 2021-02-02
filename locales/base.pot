@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2020-12-17 17:27-0500\n"
+"POT-Creation-Date: 2020-12-21 01:35-0500\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -358,4 +358,32 @@ msgstr ""
 
 #: web/texts.py:98
 msgid "No recent changes"
+msgstr ""
+
+#: web/texts.py:99
+msgid "Presets"
+msgstr ""
+
+#: web/texts.py:100
+msgid "Execute"
+msgstr ""
+
+#: web/texts.py:101
+msgid "Show/hide presets"
+msgstr ""
+
+#: web/texts.py:102
+msgid "Preset selection"
+msgstr ""
+
+#: web/texts.py:103
+msgid "Displayed presets"
+msgstr ""
+
+#: web/texts.py:104
+msgid "Please select the presets that will be visible on the web interface"
+msgstr ""
+
+#: web/texts.py:105
+msgid "No presets configured!"
 msgstr ""

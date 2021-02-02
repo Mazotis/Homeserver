@@ -20,9 +20,9 @@ VERSION_FILE = "https://raw.githubusercontent.com/Mazotis/Homeserver/master/VERS
 
 def check_for_updates(with_pip=False):
     debug.write("Checking for updates (actual version: {})...".format(
-        VERSION), 0, "UPDATER")
+        VERSION.strip('\n')), 0, "UPDATER")
     try:
-        NEW_VERSION = urlopen(VERSION_FILE).read().decode("UTF-8")
+        NEW_VERSION = urlopen(VERSION_FILE).read().decode("UTF-8").strip('\n')
     except HTTPError:
         debug.write(
             "Could not check version with the main Github server.", 1, "UPDATER")
@@ -77,7 +77,7 @@ class updater(Thread):
         self.init_from_config()
 
     def run(self):
-        if check_for_updates(with_pip=self.config.get_value('UPDATE_PYTHON_PACKAGES', bool)) and self.AUTOMATIC_UPDATE:
+        if check_for_updates(with_pip=self.UPDATE_PYTHON_PACKAGES) and self.AUTOMATIC_UPDATE:
             run_upgrade(self.dm)
         last_update = datetime.datetime.now().date()
 
@@ -102,3 +102,4 @@ class updater(Thread):
         self.config = getConfigHandler().set_section("UPDATER")
         self.UPDATER_HOUR = self.config.get_value('UPDATER_HOUR', int)
         self.AUTOMATIC_UPDATE = self.config.get_value('AUTOMATIC_UPDATE', bool)
+        self.UPDATE_PYTHON_PACKAGES = self.config.get_value('UPDATE_PYTHON_PACKAGES', bool)

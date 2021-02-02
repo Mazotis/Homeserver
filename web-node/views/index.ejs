@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html>
   <head>
     <meta charset="utf-8">
     <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
@@ -10,12 +10,13 @@
     <link href="style/app.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta1/dist/js/bootstrap.bundle.min.js" integrity="sha384-ygbV9kiqUc6oa4msXn9868pTtWMgiQaeYH7/t7LECLbyPA2x65Kgf80OJFdroafW" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/3.1.0/socket.io.min.js" integrity="sha512-ZqQWGugamKhlSUqM1d/HMtwNG+hITmd/ptoof91lt5ojFZ+2bKlkvlzkmnDIrnikDY+UDVZVupLf6MNbuhtFSw==" crossorigin="anonymous"></script>
     <link href="https://cdn.jsdelivr.net/npm/round-slider@1.6.1/dist/roundslider.min.css" rel="stylesheet" />                           
     <script src="https://cdn.jsdelivr.net/npm/round-slider@1.6.1/dist/roundslider.min.js"></script>
-    <script src="js/app.js"></script>
+    <script src="js/app.ejs"></script>
     <link href="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/css/bootstrap4-toggle.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/gh/gitbrent/bootstrap4-toggle@3.6.1/js/bootstrap4-toggle.min.js"></script>
-    <title>_(Homeserver control panel)</title>
+    <title><%=gt.gettext("Homeserver control panel")%></title>
   </head>
   <body style="background-color:#eee !important">
     <div class="container-fluid noselect-nooverflow">
@@ -28,18 +29,18 @@
                     <hr>
                     <div>
                         <div class="card text-white bg-dark mb-2">
-                            <h4 class="card-header"><tl>Tools</tl></h4>
+                            <h4 class="card-header"><%=gt.gettext("Tools")%></h4>
                             <div class="card-body noselect-nooverflow">
                                 <ul style="font-weight: bold;">
-                                    <li><a onclick="getPresetEditor()"><tl>Presets editor</tl></a></li>
-                                    <li><a id="reload-config-side-btn" onclick="reloadConfig()"><tl>Reload config file</tl></a></li>
+                                    <li><a onclick="getPresetEditor()"><%=gt.gettext("Presets editor")%></a></li>
+                                    <li><a id="reload-config-side-btn" onclick="reloadConfig()"><%=gt.gettext("Reload config file")%></a></li>
                                 </ul>              
                             </div>
                         </div>
                         <div class="card text-white bg-dark mb-2s">
-                            <h4 class="card-header"><tl>Options</tl></h4>
+                            <h4 class="card-header"><%=gt.gettext("Options")%></h4>
                             <div class="card-body noselect-nooverflow">
-                                <p class="card-text"><tl>Time check feature. Today's start time:</tl> <span id="suntime"><tl>N/A</tl></span></p>
+                                <p class="card-text"><%=gt.gettext("Time check feature. Today's start time:")%> <span id="suntime"><%=gt.gettext("N/A")%></span></p>
                                 <p class="card-text">
                                     <div class="btn-group" role="group">
                                         <input type="radio" class="btn-check" id="skiptime-tog-1" name="skiptime" autocomplete="off" checked>
@@ -48,13 +49,13 @@
                                         <label class="btn btn-outline-secondary" for="skiptime-tog-2">Execute changes anytime</label>
                                     </div>
                                 </p>
-                                <p class="card-text"><tl>Automatic mode</tl></p>
+                                <p class="card-text"><%=gt.gettext("Automatic mode")%></p>
                                 <p class="card-text">
                                     <div class="btn-group" data-toggle="buttons">
-                                        <button type="button" onclick="sendAllModeAuto()" class="btn btn-secondary"><tl>Set all devices to automatic mode</tl></button>
+                                        <button type="button" onclick="sendAllModeAuto()" class="btn btn-secondary"><%=gt.gettext("Set all devices to automatic mode")%></button>
                                     </div>
                                 </p>
-                                <p class="card-text"><tl>Mode selection toggles</tl></p>
+                                <p class="card-text"><%=gt.gettext("Mode selection toggles")%></p>
                                 <p class="card-text">
                                     <div class="btn-group hidemode-toggles" role="group">
                                         <input type="radio" autocomplete="off" class="btn-check" name="hidemode" id="hidemode-tog-1" value="0" checked>
@@ -89,28 +90,29 @@
             </div>
             <div class="col-md-12" style="background-color:#eee !important; padding-top:50px;">
                 <br>
+                <span id="connection-error-location"></span>
                 <span id="detector-module-location"></span>
                 <div id="rooms-section" class="mb-4" style="display:none;">
-                    <h4><tl>Rooms</tl></h4>
+                    <h4><%=gt.gettext("Rooms")%></h4>
                     <div id="open-rcard" class="mb-2">
                     </div>
                     <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 card-columns rcolumns g-2">
                     </div>
                 </div>
                 <div id="preset-section" class="mb-4" style="display:none;">
-                    <h4><tl>Presets</tl></h4>
+                    <h4><%=gt.gettext("Presets")%></h4>
                     <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 card-columns pcolumns g-2">
                     </div>
                 </div>
-                <h4><tl>Devices</tl></h4>
+                <h4><%=gt.gettext("Devices")%></h4>
                 <div id="resultid"></div>
                 <div class="row">
                     <div class="col-sm-12">
                         <div class="card bg-info mb-3">
-                            <h4 class="card-header text-white"><tl>Groups</tl></h4>
+                            <h4 class="card-header text-white"><%=gt.gettext("Groups")%></h4>
                             <div class="card-body">
                                 <div id="groups" class="card-text">
-                                    <p class="text-white"><tl>No available device groups</tl></p>
+                                    <p class="text-white"><%=gt.gettext("No available device groups")%></p>
                                 </div>
                             </div>
                         </div>
@@ -130,8 +132,8 @@
           <div class="modal-body">
           </div>
           <div class="modal-footer">
-            <button type="button" id="savemodal" class="btn btn-primary"><tl>Save</tl></button>
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><tl>Close</tl></button>
+            <button type="button" id="savemodal" class="btn btn-primary"><%=gt.gettext("Save")%></button>
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%=gt.gettext("Close")%></button>
           </div>
         </div>
       </div>

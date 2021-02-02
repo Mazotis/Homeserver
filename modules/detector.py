@@ -157,7 +157,7 @@ class detector(Thread):
             False] * len(self.TRACKED_IPS)
         if self.config.dev_has_option("TRACKED_PICTURES"):
             if len(self.config["TRACKED_PICTURES"].split(',')) == len(self.config["TRACKED_IPS"].split(',')):
-                self.web = "detector.html"
+                self.web = "detector.ejs"
             else:
                 debug.write(
                     "You must provide enough TRACKED_PICTURES to match the TRACKED_IPS.", 1, "DETECTOR")

@@ -32,59 +32,64 @@ $(document).ready(function() {
 })
 
 function getConfigXML(presets) {
-  $.ajax({
-      type: "POST",
-      url: ".",
-      dataType: "xml",
-      data: {
-          request: "True",
-          reqtype: "getconfigxml",            
-      },
-      success: function(data){
-        $(data).find("argument[disallow-editor='yes']").remove()
-        $(data).find("argument type:contains('str')").each(function(){
-          name = $(this).parent().attr("name")
-          desc = $(this).parent().find("description").html()
-          html = '<div class="form-group"><label for="' + name + '-field" class="col-form-label">' + desc + ' <small class="form-text text-muted">' + name + '</small></label><input type="text" id="' + name + '-field" class="form-control" placeholder="' + $(this).parent().find("placeholder").html() + '"></div>'
-          $("#editor-form").append(html)
+    const req_data = {
+        return_type: "text/xml"
+    }
+
+    post_webserver(req_data, (data) => {
+        _arg_data = data.configurations.arguments.argument
+
+        findAllElements(_arg_data, "type", "str").forEach(function(item) {
+          if (item["attr_disallow-editor"] != "yes") {
+            _description = item.description
+            if (typeof(item.description) == "object") {
+              _description = item.description.tl
+            }
+            html = '<div class="form-group"><label for="' + item.attr_name + '-field" class="col-form-label">' + _description + ' <small class="form-text text-muted">' + item.attr_name + '</small></label><input type="text" id="' + item.attr_name + '-field" class="form-control" placeholder="' + item.placeholder + '"></div>'
+            $("#editor-form").append(html)
+          }
         })
 
-        $(data).find("argument type:contains('int')").each(function(){
-          name = $(this).parent().attr("name")
-          desc = $(this).parent().find("description").html()
-          html = '<div class="form-group row"><label for="' + name + '-field" class="col-sm-9 col-form-label">' + desc + '</label><div class="col-sm-3"><input type="number" id="' + name + '-field" class="form-control" placeholder="' + $(this).parent().find("default").html() + '"><small class="form-text text-muted">' + name + '</small></div></div>'
-          $("#editor-form").append(html)
+        findAllElements(_arg_data, "type", "int").forEach(function(item) {
+          if (item["attr_disallow-editor"] != "yes") {
+            _description = item.description
+            if (typeof(item.description) == "object") {
+              _description = item.description.tl
+            }
+            html = '<div class="form-group row"><label for="' + item.attr_name + '-field" class="col-sm-9 col-form-label">' + _description + '</label><div class="col-sm-3"><input type="number" id="' + item.attr_name + '-field" class="form-control" placeholder="' + item.default + '"><small class="form-text text-muted">' + item.attr_name + '</small></div></div>'
+            $("#editor-form").append(html)
+          }
         })
 
         $("#editor-form").append("<hr>")
-        html = "<h4>_(Device types) </h4><small class='text-muted'>_(_text2)</small>"
+        html = "<h4><%=gt.gettext('Device types')%> </h4><small class='text-muted'><%=gt.gettext('_text2')%></small>"
         for (var preset in presets["devices"]) {
           name = presets["devices"][preset]
           html += '<div class="form-group row"><label for="' + name + '-field" class="col-sm-4 col-form-label">' + name + '</label><div class="col-sm-8"><input type="text" id="' + name + '-field" class="form-control"></div></div>'
         }
         $("#editor-form").append(html + "<hr>")
 
-        $(data).find("argument type:contains('bool')").each(function(){
-          name = $(this).parent().attr("name")
-          desc = $(this).parent().find("description").html()
-          html = '<div class="form-group row"><label for="' + name + '-field" class="col-8 col-form-label">' + desc + ' <small class="form-text text-muted">' + name + '</small></label><div class="col-2"><input type="checkbox" id="' + name + '-field" default="' + $(this).parent().find("default").html() + '" data-onstyle="success" data-offstyle="danger" data-on="_(Yes)" data-off="_(No)"></div></div>'
-          $("#editor-form").append(html)
+        findAllElements(_arg_data, "type", "bool").forEach(function(item) {
+          if (item["attr_disallow-editor"] != "yes") {
+            _description = item.description
+            if (typeof(item.description) == "object") {
+              _description = item.description.tl
+            }
+            html = '<div class="form-group row"><label for="' + item.attr_name + '-field" class="col-8 col-form-label">' + _description + ' <small class="form-text text-muted">' + item.attr_name + '</small></label><div class="col-2"><input type="checkbox" id="' + item.attr_name + '-field" default="' + item.default + '" data-onstyle="success" data-offstyle="danger" data-on="<%=gt.gettext("Yes")%>" data-off="<%=gt.gettext("No")%>"></div></div>'
+            $("#editor-form").append(html)
 
-          if ($(this).parent().find("default").html() == "True") {
-            $("#editor-form").find("#" + name + "-field").bootstrapToggle('on', false)
-          } else {
-            $("#editor-form").find("#" + name + "-field").bootstrapToggle()
+            if (item.default == "True") {
+              $("#editor-form").find("#" + item.attr_name + "-field").bootstrapToggle('on', false)
+            } else {
+              $("#editor-form").find("#" + item.attr_name + "-field").bootstrapToggle()
+            }
           }
         })
-      },
-      error: function(data){
-          console.log(data)
-      }
-  })
+    }, './configxml')
 }
 
 function getPresets() {
-  var table = "_(No preconfigured presets found in home.ini!)"
+  var table = '<%=gt.gettext("No preconfigured presets found in home.ini!")%>'
   if (Array.isArray(presets["items"]) && presets["items"].length) {
     table = ""
     cnt = 0
@@ -132,13 +137,13 @@ function generatePresetString() {
   })
 
   if ($("#preset-name").val() == "") {
-    $("#editor-error").html("_(You need a preset name)")
+    $("#editor-error").html('<%=gt.gettext("You need a preset name")%>')
     $("#editor-error").show()
     $("#record-preset").prop("disabled", false)
   } else {
     $.ajax({
       type: "POST",
-      url: ".",
+      url: "/query",
       dataType: "text",
       data: {
           request: "True",
@@ -148,7 +153,7 @@ function generatePresetString() {
       },
       success: function(data){
         if (data == "0") {
-          $("#editor-error").html("_(Preset is invalid. Check the debug file for details.)")
+          $("#editor-error").html('<%=gt.gettext("Preset is invalid. Check the debug file for details.")%>')
           $("#editor-error").show()      
         } else {
           setTimeout(function() {
@@ -175,16 +180,16 @@ function generatePresetString() {
   <div class="modal-dialog modal-lg" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title"><tl>Presets editor</tl></h5>
+        <h5 class="modal-title"><%=gt.gettext("Presets editor")%></h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
-        <h3><tl>Existing presets</tl></h3>
+        <h3><%=gt.gettext("Existing presets")%></h3>
         <table id="preset-table" class="table table-sm table-light"></table>
         <hr>
-        <h3><tl>Edit preset</tl></h3>
+        <h3><%=gt.gettext("Edit preset")%></h3>
         <div class="form-group row">
-          <label for="preset-name" class="col-sm-2 col-form-label"><tl>Preset name</tl></label>
+          <label for="preset-name" class="col-sm-2 col-form-label"><%=gt.gettext("Preset name")%></label>
           <div class="col-sm-10">
             <input type="text" class="form-control" id="preset-name">
           </div>
@@ -193,8 +198,8 @@ function generatePresetString() {
         <div id="editor-error" class="alert alert-danger" style="display:none;"></div>
       </div>
       <div class="modal-footer">
-        <button type="button" id="record-preset" onclick="generatePresetString()" class="btn btn-primary"><tl>Save</tl></button>
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><tl>Close</tl></button>
+        <button type="button" id="record-preset" onclick="generatePresetString()" class="btn btn-primary"><%=gt.gettext("Save")%></button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%=gt.gettext("Close")%></button>
       </div>
     </div>
   </div>

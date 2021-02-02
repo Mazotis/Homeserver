@@ -19,6 +19,7 @@ from threading import Lock
 class device(object):
     def __init__(self, devid):
         self.devid = devid
+        self.dryrun = False
         self.success = False
         self._connection = None
         self.group = []
@@ -144,7 +145,12 @@ class device(object):
             if not self.check_last_history_item("State", "{} => {}".format(self.state, self.convert(color))):
                 self.history.append(history("State", "{} => {}".format(
                     self.state, self.convert(color)), self.history_origin))
-            return self.run(color)
+            if self.dryrun:
+                self.success = True
+                self.state = color
+                return True
+            else:
+                return self.run(color)
         except NewRequestException:
             debug.write("Aborting device '{}' state change".format(
                 self.name), 0, self.device_type)

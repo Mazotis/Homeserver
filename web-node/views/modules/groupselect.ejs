@@ -1,0 +1,62 @@
+<script>
+$(document).ready(function() {
+  getGroupsList()
+})
+
+function getGroupsList() {
+  const req_data = {
+      reqtype: "getroomgroups"
+  }
+
+  post_webserver(req_data, (data) => {
+    console.log(data)
+    groups = JSON.parse(data)
+
+    for (_cnt in groups["groups"]) {
+      $("#no-group-msg").remove()
+      html = '<div class="form-group row"><label for="g' + _cnt + '-field" class="col-8 col-form-label">' + groups["groups"][_cnt] + ' </label><div class="col-2"><input type="checkbox" id="g' + _cnt + '-field" gname="' + groups["groups"][_cnt] + '" data-onstyle="success" data-offstyle="danger" data-on="<%=gt.gettext("Yes")%>" data-off="<%=gt.gettext("No")%>"></div></div>'
+      $("#groups-list").append(html)
+      if (groups["rooms"].includes(groups["groups"][_cnt])) {
+        $("#g" + _cnt + "-field").bootstrapToggle('on', false)
+      } else {
+        $("#g" + _cnt + "-field").bootstrapToggle('off', false)
+      }
+    }
+  })
+}
+
+function generateRoomGroups() {
+  var selected = function() { return this.getAttribute('gname'); };
+  var roomgroups = $("#groups-list").find(":checkbox:checked").map(selected).get();
+  $("#record-rooms").prop("disabled", true)
+  const req_data = {
+      reqtype: "setroomgroups",
+      rooms: JSON.stringify(encodeURIComponent(roomgroups))
+  }
+
+  post_webserver(req_data, (data) => {
+    setTimeout(function() {
+      window.location.reload()
+    }, 4000)
+  })
+}
+</script>
+<div class="modal fade" id="groupselect" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-sm" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><%=gt.gettext("Room groups selection")%></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <h3><%=gt.gettext("Available groups")%></h3>
+        <small class="form-text text-muted" style="margin-bottom:10px;"><%=gt.gettext('Please select the groups that will be considered as "rooms" or "prioritary" groups')%></small>
+        <div id="groups-list"><span id="no-group-msg"><%=gt.gettext("No groups configured!")%></span></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" id="record-rooms" onclick="generateRoomGroups()" class="btn btn-primary"><%=gt.gettext("Save")%></button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><%=gt.gettext("Close")%></button>
+      </div>
+    </div>
+  </div>
+</div>

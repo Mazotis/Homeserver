@@ -14,7 +14,6 @@ function getGroupsList() {
       },
       success: function(data){
           groups = JSON.parse(data)
-          console.log(groups)
 
           for (_cnt in groups["groups"]) {
             $("#no-group-msg").remove()
@@ -62,9 +61,7 @@ function generateRoomGroups() {
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title"><tl>Room groups selection</tl></h5>
-        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-          <span aria-hidden="true">&times;</span>
-        </button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <h3><tl>Available groups</tl></h3>
@@ -73,7 +70,7 @@ function generateRoomGroups() {
       </div>
       <div class="modal-footer">
         <button type="button" id="record-rooms" onclick="generateRoomGroups()" class="btn btn-primary"><tl>Save</tl></button>
-        <button type="button" class="btn btn-secondary" data-dismiss="modal"><tl>Close</tl></button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"><tl>Close</tl></button>
       </div>
     </div>
   </div>

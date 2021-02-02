@@ -173,10 +173,7 @@ msgid "Settings for device ID"
 msgstr "Paramètres du dispositif ID"
 
 #: web/texts.py:64
-msgid ""
-"WARNING - do not use latin characters (é,à,ç...) or upper-case words if not "
-"absolutely required (for example, file locations, MAC addresses, True/False) "
-"as it may break your configuration"
+msgid "_text1"
 msgstr ""
 "ATTENTION - ne pas utiliser de caractères latins (é,à,ç...) ou de majuscules si "
 "non requis (par exemple, noms de fichiers, adresses MAC, True/False) "
@@ -295,11 +292,7 @@ msgid "Device types"
 msgstr "Types de dispositifs"
 
 #: web/texts.py:83
-msgid ""
-"1: ON, 0: OFF, -1: Ignore. State choice can either be a single value (will "
-"apply to all devices of the same type) or a comma-separated list for each "
-"separated devices of the same kind - in order of configuration - "
-"device1state,device2state..."
+msgid "_text2"
 msgstr "1: ON, 0: OFF, -1: Ignorer. Le choix d'état peut soit être une valeur "
 "unique (qui va s'appliquer sur tous les dispositifs du même type) ou une liste "
 "de valeurs séparées par une virgule pour chaque dispositif de ce type - en ordre "
@@ -367,3 +360,31 @@ msgstr "Historique"
 #: web/texts.py:98
 msgid "No recent changes"
 msgstr "Pas de changements récents"
+
+#: web/texts.py:99
+msgid "Presets"
+msgstr "Préréglages"
+
+#: web/texts.py:100
+msgid "Execute"
+msgstr "Exécuter"
+
+#: web/texts.py:101
+msgid "Show/hide presets"
+msgstr "Afficher/masquer les préréglages"
+
+#: web/texts.py:102
+msgid "Preset selection"
+msgstr "Sélection des préréglages"
+
+#: web/texts.py:103
+msgid "Displayed presets"
+msgstr "Préréglages affichés"
+
+#: web/texts.py:104
+msgid "Please select the presets that will be visible on the web interface"
+msgstr "Veuillez sélectionner les préréglages qui seront affichés sur l'interface web"
+
+#: web/texts.py:105
+msgid "No presets configured!"
+msgstr "Aucun préréglage configuré!"

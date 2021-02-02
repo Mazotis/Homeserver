@@ -36,6 +36,8 @@ def convert_color(color, output_type=None):
         return DEVICE_DISABLED
     elif color == DEVICE_STANDBY:
         return DEVICE_STANDBY
+    elif color == DEVICE_TOGGLE:
+        return DEVICE_TOGGLE
 
     if type(color) is tuple:
         # Then it has to be a hue-brightness pair

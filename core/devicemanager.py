@@ -2,8 +2,8 @@
 '''
     File name: devicemanager.py
     Author: Maxime Bergeron
-    Date last modified: 26/05/2020
-    Python Version: 3.7
+    Date last modified: 01/02/2021
+    Python Version: 3.8
 
     The device and modules manager for the homeserver. Not a module per-se
 '''
@@ -46,9 +46,11 @@ class ExecutionState():
 class DeviceManager(object):
     """ Methods for instanciating and managing devices """
 
-    def __init__(self, threaded=False):
+    def __init__(self, threaded=False, dryrun=False):
         debug.get_set_lock()
         debug.enable_debug()
+        self.running = False
+        self.dryrun = dryrun
         self.config = getConfigHandler()
         self.devices = []
         self.pseudodevices = {}
@@ -64,7 +66,9 @@ class DeviceManager(object):
         debug.write(
             "***********************************************************", 0)
         debug.write("", 0)
+        self.all_groups = None
         self.get_devices_list()
+        self.get_modules_list()
         self.lastupdate = None
         self.queue = queue.Queue()
         self.scheduled_changes = []
@@ -75,8 +79,18 @@ class DeviceManager(object):
         self.skip_time = False
         self.state_threads = [None] * len(self)
         self.state_pool = None
-        self.states = self.get_state(_ignore_manuals=True, _initial_call=True)
-        self.all_groups = None
+        if self.dryrun:
+            self.states = [DEVICE_OFF] * len(self)
+            self.threaded = False
+            debug.write("", 0)
+            debug.write("****************************************************************", 0)
+            debug.write("*** Starting a dry run. State changes and detection disabled ***", 0)
+            debug.write("****************************************************************", 0)
+            debug.write("", 0)
+        else:
+            self.states = self.get_state(_ignore_manuals=True, _initial_call=True)
+        self.status = self()
+        self.running = True
         debug.write("Got initial device states {}".format(self.states), 0)
 
     def __len__(self):
@@ -106,7 +120,7 @@ class DeviceManager(object):
         dm_status["description"] = self.get_descriptions(
             True)
 
-        if self.has_module("timesched"):
+        if self.has_module("timesched") is not False:
             #TODO Are they the same time or should they be distinct ?
             dm_status["sunrise"] = "{}".format(self.get_module("timesched").sunrise)
             dm_status["sunset"] = "{}".format(self.get_module("timesched").sunset)
@@ -137,6 +151,7 @@ class DeviceManager(object):
         dm_status["deviceroom"] = self.room_groups
         dm_status["version"] = VERSION
         dm_status["history"] = self.history
+        self.status = dm_status
         return dm_status
 
     @property
@@ -276,13 +291,15 @@ class DeviceManager(object):
             devrooms = [""] * len(self)
         return devrooms
 
-    @property
-    def get_toggle(self):
+    def get_toggle(self, requested_states):
         """ Toggles the devices on/off """
-        states = [DEVICE_ON] * len(self)
+        states = requested_states
         for _cnt, _state in enumerate(self.get_state(is_async=True)):
-            if _state not in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
-                states[_cnt] = [DEVICE_OFF]
+            if requested_states[_cnt] == DEVICE_TOGGLE:
+                if _state in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
+                    states[_cnt] = [DEVICE_ON]
+                else:
+                    states[_cnt] = [DEVICE_OFF]
         return states
 
     @property
@@ -306,7 +323,10 @@ class DeviceManager(object):
                     _class = getattr(
                         _class, _devtype)
                     self[i] = _class(i)
-                    self.get_and_link_pseudodevice(i)
+                    if self.dryrun:
+                        self[i].dryrun = True
+                    else:
+                        self.get_and_link_pseudodevice(i)
                 else:
                     debug.write('Unsupported device type {}'
                                 .format(_devtype), 1)
@@ -396,7 +416,7 @@ class DeviceManager(object):
         oplist = []
         for obj in self:
             if option == "skiptime":
-                if self.has_module("timesched"):
+                if self.has_module("timesched") is not False:
                     if int(obj.devid) in self.get_module("timesched").tracked_devices_times:
                         oplist.append(True)
                         continue
@@ -455,6 +475,9 @@ class DeviceManager(object):
                 max_workers = len(self)
                 self.state_pool = ThreadPoolExecutor(max_workers=max_workers)
             for _cnt, dev in enumerate(self):
+                if self.dryrun:
+                    states[_cnt] = dev.state
+                    continue
                 if devid is not None and devid != _cnt:
                     continue
                 if is_async and dev.state_getter_mode != "always":
@@ -479,7 +502,7 @@ class DeviceManager(object):
             for _cnt, dev in enumerate(self):
                 if devid is not None and devid != _cnt:
                     continue
-                if not is_async or dev.state_getter_mode == "always":
+                if (not is_async or dev.state_getter_mode == "always") or not self.dryrun:
                     if dev.state_getter_mode in ["always","normal"] or (dev.state_getter_mode == "init" and _initial_call):
                         if self.threaded and (sync_only_for_devid is None or _cnt == sync_only_for_devid):
                             states[_cnt] = self.state_threads[_cnt].result()
@@ -500,40 +523,13 @@ class DeviceManager(object):
                 if self[_cnt].state_inference_group is not None:
                     states[_cnt] = self[_cnt].get_inferred_group_state(self)
 
-        if self.threaded:
+        if self.threaded and not self.dryrun:
             self.state_pool.shutdown()
 
         if not is_async:
             debug.write("All devices state status updated in real-time", 0)
 
         return states
-
-    def set_light_stream(self, devid, color, is_group):
-        """ Simplified function for quick, streamed light change requests """
-        # TODO - check if still working
-        if is_group:
-            for device in self:
-                if device.group == devid:
-                    cnt = 0
-                    _color = device.convert(color)
-                    while True:
-                        if cnt == 4:
-                            break
-                        if device.run(color, 3):
-                            break
-                        time.sleep(0.3)
-                        cnt = cnt + 1
-        else:
-            cnt = 0
-            _color = device.convert(color)
-            while True:
-                if cnt == 4:
-                    break
-                if self[devid].run(_color, 3):
-                    break
-                time.sleep(0.3)
-                cnt = cnt + 1
-        self.reinit()
 
     def clean_delayed_changes(self):
         for _sched in self.scheduled_changes:
@@ -554,6 +550,8 @@ class DeviceManager(object):
             i += 1
 
     def get_and_link_pseudodevice(self, devid):
+        if self.dryrun:
+            return
         _pseudodev = self.devices[devid].has_pseudodevice
         if _pseudodev is not None:
             if _pseudodev not in self.pseudodevices:
@@ -566,11 +564,15 @@ class DeviceManager(object):
         """ Disconnects all configured devices """
         self.scheduled_disconnect = None
         debug.write("Server unused. Disconnecting devices.", 0)
+        if self.dryrun:
+            return
         for _dev in self:
             _dev.disconnect()
 
     def disconnect_pseudodevices(self):
         debug.write("Server shutting down. Disconnecting pseudodevices.", 0)
+        if self.dryrun:
+            return
         for _pdev in self.pseudodevices.values():
             _pdev.disconnect()
 
@@ -632,7 +634,7 @@ class DeviceManager(object):
                 self.old_request = _req
                 colors = self._decode_colors(
                     _req)  # TODO Check performance
-                if self.has_module("timesched"):
+                if self.has_module("timesched") is not False:
                     self.get_module("timesched").check_event_time(_req, _req.skip_time)
                 if all(c == DEVICE_SKIP for c in colors):
                     debug.write("All device requests skipped", 0)
@@ -775,25 +777,20 @@ class StateRequestObject(object):
         self.on = False
         self.restart = False
         self.toggle = False
-        self.devices = []
-        for _dev in getDevices(True):
-            if _dev not in self.devices:
-                setattr(self, _dev, None)
         self.notime = False
         self.delay = 0
         self.preset = None
         self.manual_mode = False
         self.set_mode_for_devid = None
         self.reset_location_data = False
-        self.stream_group = None
-        self.stream_dev = None
         self.history_origin = "Unknown"
         self.changed_vars = {}
 
-        """ Initialization data from the devicemanager """
-        self.dm = None
+        """ Initialization data """
         self.length = 0
-        self.device_list = []
+        self.config = None
+        self.device_types = []
+        self.device_groups = []
 
         """ Vars for the completed request, used by the devicemanager directly """
         self.colors = None
@@ -803,6 +800,7 @@ class StateRequestObject(object):
         self.auto_mode = False
         self.reset_mode = False
         self.force_auto_mode = False
+        self.debug_wait = []
         self.set(**kwargs)
 
     def __call__(self):
@@ -839,20 +837,19 @@ class StateRequestObject(object):
 
     def __setattr__(self, name, value):
         ''' Checks for collisions or undefined behaviour in variable settings '''
-        if value not in [None, 0, [], {}, "Unknown"] and name != 'dm' and self.check_for_initialization():
-            if self.dm is not None:
-                if name == "hexvalues" and len(value) != len(self.dm):
-                    debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Skipping".format(
-                        len(value), len(self.dm), sys.argv[0]), 2)
-                    return
-                if name == "preset" and not dm.config.has_option("PRESETS", value):
-                    debug.write(
-                        "Preset '{}' not found in home.ini. Skipping.".format(value), 3)
-                    return
-                if name == "set_mode_for_devid" and value > len(self.dm):
-                    debug.write(
-                        "Devid {} does not exist. Skipping".format(value), 3)
-                    return
+        if value not in [None, 0, [], {}, "Unknown"] and name not in ['dm', 'length', 'config'] and self.check_for_initialization():
+            if name == "hexvalues" and len(value) != self.length:
+                debug.write("Got {} color hexvalues, {} expected. Use '{} -h' for help. Skipping".format(
+                    len(value), self.length, sys.argv[0]), 2)
+                return
+            if name == "preset" and not dm.config.has_option("PRESETS", value):
+                debug.write(
+                    "Preset '{}' not found in home.ini. Skipping.".format(value), 3)
+                return
+            if name == "set_mode_for_devid" and value > self.length:
+                debug.write(
+                    "Devid {} does not exist. Skipping".format(value), 3)
+                return
 
         super().__setattr__(name, value)
 
@@ -862,7 +859,7 @@ class StateRequestObject(object):
                         'reset_location_data', 'force_auto_mode', 'auto_mode',
                         'reset_mode', 'skip_time', 'set_mode_for_devid',
                         'history_origin']
-        ignored_keys = ['nowait', 'update', 'init_from']
+        ignored_keys = ['nowait', 'update', 'init_from', 'configure']
         for _dev in getDevices(True):
             allowed_keys.append(_dev)
         for k, v in kwargs.items():
@@ -879,16 +876,53 @@ class StateRequestObject(object):
                 v = False
             elif v == "":
                 v = None
+
+            if k == "hexvalues":
+                self.debug_wait.append("Got state changes from hexvalues: {}".format(v))
+                if len(v) == 1 and self.length > 1 and ":" not in v[0]:
+                    self.colors = v * self.length
+                else:
+                    for _cnt, _col in enumerate(v):
+                        if ":" in _col:
+                            _vals = _col.split(":")
+                            if int(_vals[0]) < len(self.colors):
+                                self[int(_vals[0])] = _vals[1]
+                        else:
+                            self[_cnt] = _col
+
+            # TODO Allow matching these to non-groups changes ?
+            if k == "off":
+                self.debug_wait.append("Received OFF change request")
+                self.colors = [DEVICE_OFF] * self.length
+            if k == "on":
+                self.debug_wait.append("Received ON change request")
+                self.colors = [DEVICE_ON] * self.length
+            if k == "restart":
+                self.debug_wait.append("Received RESTART change request")
+                self.set_typed_colors("GenericOnOff", "2", self)
+            if k == "toggle":
+                self.debug_wait.append("Received TOGGLE change request. Setting all non-SKIPPED devices to toggle their state")
+                for _pos, _color in enumerate(self.colors):
+                    if _color != DEVICE_SKIP:
+                        self.colors[_pos] = DEVICE_TOGGLE
+
+            for _dev in getDevices(True):
+                if k == _dev and v is not None:
+                    self.debug_wait.append("Received {} change request".format(_dev.capitalize()))
+                    self.set_typed_colors(_dev.capitalize(), v, self)
+
             if k == "group":
                 self.get_group(v)
+            if k == "preset":
+                self.get_preset(v)
             if k not in ['client', 'history_origin']:
-                if k in getDevices(True) and v is not None:
+                if k in getDevices(True):
+                    if v is not None:
+                        self.changed_vars[k] = v
+                        continue
+                elif getattr(self, k, False) != v:
                     self.changed_vars[k] = v
                     continue
-                if getattr(self, k, False) != v:
-                    self.changed_vars[k] = v
-                    continue
-                self.changed_vars[k] = v
 
         self.__dict__.update((k, v)
                              for k, v in kwargs.items() if k in allowed_keys)
@@ -901,7 +935,7 @@ class StateRequestObject(object):
         values
         '''
         ignore_vars = ['devices', 'changed_vars', 'dm', 'hexvalues',
-                       'length', 'device_list', 'colors', 'preset', 
+                       'length', 'devices', 'colors', 'preset', 
                        'init_from']
         for k, v in request.__dict__.items():
             if k not in ignore_vars and k not in getDevices(True):
@@ -921,9 +955,21 @@ class StateRequestObject(object):
             return False
 
     def parse_args(self, args):
+        # Prioritize order of operations
+        first_run = ['on', 'off', 'restart', 'hexvalues']
+        second_run = ['group', 'preset']
         for _arg in vars(args):
-            if getattr(self, _arg, False) != vars(args)[_arg]:
-                self.set(**{ k:v for k,v in vars(args).items() if _arg in k })
+            if _arg in first_run:
+                if getattr(self, _arg, False) != vars(args)[_arg]:
+                    self.set(**{ k:v for k,v in vars(args).items() if _arg in k })
+        for _arg in vars(args):
+            if _arg in second_run:
+                if getattr(self, _arg, False) != vars(args)[_arg]:
+                    self.set(**{ k:v for k,v in vars(args).items() if _arg in k })
+        for _arg in vars(args):
+            if _arg not in first_run and _arg not in second_run:
+                if getattr(self, _arg, False) != vars(args)[_arg]:
+                    self.set(**{ k:v for k,v in vars(args).items() if _arg in k })
         for _dev in getDevices(True):
             if type(getattr(self, _dev, None)) == "str":
                 debug.write(
@@ -931,13 +977,28 @@ class StateRequestObject(object):
                 setattr(self, _dev, str(
                     getattr(self, _dev, None).replace("'", "").split(',')))
 
+    def initialize(self, dm=None, config=None):
+        if dm is not None:
+            self.length = len(dm.devices)
+            self.config = dm.config
+            self.device_types = [x.device_type for x in dm.devices]
+            self.device_groups = [x.group for x in dm.devices]
+            if self.colors is None:
+                self.colors = [DEVICE_SKIP] * int(self.length)
+            return True
+        elif config is not None:
+            self.config = config
+            self._initialize_from_config()
+            if self.colors is None:
+                self.colors = [DEVICE_SKIP] * int(self.length)
+            return True
+        else:
+            debug.write("Missing initialization data either from DM or from the config file. Quitting.", 2)
+            quit()
+
     def initialize_dm(self, dm):
         """ Fetches the required variables from the devicemanager """
-        self.dm = dm
-        self.length = len(dm.devices)
-        self.device_list = [x.device_type for x in dm.devices]
-        if self.colors is None:
-            self.colors = [DEVICE_SKIP] * int(self.length)
+        return self.initialize(dm=dm)
 
     def set_colors(self, colors):
         if self.check_for_initialization():
@@ -956,7 +1017,7 @@ class StateRequestObject(object):
                 groups = [groups]
             for _cnt, _gr in enumerate(groups):
                 groups[_cnt] = unidecode.unidecode(_gr.lower())
-            for _cnt, _device in enumerate(self.dm):
+            for _cnt, _device in enumerate(self.device_groups):
                 if set(groups).issubset([unidecode.unidecode(x) for x in _device.group]):
                     self[_cnt] = color
 
@@ -964,16 +1025,16 @@ class StateRequestObject(object):
         """ Gets devices of a specific  type for the light change """
         if self.check_for_initialization():
             device_indexes = [i for i, x in enumerate(
-                self.device_list) if x.lower() == device_type.lower()]
+                self.device_types) if x.lower() == device_type.lower()]
             if type(device_args) == str:
                 device_args = [device_args]
             if len(device_args) > len(device_indexes):
-                debug.write("Got {} states for only {} device(s). Quitting.".format(len(device_args), len(device_indexes)), 1, device_type)
+                debug.write("Got {} states for only {} device(s) of type '{}'. Quitting.".format(len(device_args), len(device_indexes), device_type), 1)
                 return False
 
             if len(device_args) == 1 and len(device_indexes) > 1:
-                debug.write("Expanding state {} to {} ({}) devices."
-                            .format(len(device_args), len(device_indexes), device_type), 0)
+                self.debug_wait.append("Expanding state {} to {} ({}) devices."
+                            .format(len(device_args), len(device_indexes), device_type))
                 device_args = device_args[0] * len(device_indexes)
             elif len(device_indexes) != len(device_args):
                 debug.write("Received state hexvalues length {} ({}) for {} '{}' device(s). Considering last devices as skipped.".format(
@@ -981,11 +1042,12 @@ class StateRequestObject(object):
 
             for _cnt, i in enumerate(device_indexes):
                 if _cnt < len(device_args):
-                    colors[i] = device_args[_cnt]
-            return colors
+                    self[i] = device_args[_cnt]
         return False
 
     def run(self):
+        for _debug in self.debug_wait:
+            debug.write(_debug, 0)
         request_queue.put(self)
 
     def has_requested_changes(self):
@@ -994,9 +1056,9 @@ class StateRequestObject(object):
         return True
 
     def check_for_initialization(self):
-        if (not hasattr(self, 'dm') or self.dm is None) and not hasattr(self, 'client'):
+        if (self.length is None or self.config is None) and not hasattr(self, 'client'):
             debug.write(
-                "ERROR - You need to initialize the request using initialize_dm() first", 1)
+                "ERROR - You need to initialize the request using initialize() or initialize_dm() first", 2)
             return False
         return True
 
@@ -1008,14 +1070,48 @@ class StateRequestObject(object):
             for _cnt, _gr in enumerate(group):
                 group[_cnt] = unidecode.unidecode(_gr.lower())
             _has_devices = False
-            for _cnt, _device in enumerate(self.dm):
-                if not set(group).issubset([unidecode.unidecode(x) for x in _device.group]):
+            for _cnt, _group in enumerate(self.device_groups):
+                if _group is None:
+                    continue
+                if not set(group).issubset([unidecode.unidecode(x) for x in _group]):
                     self[_cnt] = DEVICE_SKIP
                 else:
                     if not _has_devices:
-                        debug.write("Got the following devices from the {} group(s):".format(group), 0)
+                        self.debug_wait.append("Got the following device types from the {} group(s):".format(group))
                         _has_devices = True
-                    debug.write("Device '{}'".format(_device.name, group), 0, _device.device_type, prefix="\t")
+                    self.debug_wait.append("\tDevice '{}'".format(self.device_types[_cnt]))
+
+    def get_preset(self, preset):
+        if self.check_for_initialization():
+            self.debug_wait.append(
+                "Received change to preset [{}] request".format(preset))
+            if not self.from_string(self.config["PRESETS"][preset]):
+                debug.write("Preset does not exist. Ignoring", 1)
+                return False
+            self.auto_mode = self.config["PRESETS"].getboolean("AUTOMATIC_MODE")
+
+    def _initialize_from_config(self):
+        i = 0
+        while True:
+            try:
+                _devtype = self.config.get_device(i, "TYPE")
+                try:
+                    _devgroup = self.config.get_device(i, "GROUP")
+                except KeyError:
+                    _devgroup = None
+                if _devtype in getDevices():
+                    self.device_types.append(_devtype)
+                    try:
+                        self.device_groups.append(_devgroup.split(","))
+                    except AttributeError:
+                        self.device_groups.append(["NO-GROUP"])
+                else:
+                    debug.write('Unsupported device type {}'
+                                .format(_devtype), 1)
+            except KeyError:
+                self.length = i
+                break
+            i = i + 1
 
 
 class RequestExecutor(object):
@@ -1043,14 +1139,6 @@ class RequestExecutor(object):
         dm.clean_delayed_changes()
         dm.set_history_origin(request.history_origin)
 
-        if request.preset is not None:
-            debug.write(
-                "Received change to preset [{}] request".format(request.preset), 0)
-            if not request.from_string(dm.config["PRESETS"][request.preset]):
-                return False
-            request.auto_mode = dm.config["PRESETS"].getboolean(
-                "AUTOMATIC_MODE")
-
         if request.notime or request.off:
             request.skip_time = True
         dm.skip_time = request.skip_time
@@ -1064,52 +1152,11 @@ class RequestExecutor(object):
             os.remove("../dnn/train.log")
             debug.write("Purged location and RTT data", 0)
 
-        # Computing end result state
-
-        _colors = [DEVICE_SKIP] * len(dm)
-        if _colors == request.colors or request.colors is None:
-            # Priority 3 (least) - handling hexvalues
-            if request.hexvalues and len(request.hexvalues) > 0:
-                if len(request.hexvalues) == 1 and len(dm) > 1 and ":" not in request.hexvalues[0]:
-                    _colors = request.hexvalues * len(dm)
-                else:
-                    for _cnt, _col in enumerate(request.hexvalues):
-                        if ":" in _col:
-                            _vals = _col.split(":")
-                            if int(_vals[0]) < len(_colors):
-                                _colors[int(_vals[0])] = _vals[1]
-                        else:
-                            _colors[_cnt] = _col
-
-                debug.write(
-                    "Got state changes from hexvalues: {}".format(_colors), 0)
-
-            # Priority 2 - handling device changes
-            for _dev in getDevices(True):
-                if getattr(request, _dev, None) is not None:
-                    debug.write("Received {} change request".format(_dev.capitalize()), 0)
-                    _colors = request.set_typed_colors(
-                        _dev.capitalize(), getattr(request, _dev, None), _colors)
-                    if not _colors:
-                        return False
-
-            # Priority 1 - handling ON/OFF/TOGGLES changes
-            # TODO Allow matching these to non-groups changes ?
-            if request.off:
-                debug.write("Received OFF change request", 0)
-                _colors = [DEVICE_OFF] * len(dm)
-            if request.on:
-                debug.write("Received ON change request", 0)
-                _colors = [DEVICE_ON] * len(dm)
-            if request.restart:
-                debug.write("Received RESTART change request", 0)
-                _colors = request.set_typed_colors("GenericOnOff", "2", _colors)
-            if request.toggle:
-                debug.write("Received TOGGLE change request", 0)
-                _colors = dm.get_toggle
-
-            request.set_colors(_colors)
         dm.set_mode(request)
+
+        # Handle state toggling
+        # TODO extensive testing to see if this always works 
+        request.colors = dm.get_toggle(request.colors)
 
         if request.delay is not 0:
             delay = request.delay
