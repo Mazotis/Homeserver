@@ -45,7 +45,7 @@ class weblog(Thread):
 }
 </style>
         """
-        with open(self.config['SERVER']['JOURNAL_DIR'] + "/home.0.log", "r") as jfile:
+        with open(get_path_from_config(self.config['SERVER']['JOURNAL_DIR']) + "/home.0.log", "r") as jfile:
             _logfile = jfile.readlines()
         _logstr = ""
         for _line in _logfile:

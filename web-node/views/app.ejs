@@ -44,6 +44,8 @@ socket.on('push_state', function(msg) {
     console.log("Got new PUSH update from homeserver at " + d.getHours() + ":" + d.getMinutes())
     stateJSON = oldstateJSON
     stateJSON.state = JSON.parse(decodeURIComponent(msg)).state
+    stateJSON.intensity = JSON.parse(decodeURIComponent(msg)).intensity
+    stateJSON.groupstates = JSON.parse(decodeURIComponent(msg)).groupstates
     if (stateJSON.sunrise != false && stateJSON.sunset != false) {
         drawTimeBar(stateJSON);
     }
@@ -52,7 +54,7 @@ socket.on('push_state', function(msg) {
     for (i = 0; i < modulesToRefresh.length; i++) { 
         getContent(modulesToRefresh[i]);
     }
-    computeCards(stateJSON)
+    computeCards(stateJSON, true)
 });
 
 socket.on('disconnect', () => {
@@ -796,16 +798,17 @@ function generateBlankPreset() {
 </div>`    
 }
 
-function computeCards(stateJSON) {
+function computeCards(stateJSON, force_redraw=false) {
     enableElement(".card")
-    console.log("Computing cards with states " + stateJSON.state)
-    if (oldstateJSON != undefined) {
-        console.log("Got old states " + oldstateJSON.state + "\n")
-    }
+    //console.log("Computing cards with states " + stateJSON.state)
+    //console.log(stateJSON)
+    //if (oldstateJSON != undefined) {
+    //    console.log("Got old states " + oldstateJSON.state + "\n")
+    //}
 
     let cnt = 0
     for (_ in stateJSON.state) {
-        if (!jsonEqual(getJSONForId(cnt, stateJSON),getJSONForId(cnt, oldstateJSON)) || $(".dcard[cid='" + cnt + "']").attr("needsredraw") == "1") {
+        if (force_redraw || (!jsonEqual(getJSONForId(cnt, stateJSON),getJSONForId(cnt, oldstateJSON)) || $(".dcard[cid='" + cnt + "']").attr("needsredraw") == "1")) {
             $(".dcard[cid='" + cnt + "']").remove()
             if ($(".dcard[cid='" + cnt + "']").attr("needsync") != "1") {
                 $("#dcard" + cnt).html(generateCardForId(cnt, stateJSON))

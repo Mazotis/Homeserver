@@ -73,6 +73,7 @@ class webservernode(Thread):
                                 0, "WEBSERVERNODE")
                     try:
                         if not _req_sess_isconnected:
+                            time.sleep(2)
                             self.sio.connect(
                                 '{}://localhost:{}'.format(self.protocol, self.port), transports="websocket")
                             self.sio.on('query', self.query)
@@ -119,8 +120,8 @@ class webservernode(Thread):
             'WEBSERVER_PORT', int, parent="SERVER")
         self.protocol = self.config['WEBSERVER']['PROTOCOL']
         if self.protocol == "https":
-            self.key = self.config['WEBSERVER']['WEBSERVER_HTTPS_CERTS_KEY']
-            self.cert = self.config['WEBSERVER']['WEBSERVER_HTTPS_CERTS_CERT']
+            self.key = get_path_from_config(self.config['WEBSERVER']['WEBSERVER_HTTPS_CERTS_KEY'])
+            self.cert = get_path_from_config(self.config['WEBSERVER']['WEBSERVER_HTTPS_CERTS_CERT'])
         self.hidden_presets = ""
         if self.config.has_option("WEBSERVER", "HIDDEN_PRESETS"):
             self.hidden_presets = self.config["WEBSERVER"]["HIDDEN_PRESETS"].split(

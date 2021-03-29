@@ -2,7 +2,7 @@
 '''
     File name: devicemanager.py
     Author: Maxime Bergeron
-    Date last modified: 01/02/2021
+    Date last modified: 29/03/2021
     Python Version: 3.8
 
     The device and modules manager for the homeserver. Not a module per-se
@@ -89,7 +89,7 @@ class DeviceManager(object):
             debug.write("****************************************************************", 0)
             debug.write("", 0)
         else:
-            self.states = self.get_state(_ignore_manuals=True, _initial_call=True)
+            self.states = self.get_state(_initial_call=True)
         self.status = self()
         self.running = True
         debug.write("Got initial device states {}".format(self.states), 0)
@@ -108,7 +108,9 @@ class DeviceManager(object):
 
     def __call__(self, is_async=True, sync_only_for_devid=None, sync_only_states=False):
         dm_status = {}
-        dm_status["state"] = self.get_state(is_async=is_async, sync_only_for_devid=sync_only_for_devid, webcolors=True)
+        dm_status["state"] = self.get_state(is_async=is_async, devid=sync_only_for_devid, webcolors=True)
+        dm_status["intensity"] = self.get_intensity()
+        dm_status["groupstates"] = self.get_group_states
         if self.has_module("timesched") is not False:
             #TODO Are they the same time or should they be distinct ?
             dm_status["sunrise"] = "{}".format(self.get_module("timesched").sunrise)
@@ -121,8 +123,6 @@ class DeviceManager(object):
             dm_status["starttime"] = "18:00"
             dm_status["endtime"] = "06:00"
         if not sync_only_states:
-            dm_status["intensity"] = self.get_state(
-            is_async=True, intensity=True)
             dm_status["mode"] = self.modes
             dm_status["type"] = self.types
             dm_status["name"] = self.names
@@ -141,7 +141,6 @@ class DeviceManager(object):
                 dm_status["detectorend"] = "{}".format(
                     self.config["DETECTOR"]["END_HOUR"])
             dm_status["groups"] = self.all_groups
-            dm_status["groupstates"] = self.get_group_states
             dm_status["colortype"] = self.colortypes
             dm_status["moduleweb"] = self.module_web
             dm_status["locked"] = self.lock_status
@@ -456,10 +455,8 @@ class DeviceManager(object):
             except ValueError:
                 debug.write("{} not in list {}".format(self.get_module(remove_single_module), self.modules), 2)
 
-    def get_state(self, devid=None, is_async=False,
-                  sync_only_for_devid=None, webcolors=False,
-                  intensity=False, _for_state_change=False,
-                  _ignore_manuals=False, _initial_call=False):
+    def get_state(self, devid=None, is_async=False, webcolors=False, 
+                  _for_state_change=False, _initial_call=False):
         """ Getter for configured devices actual colors """
         if state_lock.locked() and devid is None:
             # There's most likely another SYNC state getter running
@@ -475,49 +472,36 @@ class DeviceManager(object):
                 max_workers = len(self)
                 self.state_pool = ThreadPoolExecutor(max_workers=max_workers)
             for _cnt, dev in enumerate(self):
-                if self.dryrun:
-                    states[_cnt] = dev.state
-                    continue
                 if devid is not None and devid != _cnt:
                     continue
-                if is_async and dev.state_getter_mode != "always":
-                    if intensity and self[_cnt].color_type in ["argb", "rgb", "255"]:
-                        states[_cnt] = convert_color(dev.state, "100")
-                    else:
-                        states[_cnt] = dev.state
+                if is_async and dev.state_getter_mode != "always" and dev.state != DEVICE_STANDBY:
+                    states[_cnt] = dev.state
                 else:
                     old_states[_cnt] = dev.state
 
-                    if sync_only_for_devid is not None and _cnt != sync_only_for_devid:
-                        states[_cnt] = dev.state
-                    else:
-                        if dev.state_getter_mode in ["always","normal"] or (dev.state_getter_mode == "init" and _initial_call):
-                            if self.threaded and devid is None:
-                                self.state_threads[_cnt] = self.state_pool.submit(dev.get_state_pre)
-                            else:
-                                states[_cnt] = dev.get_state_pre()
+                    if dev.state_getter_mode in ["always","normal"] or (dev.state_getter_mode == "init" and _initial_call):
+                        if self.threaded and devid is None:
+                            self.state_threads[_cnt] = self.state_pool.submit(dev.get_state_pre)
                         else:
-                            states[_cnt] = dev.state
+                            states[_cnt] = dev.get_state_pre()
+                    else:
+                        states[_cnt] = dev.state
 
             for _cnt, dev in enumerate(self):
                 if devid is not None and devid != _cnt:
                     continue
                 if (not is_async or dev.state_getter_mode == "always") or not self.dryrun:
                     if dev.state_getter_mode in ["always","normal"] or (dev.state_getter_mode == "init" and _initial_call):
-                        if self.threaded and (sync_only_for_devid is None or _cnt == sync_only_for_devid) and devid is None:
+                        if self.threaded:
                             states[_cnt] = self.state_threads[_cnt].result()
                         if old_states[_cnt] is not None and states[_cnt] is not None:
-                            if dev.convert(old_states[_cnt]) != dev.convert(states[_cnt]) and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _ignore_manuals and DEVICE_DISABLED not in [old_states[_cnt], states[_cnt]]:
+                            if dev.convert(old_states[_cnt]) != dev.convert(states[_cnt]) and DEVICE_STANDBY not in [old_states[_cnt], states[_cnt]] and not _initial_call and DEVICE_DISABLED not in [old_states[_cnt], states[_cnt]]:
                                 debug.write("Device {} state changed ({} -> {}) without involvement of the Homeserver. Consider as a MANUAL change".format(dev.name, old_states[_cnt], states[_cnt]), 0)
                                 dev.auto_mode = False
 
                 if webcolors:
                     states[_cnt] = convert_to_web_rgb(states[_cnt], dev.color_type, dev.color_brightness)
 
-            if devid is not None:
-                if self[devid].state_inference_group is not None:
-                    states[devid] = self[devid].get_inferred_group_state(self)
-                return states[devid]
             for _cnt, dev in enumerate(self):
                 # Has to be called after device states all updated ? Only relevant on non-async requests ?
                 if self[_cnt].state_inference_group is not None:
@@ -526,10 +510,23 @@ class DeviceManager(object):
         if self.threaded and not self.dryrun:
             self.state_pool.shutdown()
 
+        if _for_state_change:
+            return states[devid]
+
         if not is_async:
             debug.write("All devices state status updated in real-time", 0)
 
         return states
+
+    def get_intensity(self):
+        intensity = [None] * len(self)
+        for _cnt, dev in enumerate(self):
+            if self[_cnt].color_type in ["argb", "rgb", "255"]:
+                intensity[_cnt] = convert_color(dev.state, "100")
+            else:
+                intensity[_cnt] = "null"
+        return intensity
+
 
     def clean_delayed_changes(self):
         for _sched in self.scheduled_changes:
@@ -715,7 +712,7 @@ class DeviceManager(object):
                             for _cnt, _dev in enumerate(self):
                                 if not self.queue.empty():
                                     break
-                                _color = self[i].convert(colors[i])
+                                _color = self[_cnt].convert(colors[_cnt])
                                 if not self[_cnt].success and _color not in [DEVICE_SKIP, DEVICE_STANDBY, DEVICE_DISABLED]:
                                     debug.write("Device {} ({}) success bool off".format(
                                         _cnt, self[_cnt].name), 1)
@@ -747,8 +744,8 @@ class DeviceManager(object):
             self.scheduled_disconnect = Timer(60, self.disconnect_devices, ())
             self.scheduled_disconnect.start()
             for devid, timer in scheduled_getters.items():
-                # TODO needed to add an extra 0.5 second to make sure that the getter passes ?
-                _sched = Timer(int(timer+0.5), self.get_state, (), {"devid": devid, "is_async": False})
+                # TODO needed to add an extra 1 second to make sure that the getter passes ?
+                _sched = Timer(int(timer+1), self.get_state, (), {"devid": devid, "is_async": False})
                 _sched.start()
                 self.scheduled_state_getters.append(_sched)
             if self.threaded:
@@ -928,9 +925,9 @@ class StateRequestObject(object):
                     self.debug_wait.append("Received {} change request".format(_dev.capitalize()))
                     self.set_typed_colors(_dev.capitalize(), v, self)
 
-            if k == "group":
+            if k == "group" and v is not None:
                 self.get_group(v)
-            if k == "preset":
+            if k == "preset" and v is not None:
                 self.get_preset(v)
             if k not in ['client', 'history_origin']:
                 if k in getDevices(True):

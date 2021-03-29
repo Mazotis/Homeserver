@@ -2,8 +2,8 @@
 '''
     File name: convert.py
     Author: Maxime Bergeron
-    Date last modified: 31/01/2020
-    Python Version: 3.7
+    Date last modified: 29/03/2021
+    Python Version: 3.8
 
     A general color/state code converter. Accepts various formats and tries to output a usable
     color/state code value for the device 
@@ -43,8 +43,7 @@ def convert_color(color, output_type=None):
         # Then it has to be a hue-brightness pair
         if output_type == "100":
             _, lum = color
-            debug.write(
-                "Unpacking hue-brightness pair {} to luminosity level {}".format(color, lum), 0)
+            #debug.write("Unpacking hue-brightness pair {} to luminosity level {}".format(color, lum), 0)
             return lum
         if output_type == "255":
             return color
@@ -87,8 +86,7 @@ def convert_color(color, output_type=None):
     ''' Try to convert color types '''
     if output_type in ["io", "io-ops"]:
         # TODO - consider all non-zero requests as ON requests ?
-        debug.write(
-            "Converted {} to an ON request for IO/IO-OPS color type".format(color), 0)
+        #debug.write("Converted {} to an ON request for IO/IO-OPS color type".format(color), 0)
         return DEVICE_ON
 
     if output_type in ["255", "100"]:
@@ -102,13 +100,11 @@ def convert_color(color, output_type=None):
                     color[0:2], 16) / 255, int(color[2:4], 16) / 255, int(color[4:7], 16) / 255)[0] * 255)
                 lum_brightness = int(colorsys.rgb_to_hls(int(
                     color[0:2], 16) / 255, int(color[2:4], 16) / 255, int(color[4:7], 16) / 255)[1] * 100)
-                debug.write("Conversion from rgb {} to hue-brightness (type: 255) {}-{}".format(
-                    color, lum_hue, lum_brightness), 0)
+                #debug.write("Conversion from rgb {} to hue-brightness (type: 255) {}-{}".format(color, lum_hue, lum_brightness), 0)
                 return (lum_hue, lum_brightness)
             lum_color = int(colorsys.rgb_to_hls(int(
                 color[0:2], 16) / 255, int(color[2:4], 16) / 255, int(color[4:7], 16) / 255)[1] * 100)
-            debug.write("Conversion from rgb {} to luminosity (type: 100) level {}".format(
-                color, lum_color), 0)
+            #debug.write("Conversion from rgb {} to luminosity (type: 100) level {}".format(color, lum_color), 0)
             return lum_color
         debug.write(
             "Conversion from unexpected value {} to hue value color code not yet implemented".format(color), 1)
@@ -127,13 +123,11 @@ def convert_color(color, output_type=None):
             if str(color) in [DEVICE_OFF, DEVICE_ON]:
                 return str(color)
             else:
-                debug.write(
-                    "Conversion from IO/IO-OPS {} to RGB color code not yet implemented".format(color), 1)
+                debug.write("Conversion from IO/IO-OPS {} to RGB color code not yet implemented".format(color), 1)
                 return DEVICE_ON
         if is_100 and output_type == "argb":
             intensity = "{:02x}".format(int(int(color) / 100 * 255))
-            debug.write("Conversion from intensity level ({}) to argb {}000000".format(
-                color, intensity), 0)
+            #debug.write("Conversion from intensity level ({}) to argb {}000000".format(color, intensity), 0)
             return "{}000000".format(intensity)
 
         if is_8bit:
@@ -170,8 +164,7 @@ def convert_to_web_rgb(color, input_type, device_luminosity=None):
                 color[0] / 255, color[1] / 100, 1.0)
             color_rgb = "{:02x}".format(int(color_hls[0] * 255)) + "{:02x}".format(
                 int(color_hls[1] * 255)) + "{:02x}".format(int(color_hls[2] * 255))
-            debug.write(
-                "Conversion from HLS {}-{} to RGB {}".format(color[0], color[1], color_rgb), 0)
+            #debug.write("Conversion from HLS {}-{} to RGB {}".format(color[0], color[1], color_rgb), 0)
         else:
             if device_luminosity is None:
                 # TODO check if this needs to handle other cases
@@ -180,6 +173,5 @@ def convert_to_web_rgb(color, input_type, device_luminosity=None):
                 int(color) / 255, int(device_luminosity) / 100, 1.0)
             color_rgb = "{:02x}".format(int(color_hls[0] * 255)) + "{:02x}".format(
                 int(color_hls[1] * 255)) + "{:02x}".format(int(color_hls[2] * 255))
-            debug.write("Conversion from HLS {}-{} to RGB {}".format(color,
-                                                                     device_luminosity, color_rgb), 0)
+            #debug.write("Conversion from HLS {}-{} to RGB {}".format(color, device_luminosity, color_rgb), 0)
         return color_rgb

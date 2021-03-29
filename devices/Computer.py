@@ -40,7 +40,6 @@ class Computer(device):
                 self.state = DEVICE_ON
                 return DEVICE_ON
             self.state = DEVICE_OFF
-            return DEVICE_OFF
         return self.state
 
     def run(self, color):

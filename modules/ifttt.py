@@ -210,8 +210,8 @@ class ifttt(Thread):
             'VOICE_SERVER_PORT', int, parent="SERVER")
         self.protocol = self.config['PROTOCOL']
         if self.protocol == "https":
-            self.key = self.config['IFTTT_HTTPS_CERTS_KEY']
-            self.cert = self.config['IFTTT_HTTPS_CERTS_CERT']
+            self.key = get_path_from_config(self.config['IFTTT_HTTPS_CERTS_KEY'])
+            self.cert = get_path_from_config(self.config['IFTTT_HTTPS_CERTS_CERT'])
 
     def stop(self):
         debug.write('Stopping.', 0, "IFTTT")

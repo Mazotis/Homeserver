@@ -110,12 +110,12 @@ class DebugLog(object):
         if self.get_set_lock(True) and self.debug_enabled and self.journaling_enabled:
             # Server not yet initialized. Create log files
             for n in reversed(range(0, self.config.get_value("MAX_DEBUG_FILES", int))):
-                if os.path.isfile(self.config['JOURNAL_DIR'] + "/home." + str(n) + ".log"):
+                if os.path.isfile(get_path_from_config(self.config['JOURNAL_DIR']) + "/home." + str(n) + ".log"):
                     os.remove(
-                        self.config['JOURNAL_DIR'] + "/home." + str(n) + ".log")
-                if os.path.isfile(self.config['JOURNAL_DIR'] + "/home." + str(n - 1) + ".log"):
-                    os.rename(self.config['JOURNAL_DIR'] + "/home." + str(n - 1) + ".log",
-                              self.config['JOURNAL_DIR'] + "/home." + str(n) + ".log")
+                        get_path_from_config(self.config['JOURNAL_DIR']) + "/home." + str(n) + ".log")
+                if os.path.isfile(get_path_from_config(self.config['JOURNAL_DIR']) + "/home." + str(n - 1) + ".log"):
+                    os.rename(get_path_from_config(self.config['JOURNAL_DIR']) + "/home." + str(n - 1) + ".log",
+                              get_path_from_config(self.config['JOURNAL_DIR']) + "/home." + str(n) + ".log")
             self.write("Starting debug logger", 0)
 
     def get_set_lock(self, get=False):
@@ -155,11 +155,11 @@ class DebugLog(object):
                 print(_cdebugtext)
             if self.journaling_enabled:
                 try:
-                    with open(self.config['JOURNAL_DIR'] + "/home.0.log", "a+") as jfile:
+                    with open(get_path_from_config(self.config['JOURNAL_DIR']) + "/home.0.log", "a+") as jfile:
                         jfile.write(_debugtext + "\n")
                 except IOError:
                     print("* Directory {} does not exist. Running configuration tool...".format(
-                        self.config['JOURNAL_DIR']))
+                        get_path_from_config(self.config['JOURNAL_DIR'])))
                     self.config.configure_prompt()
                     quit()
 
@@ -209,3 +209,6 @@ def getModules():
     modules = glob.glob(dirname(__file__) + "/../modules/*.py")
     devices = [basename(f)[:-3] for f in modules if isfile(f)]
     return devices
+
+def get_path_from_config(path):
+    return path.replace("BASEDIR", CORE_DIR + "/..")

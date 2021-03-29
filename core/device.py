@@ -19,6 +19,7 @@ from threading import Lock
 class device(object):
     def __init__(self, devid):
         self.devid = devid
+        self.description = "N/A"
         self.dryrun = False
         self.success = False
         self._connection = None
@@ -52,7 +53,8 @@ class device(object):
 
     def init_from_config(self):
         self.config = getConfigHandler().set_section(device=self.devid)
-        self.description = self.config["DESCRIPTION"]
+        if self.config.dev_has_option("DESCRIPTION"):
+            self.description = self.config["DESCRIPTION"]
         if self.config.dev_has_option("GROUP"):
             self.group = self.config["GROUP"].split(',')
         if self.config.dev_has_option("DEFAULT_INTENSITY"):
@@ -147,7 +149,10 @@ class device(object):
                     self.state, self.convert(color)), self.history_origin))
             if self.dryrun:
                 self.success = True
-                self.state = color
+                if self.action_delay != 0:
+                    self.state = DEVICE_STANDBY
+                else:
+                    self.state = color
                 return True
             else:
                 return self.run(color)
@@ -174,8 +179,11 @@ class device(object):
     def get_state_pre(self):
         """ Pre-state getter functions """
         if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
-            debug.write("Device {} is still in standby. Got action delay {} and remaining time {}".format(self.name, self.action_delay, self.last_action_timestamp + self.action_delay - int(time.time())), 1)
+            #debug.write("Device {} is still in standby. Got action delay {} and remaining time {}".format(self.name, self.action_delay, self.last_action_timestamp + self.action_delay - int(time.time())), 1)
             return DEVICE_STANDBY
+        if self.dryrun and self.has_pseudodevice is not None:
+            # Skip testing device state getter on dry runs as the pseudodevice won't be connected
+            return self.state
         return self.get_state()
 
     def get_state(self):
@@ -188,14 +196,16 @@ class device(object):
             if _cnt != self.devid and self.state_inference_group in dm[_cnt].group:
                 _states.append(str(dm[_cnt].state))
         if all(x == DEVICE_ON for x in _states):
-            if self.state != DEVICE_ON:
+            if self.state not in [DEVICE_ON, DEVICE_INFERRED_ON]:
                 debug.write("Device '{}' actual state inferred as ON from its group state".format(
                     self.name), 0, self.device_type)
+                self.state = DEVICE_INFERRED_ON
                 return DEVICE_INFERRED_ON
         elif all(x == DEVICE_OFF for x in _states):
-            if self.state != DEVICE_OFF:
+            if self.state not in [DEVICE_OFF, DEVICE_INFERRED_OFF]:
                 debug.write("Device '{}' actual state inferred as OFF from its group state".format(
                     self.name), 0, self.device_type)
+                self.state = DEVICE_INFERRED_OFF
                 return DEVICE_INFERRED_OFF
         return self.state
 
