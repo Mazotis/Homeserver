@@ -174,6 +174,7 @@ class device(object):
     def get_state_pre(self):
         """ Pre-state getter functions """
         if self.action_delay != 0 and self.last_action_timestamp + self.action_delay > int(time.time()):
+            debug.write("Device {} is still in standby. Got action delay {} and remaining time {}".format(self.name, self.action_delay, self.last_action_timestamp + self.action_delay - int(time.time())), 1)
             return DEVICE_STANDBY
         return self.get_state()
 

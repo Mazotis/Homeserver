@@ -25,6 +25,12 @@ a:hover{
 .new-dev-card:hover {
     background-color: rgba(0,0,0,.3) !important;
 }
+.dev-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 90%;
+    float: left;
+}
 #update-spin {
     position: fixed;
     top:9px;

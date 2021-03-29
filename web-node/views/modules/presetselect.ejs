@@ -6,7 +6,7 @@ $(document).ready(function() {
 function getPresetList() {
   for (_cnt in presets.items) {
     $("#no-preset-msg").remove()
-    html = '<div class="form-group row"><label for="p' + _cnt + '-field" class="col-8 col-form-label">' + presets.items[_cnt] + ' </label><div class="col-2"><input type="checkbox" id="p' + _cnt + '-field" pname="' + presets.items[_cnt] + '" data-onstyle="success" data-offstyle="danger" data-on="_(Yes)" data-off="_(No)"></div></div>'
+    html = '<div class="form-group row"><label for="p' + _cnt + '-field" class="col-8 col-form-label">' + presets.items[_cnt] + ' </label><div class="col-2"><input type="checkbox" id="p' + _cnt + '-field" pname="' + presets.items[_cnt] + '" data-onstyle="success" data-offstyle="danger" data-on="<%=gt.gettext('Yes')%>" data-off="<%=gt.gettext('No')%>"></div></div>'
     $("#presets-list").append(html)
 
     if (presets.hidden[_cnt] == "1") {
@@ -22,23 +22,15 @@ function generatePresetList() {
   var plist = $("#presets-list").find(":checkbox:not(:checked)").map(selected).get();
   $("#record-presets").prop("disabled", true)
   $("#record-presets").html("...")
-  $.ajax({
-      type: "POST",
-      url: ".",
-      dataType: "text",
-      data: {
-          request: "True",
-          reqtype: "setpresetview",
-          presetlist: JSON.stringify(encodeURIComponent(plist))  
-      },
-      success: function(data){
-        setTimeout(function() {
-          window.location.reload()
-        }, 4000)
-      },
-      error: function(data){
-        console.log(data)
-      }
+  const req_data = {
+    reqtype: "setpresetview",
+    presetlist: JSON.stringify(encodeURIComponent(plist))
+  }
+
+  post_webserver(req_data, (data) => {
+    setTimeout(function() {
+      window.location.reload()
+    }, 4000)
   })
 }
 

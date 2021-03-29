@@ -42,7 +42,8 @@ class webservernode(Thread):
         self.running = True
         debug.write("Starting control webserver-node on port {}".format(
             self.port), 0, "WEBSERVERNODE")
-        _lastStatus = None
+        _lastStatus = {}
+        _lastStatus["state"] = "0"
         try:
             # TODO check for node.js install & packages
             _request = ""
@@ -66,7 +67,8 @@ class webservernode(Thread):
                 while not self.dm.running:
                     # TODO Fix race condition between module load and DM state getter?
                     time.sleep(1)
-                if self.dm.status != _lastStatus and self.running:
+                actualStatus = self.dm(sync_only_states=True)
+                if actualStatus["state"] != _lastStatus["state"] and self.running:
                     debug.write("Sending update to websocket",
                                 0, "WEBSERVERNODE")
                     try:
@@ -77,7 +79,7 @@ class webservernode(Thread):
                             _req_sess_isconnected = True
                             time.sleep(2)
                         self.sio.emit('set_hs_socket')
-                        self.sio.emit('update_state', self.dm.status)
+                        self.sio.emit('update_state', json.dumps(actualStatus))
                     except Exception as ex:
                         debug.write(
                             "Failed to connect to websocket. Retrying", 1, "WEBSERVERNODE")
@@ -87,7 +89,7 @@ class webservernode(Thread):
                         _req_sess_isconnected = False
                         time.sleep(2)
                         continue
-                _lastStatus = self.dm.status
+                _lastStatus = actualStatus
 
                 while True:
                     try:

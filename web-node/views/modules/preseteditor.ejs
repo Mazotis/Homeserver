@@ -65,7 +65,8 @@ function getConfigXML(presets) {
         html = "<h4><%=gt.gettext('Device types')%> </h4><small class='text-muted'><%=gt.gettext('_text2')%></small>"
         for (var preset in presets["devices"]) {
           name = presets["devices"][preset]
-          html += '<div class="form-group row"><label for="' + name + '-field" class="col-sm-4 col-form-label">' + name + '</label><div class="col-sm-8"><input type="text" id="' + name + '-field" class="form-control"></div></div>'
+          html += '<div class="form-group row"><label for="' + name + '-field" class="col-sm-4 col-form-label" style="font-weight:bold;">' + name + '</label><div class="col-sm-8"><input type="text" id="' + name + '-field" class="form-control"></div></div>'
+          html += '<div class="text-muted small">' + getDevicesForType(name) + '</div>'
         }
         $("#editor-form").append(html + "<hr>")
 
@@ -166,7 +167,17 @@ function generatePresetString() {
       }
     })
   }
+}
 
+function getDevicesForType(device_type) {
+  html = ""
+  for (var i = 0; i < stateJSON["type"].length; i++) {
+    if (stateJSON["type"][i].toLowerCase() == device_type) {
+      html += "<span>" + i.toString() + " - " + stateJSON["name"][i] + "&nbsp;&nbsp;&nbsp;&nbsp;</span>"
+    }
+  }
+
+  return html
 }
 
 </script>

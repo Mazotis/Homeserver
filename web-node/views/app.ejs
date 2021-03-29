@@ -1,9 +1,9 @@
 var lastupdate = 0
-var xhr
+let controller = new AbortController();
 var xhrAbortable = false
 var modulesToRefresh = new Array()
 var dmconfig
-var oldstateJSON, stateJSON, presets
+var oldstateJSON, presets
 var pendingRequests = 0
 var hasToggledMode = false
 var shownMenu = false
@@ -40,27 +40,32 @@ function findAllElements(arr, propName, propValue) {
 
 // WEBSERVER - CLIENTSIDE
 socket.on('push_state', function(msg) {
-    console.log("Got new PUSH update from homeserver")
-    oldstateJSON = stateJSON
-    stateJSON = msg
+    var d = new Date();
+    console.log("Got new PUSH update from homeserver at " + d.getHours() + ":" + d.getMinutes())
+    stateJSON = oldstateJSON
+    stateJSON.state = JSON.parse(decodeURIComponent(msg)).state
     if (stateJSON.sunrise != false && stateJSON.sunset != false) {
-        drawTimeBar();
+        drawTimeBar(stateJSON);
     }
     lastupdate = new Date()
     var i;
     for (i = 0; i < modulesToRefresh.length; i++) { 
         getContent(modulesToRefresh[i]);
     }
-    computeCards()
+    computeCards(stateJSON)
 });
 
 socket.on('disconnect', () => {
+    var d = new Date();
+    console.log("Disconnected at " + d.getHours() + ":" + d.getMinutes())
   $("#connection-error-location").html('<div class="alert alert-danger alert-link" role="alert">The server is disconnected or is not responding...</div>')
 });
 
 socket.on('connect', () => {
-  $("#connection-error-location").html("")
-  getResultRefresh();
+    var d = new Date();
+    console.log("Connected at " + d.getHours() + ":" + d.getMinutes())
+    $("#connection-error-location").html("")
+    getResultRefresh();
 });
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -131,30 +136,39 @@ async function post_webserver(data, callback, post_location='./query') {
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
         },
-        body: Object.entries(initial_data).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&")
+        body: Object.entries(initial_data).map(([key, value]) => `${key}=${encodeURIComponent(value)}`).join("&"),
+        signal: controller.signal
     };
 
     const urlParams = new URLSearchParams(options.body);
     const responseType = urlParams.get("return_type")
 
-    if (responseType == "text/html") {
-        const response = await fetch(post_location, options
-        ).then(data => data.text()
-        ).then(response => {
-            callback(response);
-        }).catch(error => {
-            console.log(error);
-            enableElement(".dcard")
-        });
-    } else {
-        const response = await fetch(post_location, options
-        ).then(data => data.json()
-        ).then(response => {
-            callback(response);
-        }).catch(error => {
-            console.log(error);
-            enableElement(".dcard")
-        });        
+    try {
+        if (responseType == "text/html") {
+            const response = await fetch(post_location, options
+            ).then(data => data.text()
+            ).then(response => {
+                callback(response);
+            }).catch(error => {
+                console.log(error);
+                enableElement(".dcard")
+            });
+        } else {
+            const response = await fetch(post_location, options
+            ).then(data => data.json()
+            ).then(response => {
+                callback(response);
+            }).catch(error => {
+                console.log(error);
+                enableElement(".dcard")
+            });        
+        }
+    } catch(err) {
+        if (err.name == 'AbortError') {
+            console.log("Update request was aborted by another request")
+        } else {
+            throw err;
+        }
     }
 }
 
@@ -190,7 +204,7 @@ function disableElement(element) {
     })
 }
 
-function drawTimeBar() {
+function drawTimeBar(stateJSON) {
     const maxTime = 1440
 
     //Convert hours to 0-1 value, with longer daytime correction
@@ -283,7 +297,8 @@ function drawTimeBar() {
 
 function abortPendingRequests() {
     if (xhrAbortable) {
-        xhr.abort()
+        controller.abort()
+        controller = new AbortController();
     }
     hideLoading()
 }
@@ -300,7 +315,7 @@ async function getResult() {
     await post_webserver(req_data, (data) => {
         stateJSON = JSON.parse(decodeURIComponent(data))
         if (stateJSON.sunrise != false && stateJSON.sunset != false) {
-            drawTimeBar();
+            drawTimeBar(stateJSON);
         } else {
             $("#time-bar").hide()
             $("#btn-bar").css("width", "100%")
@@ -311,14 +326,14 @@ async function getResult() {
 
         let ghtml = '<div class="row row-cols-2 row-cols-sm-3 row-cols-lg-6 gcard-columns">'
         for (group in stateJSON.groups) {
-            ghtml += generateCardForGroup(group, cnt)
+            ghtml += generateCardForGroup(group, cnt, stateJSON)
             cnt = cnt + 1
         }
         ghtml += '</div>'
         $("#groups").html(ghtml)
 
         cnt = 0
-        var html = '<div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3">'
+        var html = '<div class="row row-cols-1 row-cols-md-2 row-cols-xl-3">'
         for (_ in stateJSON.state) {
             html += '<div id="dcard' + cnt + '" class="col g-3"></div>'
             cnt = cnt + 1
@@ -372,7 +387,7 @@ async function getResult() {
         }
 
         $("#resultid").html(html)
-        computeCards()
+        computeCards(stateJSON)
         hideLoading()
     })
 
@@ -415,20 +430,18 @@ async function getResultRefresh() {
         isasync: "False"
     };
 
-    //TODO Check if this is abortable
     xhr = await post_webserver(req_data, (data) => {
         xhrAbortable = false
-        oldstateJSON = stateJSON
         stateJSON = JSON.parse(decodeURIComponent(data))
         if (stateJSON.sunrise != false && stateJSON.sunset != false) {
-            drawTimeBar();
+            drawTimeBar(stateJSON);
         }
         lastupdate = new Date()
         var i;
         for (i = 0; i < modulesToRefresh.length; i++) { 
             getContent(modulesToRefresh[i]);
         }
-        computeCards()
+        computeCards(stateJSON)
         hideLoading()
     })  
 }
@@ -445,10 +458,9 @@ function getDeviceResult(devid) {
             $(this).attr("needsync", "0")
         });
         pendingRequests--
-        oldstateJSON = stateJSON
         stateJSON = JSON.parse(decodeURIComponent(data))
         lastupdate = new Date()
-        computeCards()
+        computeCards(stateJSON)
     })
 }
 
@@ -460,11 +472,10 @@ function getAllResults() {
 
     post_webserver(req_data, (data) => {
         pendingRequests--
-        oldstateJSON = stateJSON
         stateJSON = JSON.parse(decodeURIComponent(data))
         //console.log(stateJSON)
         lastupdate = new Date()
-        computeCards()
+        computeCards(stateJSON)
     })
 }
 
@@ -515,7 +526,7 @@ function jsonEqual(a,b) {
     return jsonequals;
 }
 
-function generateCardForGroup(group, position) {
+function generateCardForGroup(group, position, stateJSON) {
     let skip_group = false
     let html = ""
     if (stateJSON.roomgroups != "") {
@@ -555,7 +566,7 @@ function generateRoomForGroup(room) {
         <div class="card h-100 rcard noselect-nooverflow" id="rcard-${room.replace(/\s/g, '')}">
             <h4 class="card-header title-header bg-danger text-white" style="font-weight:bold;">${title}</h4>
             <div class="card-body" style="display:none;">
-                <div class="row row-cols-1 row-cols-sm-2 row-cols-xl-3 rcards g-2">
+                <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 rcards g-2">
                 </div>
             </div>
             <h5 class="card-header bg-danger d-count text-white title-footer">
@@ -595,7 +606,7 @@ function generateCardForPreset(preset, position) {
 </div>`
 }
 
-function generateCardForId(device_id) {
+function generateCardForId(device_id, stateJSON) {
     let cardJSON = getJSONForId(device_id, stateJSON)
 
     let cardhtml = $(`
@@ -613,14 +624,14 @@ function generateCardForId(device_id) {
               <li class="nav-item">
                 <a class="nav-link settings-nav" style="color:white;" onclick="getConfigDevice(${device_id})" title="<%=gt.gettext("Device configuration")%>"><i class="fas fa-cog fa-lg"></i></a>
               </li>
-              <div class="d-none d-sm-block" style="flex-grow:100;font-weight:bold;line-height:38px;font-size:20px;padding-left:5px;"><div style="overflow:hidden;text-overflow:ellipsis;max-width:160px;float:left;">${cardJSON.name}</div><i class="iconi" style="float:right;line-height:34px;"></i></div>
+              <div class="d-none d-sm-block" style="flex-grow:100;font-weight:bold;line-height:38px;font-size:20px;padding-left:5px;max-width:calc(55% - 10px);"><div class="dev-title">${cardJSON.name}</div><i class="iconi" style="position:absolute;right:10px;top:10px;line-height:34px;"></i></div>
             </ul>
         </div>
         <div class="card-body " style="min-height:140px;">
             <div class="control-body">
                 <h5 class="card-title " style="font-weight:bold;margin-top:0.75rem; margin-bottom:0;"><span class="failure-error" style="color:#F06060;"><i class="fas fa-exclamation-triangle"></i>&nbsp;</span><span class="d-block d-sm-none">${cardJSON.name}</span></h5>
                 <p class="card-text mb-0">${cardJSON.description}</p>
-                <small class="text-muted ">${cardJSON.type}</small>
+                <small class="text-muted ">(${device_id}) ${cardJSON.type}</small>
                 <div class="controls-div">
                     <div class="mb-1">
                         <center>
@@ -785,15 +796,19 @@ function generateBlankPreset() {
 </div>`    
 }
 
-function computeCards() {
+function computeCards(stateJSON) {
     enableElement(".card")
+    console.log("Computing cards with states " + stateJSON.state)
+    if (oldstateJSON != undefined) {
+        console.log("Got old states " + oldstateJSON.state + "\n")
+    }
 
     let cnt = 0
     for (_ in stateJSON.state) {
         if (!jsonEqual(getJSONForId(cnt, stateJSON),getJSONForId(cnt, oldstateJSON)) || $(".dcard[cid='" + cnt + "']").attr("needsredraw") == "1") {
             $(".dcard[cid='" + cnt + "']").remove()
             if ($(".dcard[cid='" + cnt + "']").attr("needsync") != "1") {
-                $("#dcard" + cnt).html(generateCardForId(cnt))
+                $("#dcard" + cnt).html(generateCardForId(cnt, stateJSON))
             }
         }
         cnt = cnt + 1
@@ -928,6 +943,7 @@ function computeCards() {
                     $(this).find(".dcard-toggle").bootstrapToggle('on', false)
                 }
             }
+
             $(this).find(".dcard-toggle").change(function() {
                 $(this).attr("needsync", "1")
                 sendPowerRequest(cid, this.checked ? 1 : 0)
@@ -948,11 +964,11 @@ function computeCards() {
         if (cinit != "1") {
             $(this).find(".gcard-toggle-on").on('click', function() {
                 $(this).prop('disabled', true)
-                sendGroupPowerRequest(group, 1, cid)
+                sendGroupPowerRequest(cgroup, 1, cid)
             })
             $(this).find(".gcard-toggle-off").on('click', function() {
                 $(this).prop('disabled', true)
-                sendGroupPowerRequest(group, 0, cid)
+                sendGroupPowerRequest(cgroup, 0, cid)
             })
         }
 
@@ -979,6 +995,7 @@ function computeCards() {
     })
 
     enableCardTabs()
+    oldstateJSON = stateJSON
 }
 
 var hasOpenRcard = false
@@ -1092,7 +1109,6 @@ function sendPowerRequest(devid, value, is_intensity=0) {
     };
 
     post_webserver(req_data, (data) => {
-        getDeviceResult(devid);
     });
 }
 
