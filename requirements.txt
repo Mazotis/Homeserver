@@ -30,6 +30,6 @@ six==1.15.0
 sniffio==1.2.0
 typing-extensions==3.7.4.3
 Unidecode==1.1.1
-urllib3==1.25.11
+urllib3==1.26.5
 yarl==1.6.2
 zipp==3.4.0
